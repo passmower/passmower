@@ -1,0 +1,60 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oidc-gateway
+  annotations:
+    kubernetes.io/ingress.class: shared
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    external-dns.alpha.kubernetes.io/target: traefik.codemowers.ee
+spec:
+  rules:
+    - host: gateway-gab7y.codemowers.ee
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: oidc-gateway
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - "*.codemowers.ee"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oidc-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: oidc-gateway
+  ports:
+    - protocol: TCP
+      port: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oidc-gateway
+  labels:
+    app: oidc-gateway
+spec:
+  selector:
+    matchLabels:
+      app: oidc-gateway
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: oidc-gateway
+    spec:
+      containers:
+        - name: oidc-gateway
+          image: oidc-gateway
+          ports:
+            - containerPort: 3000

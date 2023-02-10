@@ -1,0 +1,26 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+build:
+  artifacts:
+    - image: oidc-gateway
+
+manifests:
+  rawYaml:
+    - deployment.yaml
+
+profiles:
+  - name: dev
+    activation:
+      - command: dev
+    build:
+      artifacts:
+        - image: oidc-gateway
+          docker:
+            target: dev
+          sync:
+            manual:
+              - src: 'src/**'
+                dest: .
+    deploy:
+      kubectl: {}
+
