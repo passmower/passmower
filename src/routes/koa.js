@@ -1,7 +1,6 @@
-1/* eslint-disable no-console, camelcase, no-unused-vars */
+/* eslint-disable no-console, camelcase, no-unused-vars */
 import { strict as assert } from 'node:assert';
 import * as querystring from 'node:querystring';
-import * as crypto from 'node:crypto';
 import { inspect } from 'node:util';
 
 import isEmpty from 'lodash/isEmpty.js';
@@ -10,7 +9,8 @@ import Router from 'koa-router';
 
 import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your own, you'll need it anyway
 import Account from '../support/account.js';
-import { errors } from 'oidc-provider'; // from 'oidc-provider';
+import { errors } from 'oidc-provider';
+import GithubLogin from "../implementation/github-login.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -56,7 +56,6 @@ export default (provider) => {
                     details: prompt.details,
                     params,
                     title: 'Sign-in',
-                    google: ctx.google,
                     session: session ? debug(session) : undefined,
                     dbg: {
                         params: debug(params),
@@ -87,9 +86,9 @@ export default (provider) => {
         text: false, json: false, patchNode: true, patchKoa: true,
     });
 
-    router.get('/interaction/callback/google', (ctx) => {
+    router.get('/interaction/callback/gh', (ctx) => {
         const nonce = ctx.res.locals.cspNonce;
-        return ctx.render('repost', { layout: false, upstream: 'google', nonce });
+        return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
     });
 
     router.post('/interaction/:uid/login', body, async (ctx) => {
@@ -113,43 +112,9 @@ export default (provider) => {
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
 
-        const path = `/interaction/${ctx.params.uid}/federated`;
-
         switch (ctx.request.body.upstream) {
-            case 'google': {
-                const callbackParams = ctx.google.callbackParams(ctx.req);
-
-                // init
-                if (!Object.keys(callbackParams).length) {
-                    const state = `${ctx.params.uid}|${crypto.randomBytes(32).toString('hex')}`;
-                    const nonce = crypto.randomBytes(32).toString('hex');
-
-                    ctx.cookies.set('google.state', state, { path, sameSite: 'strict' });
-                    ctx.cookies.set('google.nonce', nonce, { path, sameSite: 'strict' });
-
-                    ctx.status = 303;
-                    return ctx.redirect(ctx.google.authorizationUrl({
-                        state, nonce, scope: 'openid email profile',
-                    }));
-                }
-
-                // callback
-                const state = ctx.cookies.get('google.state');
-                ctx.cookies.set('google.state', null, { path });
-                const nonce = ctx.cookies.get('google.nonce');
-                ctx.cookies.set('google.nonce', null, { path });
-
-                const tokenset = await ctx.google.callback(undefined, callbackParams, { state, nonce, response_type: 'id_token' });
-                const account = await Account.findByFederated('google', tokenset.claims());
-
-                const result = {
-                    login: {
-                        accountId: account.accountId,
-                    },
-                };
-                return provider.interactionFinished(ctx.req, ctx.res, result, {
-                    mergeWithLastSubmission: false,
-                });
+            case 'gh': {
+                return await GithubLogin(ctx, provider)
             }
             default:
                 return undefined;

@@ -58,3 +58,16 @@ spec:
           image: oidc-gateway
           ports:
             - containerPort: 3000
+          env:
+            - name: ISSUER
+              value: 'https://gateway-gab7y.codemowers.ee/'
+            - name: GH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: github-client
+                  key: id
+            - name: GH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-client
+                  key: secret
