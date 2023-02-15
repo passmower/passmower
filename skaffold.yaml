@@ -24,3 +24,8 @@ profiles:
     deploy:
       kubectl: {}
 
+portForward:
+  - resourceType: deployment
+    resourceName: oidc-gateway
+    port: 9229
+    localPort: 9229
