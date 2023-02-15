@@ -1,4 +1,4 @@
-FROM node AS dev
+FROM node:lts AS dev
 
 # define /app as working directory
 WORKDIR /app
