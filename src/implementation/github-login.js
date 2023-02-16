@@ -47,7 +47,7 @@ export default async (ctx, provider) => {
 
 
     const account = await Account.findByFederated(ctx, 'gh', {
-        sub: user.login,
+        sub: user.login.toLowerCase(),
         emails: emails, // TODO: handle emails
         name: user.name,
         company: user.company,
