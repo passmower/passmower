@@ -15,7 +15,7 @@ configuration.findAccount = Account.findAccount;
 let server;
 
 try {
-    const provider = setupProvider()
+    const provider = await setupProvider()
     render(provider.app, {
         cache: false,
         viewExt: 'ejs',

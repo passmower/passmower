@@ -71,3 +71,6 @@ spec:
                 secretKeyRef:
                   name: github-client
                   key: secret
+          envFrom:
+            - secretRef:
+                name: redis-oidc-gateway-owner-secrets

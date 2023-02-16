@@ -1,0 +1,95 @@
+---
+apiVersion: codemowers.io/v1alpha1
+kind: Redis
+metadata:
+  name: oidc-gateway
+spec:
+  capacity: 1Gi
+  class: ephemeral
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-commander
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app: redis-commander
+  template:
+    metadata:
+      labels:
+        app: redis-commander
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+      containers:
+        - name: redis-commander
+          image: rediscommander/redis-commander:redis-commander-210
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+          ports:
+            - name: nodejs
+              containerPort: 8081
+          env:
+            - name: REDIS_DB
+              value: "0"
+            - name: USE_SCAN
+              value: "true"
+            - name: READ_ONLY
+              value: "false"
+            - name: NOSAVE
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: redis-oidc-gateway-owner-secrets
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redis-commander
+  annotations:
+    kubernetes.io/ingress.class: shared
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    external-dns.alpha.kubernetes.io/target: traefik.codemowers.ee
+spec:
+  rules:
+    - host: redis-commander-gab7y.codemowers.ee
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: redis-commander
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - "*.codemowers.ee"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-commander
+  labels:
+    app: redis-commander
+spec:
+  selector:
+    app: redis-commander
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: nodejs
+      name: http

@@ -4,8 +4,11 @@ import crypto from "node:crypto";
 import helmet from "helmet";
 import {promisify} from "node:util";
 
-export default () => {
+export default async () => {
     let adapter;
+    if (process.env.REDIS_URI) {
+        ({ default: adapter } = await import('../adapters/redis.js'));
+    }
     const provider = new Provider(process.env.ISSUER, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
