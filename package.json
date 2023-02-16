@@ -9,6 +9,7 @@
   "type": "module",
   "dependencies": {
     "@koa/ejs": "^5.0.0",
+    "@kubernetes/client-node": "^0.18.1",
     "desm": "^1.3.0",
     "helmet": "^6.0.1",
     "ioredis": "^4.28.5",

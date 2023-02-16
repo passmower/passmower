@@ -53,6 +53,7 @@ spec:
       labels:
         app: oidc-gateway
     spec:
+      serviceAccountName: oidc-gateway
       containers:
         - name: oidc-gateway
           image: oidc-gateway

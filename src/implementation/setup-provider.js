@@ -3,6 +3,7 @@ import configuration from "../support/configuration.js";
 import crypto from "node:crypto";
 import helmet from "helmet";
 import {promisify} from "node:util";
+import {KubeApiService} from "./kube-api-service.js";
 
 export default async () => {
     let adapter;
@@ -19,6 +20,11 @@ export default async () => {
         ctx.res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
         await pHelmet(ctx.req, ctx.res);
         ctx.req.secure = origSecure;
+        return next();
+    });
+
+    provider.use(async (ctx, next) => {
+        ctx.kubeApiService = new KubeApiService()
         return next();
     });
 

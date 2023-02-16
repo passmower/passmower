@@ -18,12 +18,15 @@ export default async (ctx, provider) => {
         ctx.status = 302;
         return ctx.redirect(ghOauth.getAuthorizeUrl({
             redirect_uri: `${process.env.ISSUER}interaction/callback/gh`,
+            scope: ['user:email'],
             state,
         }));
     }
 
     const token = await new Promise(resolve => {
-        ghOauth.getOAuthAccessToken(callbackParams.code, {'redirect_uri': `${process.env.ISSUER}interaction/callback/gh`}, (e, access_token, refresh_token, results) => {
+        ghOauth.getOAuthAccessToken(callbackParams.code, {
+            'redirect_uri': `${process.env.ISSUER}interaction/callback/gh`,
+        }, (e, access_token, refresh_token, results) => {
             resolve(access_token)
         });
     });
@@ -35,8 +38,20 @@ export default async (ctx, provider) => {
         },
     }).then((r) => r.json());
 
-    const account = await Account.findByFederated('gh', {
-        sub: user.id
+    const emails = await fetch('https://api.github.com/user/emails', {
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+    }).then((r) => r.json());
+
+
+    const account = await Account.findByFederated(ctx, 'gh', {
+        sub: user.login,
+        emails: emails, // TODO: handle emails
+        name: user.name,
+        company: user.company,
+        githubId: user.id,
     });
 
     const result = {
