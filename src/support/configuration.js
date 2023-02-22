@@ -29,6 +29,17 @@ export default {
         deviceFlow: { enabled: true }, // defaults to false
         revocation: { enabled: true }, // defaults to false
     },
+    loadExistingGrant: async (ctx) => {
+        const accountId = ctx.oidc.entities.Account.accountId
+        const clientId = ctx.oidc.entities.Client.clientId
+        const grant = new ctx.oidc.provider.Grant({
+            accountId,
+            clientId: clientId,
+        });
+        grant.addOIDCScope('openid')
+        // TODO: manage the grant according to upstream, if needed.
+        return grant
+    },
     jwks: {
         keys: [
             {

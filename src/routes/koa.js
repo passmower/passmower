@@ -121,50 +121,50 @@ export default (provider) => {
         }
     });
 
-    router.post('/interaction/:uid/confirm', body, async (ctx) => {
-        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
-        const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
-        assert.equal(name, 'consent');
-
-        let { grantId } = interactionDetails;
-        let grant;
-
-        if (grantId) {
-            // we'll be modifying existing grant in existing session
-            grant = await provider.Grant.find(grantId);
-        } else {
-            // we're establishing a new grant
-            grant = new provider.Grant({
-                accountId,
-                clientId: params.client_id,
-            });
-        }
-
-        if (details.missingOIDCScope) {
-            grant.addOIDCScope(details.missingOIDCScope.join(' '));
-        }
-        if (details.missingOIDCClaims) {
-            grant.addOIDCClaims(details.missingOIDCClaims);
-        }
-        if (details.missingResourceScopes) {
-            for (const [indicator, scope] of Object.entries(details.missingResourceScopes)) {
-                grant.addResourceScope(indicator, scope.join(' '));
-            }
-        }
-
-        grantId = await grant.save();
-
-        const consent = {};
-        if (!interactionDetails.grantId) {
-            // we don't have to pass grantId to consent, we're just modifying existing one
-            consent.grantId = grantId;
-        }
-
-        const result = { consent };
-        return provider.interactionFinished(ctx.req, ctx.res, result, {
-            mergeWithLastSubmission: true,
-        });
-    });
+    // router.post('/interaction/:uid/confirm', body, async (ctx) => {
+    //     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+    //     const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
+    //     assert.equal(name, 'consent');
+    //
+    //     let { grantId } = interactionDetails;
+    //     let grant;
+    //
+    //     if (grantId) {
+    //         // we'll be modifying existing grant in existing session
+    //         grant = await provider.Grant.find(grantId);
+    //     } else {
+    //         // we're establishing a new grant
+    //         grant = new provider.Grant({
+    //             accountId,
+    //             clientId: params.client_id,
+    //         });
+    //     }
+    //
+    //     if (details.missingOIDCScope) {
+    //         grant.addOIDCScope(details.missingOIDCScope.join(' '));
+    //     }
+    //     if (details.missingOIDCClaims) {
+    //         grant.addOIDCClaims(details.missingOIDCClaims);
+    //     }
+    //     if (details.missingResourceScopes) {
+    //         for (const [indicator, scope] of Object.entries(details.missingResourceScopes)) {
+    //             grant.addResourceScope(indicator, scope.join(' '));
+    //         }
+    //     }
+    //
+    //     grantId = await grant.save();
+    //
+    //     const consent = {};
+    //     if (!interactionDetails.grantId) {
+    //         // we don't have to pass grantId to consent, we're just modifying existing one
+    //         consent.grantId = grantId;
+    //     }
+    //
+    //     const result = { consent };
+    //     return provider.interactionFinished(ctx.req, ctx.res, result, {
+    //         mergeWithLastSubmission: true,
+    //     });
+    // });
 
     router.get('/interaction/:uid/abort', async (ctx) => {
         const result = {
