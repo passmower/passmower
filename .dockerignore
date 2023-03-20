@@ -1,5 +1,5 @@
 .kpt-pipeline/
-charts/
+kube/
 skaffold.yaml
 README.md
 .git/
