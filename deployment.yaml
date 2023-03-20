@@ -62,6 +62,12 @@ spec:
           env:
             - name: ISSUER
               value: 'https://gateway-gab7y.codemowers.ee/'
+            - name: KUBE_CLUSTER_NAME
+              value: 'codemowers'
+            - name: KUBE_CLUSTER_URL
+              value: 'https://kube.codemowers.eu'
+            - name: KUBE_NAMESPACE
+              value: 'veebkolm-gab7y'
             - name: GH_CLIENT_ID
               valueFrom:
                 secretKeyRef:

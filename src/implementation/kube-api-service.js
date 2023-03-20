@@ -10,24 +10,24 @@ export class KubeApiService {
         const kc = new k8s.KubeConfig();
         kc.loadFromOptions({
             clusters: [{
-                name: 'codemowers',
-                server: 'https://kube.codemowers.eu',
+                name: process.env.KUBE_CLUSTER_NAME,
+                server: process.env.KUBE_CLUSTER_URL,
             }],
             users: [{
-                name: 'oidc-gateway',
+                name: process.env.KUBE_CLUSTER_NAME,
                 token: readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token').toString(),
             }],
             contexts: [{
-                name: 'codemowers',
-                user: 'oidc-gateway',
-                cluster: 'codemowers',
+                name: process.env.KUBE_CLUSTER_NAME,
+                user: process.env.KUBE_CLUSTER_NAME,
+                cluster: process.env.KUBE_CLUSTER_NAME,
             }],
-            currentContext: 'codemowers',
+            currentContext: process.env.KUBE_CLUSTER_NAME,
         });
         this.k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.group = "codemowers.io";
         this.version = "v1alpha1";
-        this.namespace = 'veebkolm-gab7y';
+        this.namespace = process.env.KUBE_NAMESPACE;
     }
 
     async getClients() {
