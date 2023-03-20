@@ -25,6 +25,8 @@ spec:
                 - profile
               type: object
               properties:
+                acceptedTos:
+                  type: boolean
                 profile:
                   required:
                     - sub

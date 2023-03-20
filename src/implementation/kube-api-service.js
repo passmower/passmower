@@ -72,14 +72,21 @@ export class KubeApiService {
         })
     }
 
-    async updateUser(id, profile) {
-        const patches = Object.keys(profile).map((k) => {
+    async updateUser(id, profile, tos) {
+        let patches = Object.keys(profile).map((k) => {
             return {
                 "op": "replace",
                 "path":"/spec/profile/" + k,
                 "value": profile[k]
             }
         })
+        if (typeof tos !== 'undefined') {
+            patches.push({
+                "op": "replace",
+                "path":"/spec/acceptedTos",
+                "value": tos
+            })
+        }
 
         return await this.k8sApi.patchNamespacedCustomObject(
             this.group,

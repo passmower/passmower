@@ -2,6 +2,7 @@ class Account {
     constructor(apiResponse) {
         this.accountId = apiResponse.metadata.name;
         this.profile = apiResponse.spec.profile;
+        this.acceptedTos = apiResponse.spec.acceptedTos
     }
 
     /**

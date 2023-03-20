@@ -1,0 +1,20 @@
+<div class="login-client-image">
+  <% if (client.logoUri) { %><img src="<%= client.logoUri %>"><% } %>
+</div>
+
+<div class="terms-of-service">
+    Consectetur sit enim qui consequatur. Impedit et voluptatem numquam accusamus sed. Molestiae assumenda voluptas explicabo sed. Quis ut harum accusantium cum quod et. Similique nesciunt aut voluptatem voluptatem architecto debitis aut quia.
+</div>
+
+<form autocomplete="off" action="/interaction/<%= uid %>/confirm-tos" method="post">
+  <button autofocus type="submit" class="login login-submit">Continue</button>
+</form>
+
+<style>
+    .terms-of-service {
+        width: 100%;
+        height: 100px;
+        overflow-y: scroll;
+        margin-bottom: 30px;
+    }
+</style>

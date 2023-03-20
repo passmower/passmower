@@ -4,12 +4,15 @@ import crypto from "node:crypto";
 import helmet from "helmet";
 import {promisify} from "node:util";
 import {KubeApiService} from "./kube-api-service.js";
+import setupPolicies from "./setup-policies.js";
 
 export default async () => {
     let adapter;
     if (process.env.REDIS_URI) {
         ({ default: adapter } = await import('../adapters/redis.js'));
     }
+    const kubeApiService = new KubeApiService()
+    configuration.interactions.policy = setupPolicies(kubeApiService)
     const provider = new Provider(process.env.ISSUER, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
@@ -24,7 +27,7 @@ export default async () => {
     });
 
     provider.use(async (ctx, next) => {
-        ctx.kubeApiService = new KubeApiService()
+        ctx.kubeApiService = kubeApiService
         return next();
     });
 

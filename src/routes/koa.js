@@ -77,6 +77,20 @@ export default (provider) => {
                     },
                 });
             }
+            case 'tos': {
+                return ctx.render('tos', {
+                    client,
+                    uid,
+                    details: prompt.details,
+                    params,
+                    title: 'Terms of Service',
+                    session: session ? debug(session) : undefined,
+                    dbg: {
+                        params: debug(params),
+                        prompt: debug(prompt),
+                    },
+                });
+            }
             default:
                 return next();
         }
@@ -119,6 +133,16 @@ export default (provider) => {
             default:
                 return undefined;
         }
+    });
+
+    router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
+        assert.equal(name, 'tos');
+        await ctx.kubeApiService.updateUser(accountId, {}, true)
+        return provider.interactionFinished(ctx.req, ctx.res, {}, {
+            mergeWithLastSubmission: true,
+        });
     });
 
     // router.post('/interaction/:uid/confirm', body, async (ctx) => {
