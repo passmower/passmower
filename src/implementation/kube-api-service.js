@@ -2,6 +2,9 @@ import {readFileSync} from "fs";
 import * as k8s from "@kubernetes/client-node";
 import Account from "../support/account.js";
 
+const OIDCGWUsers = 'oidcgatewayusers';
+const OIDCGWClients = 'oidcgatewayclients';
+
 export class KubeApiService {
     constructor() {
         const kc = new k8s.KubeConfig();
@@ -24,8 +27,20 @@ export class KubeApiService {
         this.k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.group = "codemowers.io";
         this.version = "v1alpha1";
-        this.plural = "oidcgatewayusers";
         this.namespace = 'veebkolm-gab7y';
+    }
+
+    async getClients() {
+        return await this.k8sApi.listNamespacedCustomObject(
+            this.group,
+            this.version,
+            this.namespace,
+            OIDCGWClients
+        ).then((r) => {
+            return r.body.items.map((c) => {
+                return c.spec
+            })
+        })
     }
 
     async findUser(id) {
@@ -33,7 +48,7 @@ export class KubeApiService {
             this.group,
             this.version,
             this.namespace,
-            this.plural,
+            OIDCGWUsers,
             id
         ).then((r) => {
             return new Account(r.body)
@@ -50,7 +65,7 @@ export class KubeApiService {
             this.group,
             this.version,
             this.namespace,
-            this.plural,
+            OIDCGWUsers,
             {
                 'apiVersion': 'codemowers.io/v1alpha1',
                 'kind': 'OIDCGWUser',
@@ -92,7 +107,7 @@ export class KubeApiService {
             this.group,
             this.version,
             this.namespace,
-            this.plural,
+            OIDCGWUsers,
             id,
             patches,
             undefined,

@@ -1,13 +1,4 @@
 export default {
-    clients: [
-        {
-          client_id: 'foo',
-          client_secret: 'bar',
-          grant_types: ["implicit",'refresh_token', 'authorization_code'],
-          response_types: ['id_token'],
-          redirect_uris: ['https://client-gab7y.codemowers.ee/cb'],
-        }
-    ],
     interactions: {
         url(ctx, interaction) { // eslint-disable-line no-unused-vars
             return `/interaction/${interaction.uid}`;

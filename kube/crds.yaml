@@ -45,6 +45,53 @@ spec:
                     githubId:
                       type: integer
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oidcgatewayclients.codemowers.io
+spec:
+  group: codemowers.io
+  names:
+    plural: oidcgatewayclients
+    singular: oidcgatewayclient
+    kind: OIDCGWClient
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          required:
+            - spec
+          type: object
+          properties:
+            spec:
+              required:
+                - client_id
+                - client_secret
+                - grant_types
+                - response_types
+                - redirect_uris
+              type: object
+              properties:
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+                grant_types:
+                  type: array
+                  items:
+                    type: string
+                response_types:
+                  type: array
+                  items:
+                    type: string
+                redirect_uris:
+                  type: array
+                  items:
+                    type: string
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -59,6 +106,7 @@ rules:
       - codemowers.io
     resources:
       - oidcgatewayusers
+      - oidcgatewayclients
     verbs:
       - get
       - list
