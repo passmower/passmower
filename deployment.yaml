@@ -75,3 +75,5 @@ spec:
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets
+            - secretRef:
+                name: oidc-jwks

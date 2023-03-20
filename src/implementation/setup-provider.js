@@ -14,6 +14,7 @@ export default async () => {
     const kubeApiService = new KubeApiService()
     configuration.interactions.policy = setupPolicies(kubeApiService)
     configuration.clients = await kubeApiService.getClients()
+    configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
     const provider = new Provider(process.env.ISSUER, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
