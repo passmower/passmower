@@ -23,10 +23,15 @@ spec:
             spec:
               required:
                 - profile
+                - groups
               type: object
               properties:
                 acceptedTos:
                   type: integer
+                groups:
+                  type: array
+                  items:
+                    type: string
                 profile:
                   required:
                     - sub

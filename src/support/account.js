@@ -3,6 +3,7 @@ class Account {
         this.accountId = apiResponse.metadata.name;
         this.profile = apiResponse.spec.profile;
         this.acceptedTos = apiResponse.spec.acceptedTos
+        this.groups = apiResponse.spec.groups
     }
 
     /**
@@ -17,6 +18,7 @@ class Account {
         if (this.profile) {
             return {
                 sub: this.accountId, // it is essential to always return a sub claim
+                groups: this.groups,
                 emails: this.profile.emails,
                 name: this.profile.name,
                 company: this.profile.company,
@@ -25,22 +27,24 @@ class Account {
         }
         return {
             sub: this.accountId, // it is essential to always return a sub claim
+            groups: this.groups
         };
     }
 
     static async findByFederated(ctx, provider, claims) {
         console.log(claims)
         if (!await ctx.kubeApiService.findUser(claims.sub)) {
-            return await ctx.kubeApiService.createUser(claims.sub, claims)
+            return await ctx.kubeApiService.createUser(claims.sub, claims, [])
         }
-        return await ctx.kubeApiService.updateUser(claims.sub, claims);
+        return await ctx.kubeApiService.updateUser(claims.sub, claims, undefined, []);
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-         return await ctx.kubeApiService.findUser(id)
+        const account = await ctx.kubeApiService.findUser(id)
+        return account ? account : null
     }
 }
 
