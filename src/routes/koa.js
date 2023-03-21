@@ -139,7 +139,7 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
-        await ctx.kubeApiService.updateUser(accountId, {}, true)
+        await ctx.kubeApiService.updateUser(accountId, {}, Date.now())
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

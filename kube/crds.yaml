@@ -26,7 +26,7 @@ spec:
               type: object
               properties:
                 acceptedTos:
-                  type: boolean
+                  type: integer
                 profile:
                   required:
                     - sub
