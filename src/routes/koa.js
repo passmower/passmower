@@ -100,11 +100,6 @@ export default (provider) => {
         text: false, json: false, patchNode: true, patchKoa: true,
     });
 
-    router.get('/interaction/callback/gh', (ctx) => {
-        const nonce = ctx.res.locals.cspNonce;
-        return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
-    });
-
     router.post('/interaction/:uid/login', body, async (ctx) => {
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
@@ -133,6 +128,11 @@ export default (provider) => {
             default:
                 return undefined;
         }
+    });
+
+    router.get('/interaction/callback/gh', (ctx) => {
+        const nonce = ctx.res.locals.cspNonce;
+        return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
     });
 
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
