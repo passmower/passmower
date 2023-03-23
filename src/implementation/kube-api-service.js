@@ -60,7 +60,7 @@ export class KubeApiService {
         })
     }
 
-    async createUser(id, profile, groups) {
+    async createUser(id, profile, emails, groups) {
         return await this.k8sApi.createNamespacedCustomObject(
             this.group,
             this.version,
@@ -75,6 +75,7 @@ export class KubeApiService {
                 'spec': {
                     'profile': profile,
                     'groups': groups,
+                    'emails': emails,
                 }
             }
         ).then((r) => {
@@ -88,7 +89,7 @@ export class KubeApiService {
         })
     }
 
-    async updateUser(id, profile, tos, groups) {
+    async updateUser(id, profile, emails, groups, tos) {
         let patches = Object.keys(profile).map((k) => {
             return {
                 "op": "replace",
@@ -104,10 +105,19 @@ export class KubeApiService {
             })
         }
         if (typeof groups !== 'undefined') {
+            // TODO: delete old groups
             patches.push({
                 "op": "replace",
                 "path":"/spec/groups",
                 "value": groups
+            })
+        }
+        if (typeof emails !== 'undefined') {
+            // TODO: delete old emails
+            patches.push({
+                "op": "replace",
+                "path":"/spec/emails",
+                "value": emails
             })
         }
 

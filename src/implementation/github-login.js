@@ -43,16 +43,19 @@ export default async (ctx, provider) => {
         headers: {
             'Authorization': `Bearer ${token}`
         },
-    }).then((r) => r.json());
+    }).then((r) => r.json()).then((r) => r.map((r) => r.email));
 
-
-    const account = await Account.findByFederated(ctx, 'gh', {
-        sub: user.login.toLowerCase(),
-        emails: emails, // TODO: handle emails
-        name: user.name,
-        company: user.company,
-        githubId: user.id,
-    });
+    const account = await Account.createOrUpdateByFederated(
+        ctx,
+        'gh',
+        user.login.toLowerCase(),
+        emails,
+        {
+            name: user.name,
+            company: user.company,
+            githubId: user.id,
+        }
+        );
 
     const result = {
         login: {

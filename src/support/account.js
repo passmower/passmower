@@ -4,6 +4,7 @@ class Account {
         this.profile = apiResponse.spec.profile;
         this.acceptedTos = apiResponse.spec.acceptedTos
         this.groups = apiResponse.spec.groups
+        this.emails = apiResponse.spec.emails
     }
 
     /**
@@ -31,12 +32,11 @@ class Account {
         };
     }
 
-    static async findByFederated(ctx, provider, claims) {
-        console.log(claims)
-        if (!await ctx.kubeApiService.findUser(claims.sub)) {
-            return await ctx.kubeApiService.createUser(claims.sub, claims, [])
+    static async createOrUpdateByFederated(ctx, provider, sub, emails, profile) {
+        if (!await ctx.kubeApiService.findUser(sub)) {
+            return await ctx.kubeApiService.createUser(sub, profile, emails, undefined)
         }
-        return await ctx.kubeApiService.updateUser(claims.sub, claims, undefined, []);
+        return await ctx.kubeApiService.updateUser(sub, profile, emails, undefined, undefined);
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars

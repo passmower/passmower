@@ -24,11 +24,16 @@ spec:
               required:
                 - profile
                 - groups
+                - emails
               type: object
               properties:
                 acceptedTos:
                   type: integer
                 groups:
+                  type: array
+                  items:
+                    type: string
+                emails:
                   type: array
                   items:
                     type: string
