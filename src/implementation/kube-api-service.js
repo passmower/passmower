@@ -2,8 +2,15 @@ import {readFileSync} from "fs";
 import * as k8s from "@kubernetes/client-node";
 import Account from "../support/account.js";
 
+const OIDCGWUser = 'OIDCGWUser';
 const OIDCGWUsers = 'oidcgatewayusers';
+const OIDCGWUserSpecProfileKey = 'profile';
+const OIDCGWUserSpecAcceptedTosKey = 'acceptedTos';
+const OIDCGWUserSpecGroupsKey = 'groups';
+const OIDCGWUserSpecEmailsKey = 'emails';
 const OIDCGWClients = 'oidcgatewayclients';
+const apiGroup = 'codemowers.io'
+const apiGroupVersion = 'v1alpha1'
 
 export class KubeApiService {
     constructor() {
@@ -25,15 +32,13 @@ export class KubeApiService {
             currentContext: process.env.KUBE_CLUSTER_NAME,
         });
         this.k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
-        this.group = "codemowers.io";
-        this.version = "v1alpha1";
         this.namespace = process.env.KUBE_NAMESPACE;
     }
 
     async getClients() {
         return await this.k8sApi.listNamespacedCustomObject(
-            this.group,
-            this.version,
+            apiGroup,
+            apiGroupVersion,
             this.namespace,
             OIDCGWClients
         ).then((r) => {
@@ -45,8 +50,8 @@ export class KubeApiService {
 
     async findUser(id) {
         return  await this.k8sApi.getNamespacedCustomObject(
-            this.group,
-            this.version,
+            apiGroup,
+            apiGroupVersion,
             this.namespace,
             OIDCGWUsers,
             id
@@ -62,13 +67,13 @@ export class KubeApiService {
 
     async createUser(id, profile, emails, groups) {
         return await this.k8sApi.createNamespacedCustomObject(
-            this.group,
-            this.version,
+            apiGroup,
+            apiGroupVersion,
             this.namespace,
             OIDCGWUsers,
             {
-                'apiVersion': 'codemowers.io/v1alpha1',
-                'kind': 'OIDCGWUser',
+                'apiVersion': apiGroup + '/' + apiGroupVersion,
+                'kind': OIDCGWUser,
                 'metadata': {
                     'name': id,
                 },
@@ -93,14 +98,14 @@ export class KubeApiService {
         let patches = Object.keys(profile).map((k) => {
             return {
                 "op": "replace",
-                "path":"/spec/profile/" + k,
+                "path":"/spec/" + OIDCGWUserSpecProfileKey + '/' + k,
                 "value": profile[k]
             }
         })
         if (typeof tos !== 'undefined') {
             patches.push({
                 "op": "replace",
-                "path":"/spec/acceptedTos",
+                "path":"/spec/" + OIDCGWUserSpecAcceptedTosKey,
                 "value": tos
             })
         }
@@ -108,7 +113,7 @@ export class KubeApiService {
             // TODO: delete old groups
             patches.push({
                 "op": "replace",
-                "path":"/spec/groups",
+                "path":"/spec/" + OIDCGWUserSpecGroupsKey,
                 "value": groups
             })
         }
@@ -116,14 +121,14 @@ export class KubeApiService {
             // TODO: delete old emails
             patches.push({
                 "op": "replace",
-                "path":"/spec/emails",
+                "path":"/spec/" + OIDCGWUserSpecEmailsKey,
                 "value": emails
             })
         }
 
         return await this.k8sApi.patchNamespacedCustomObject(
-            this.group,
-            this.version,
+            apiGroup,
+            apiGroupVersion,
             this.namespace,
             OIDCGWUsers,
             id,
