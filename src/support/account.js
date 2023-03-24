@@ -32,11 +32,12 @@ class Account {
         };
     }
 
-    static async createOrUpdateByFederated(ctx, provider, sub, emails, profile) {
-        if (!await ctx.kubeApiService.findUser(sub)) {
-            return await ctx.kubeApiService.createUser(sub, profile, emails, undefined)
+    static async createOrUpdateByEmails(ctx, sub, emails, profile) {
+        const user = await ctx.kubeApiService.findUserByEmails(emails)
+        if (!user) {
+             return await ctx.kubeApiService.createUser(sub, profile, emails, undefined)
         }
-        return await ctx.kubeApiService.updateUser(sub, profile, emails, undefined, undefined);
+        return await ctx.kubeApiService.updateUser(user.accountId, profile, emails, undefined, undefined);
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars

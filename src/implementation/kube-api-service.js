@@ -65,6 +65,29 @@ export class KubeApiService {
         })
     }
 
+    async findUserByEmails(emails) {
+        const emailsInKube = []
+        await this.k8sApi.listNamespacedCustomObject(
+            apiGroup,
+            apiGroupVersion,
+            this.namespace,
+            OIDCGWUsers
+        ).then((r) => {
+            r.body.items.map((f) => {
+                f.spec.emails.map((e) => {
+                    emailsInKube.push({
+                        email: e,
+                        user: f
+                    })
+                })
+            })
+        })
+        const foundUser = emailsInKube.find((element) => {
+            return emails.includes(element.email)
+        })
+        return foundUser ? new Account(foundUser.user) : null
+    }
+
     async createUser(id, profile, emails, groups) {
         return await this.k8sApi.createNamespacedCustomObject(
             apiGroup,

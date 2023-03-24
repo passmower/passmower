@@ -45,9 +45,8 @@ export default async (ctx, provider) => {
         },
     }).then((r) => r.json()).then((r) => r.map((r) => r.email));
 
-    const account = await Account.createOrUpdateByFederated(
+    const account = await Account.createOrUpdateByEmails(
         ctx,
-        'gh',
         user.login.toLowerCase(),
         emails,
         {
