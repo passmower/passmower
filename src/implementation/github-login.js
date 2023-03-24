@@ -47,9 +47,9 @@ export default async (ctx, provider) => {
 
     const account = await Account.createOrUpdateByEmails(
         ctx,
-        user.login.toLowerCase(),
         emails,
         {
+            sub: user.login.toLowerCase(),
             name: user.name,
             company: user.company,
             githubId: user.id,

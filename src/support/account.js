@@ -1,3 +1,5 @@
+import ShortUniqueId from "short-unique-id";
+
 class Account {
     constructor(apiResponse) {
         this.accountId = apiResponse.metadata.name;
@@ -32,10 +34,18 @@ class Account {
         };
     }
 
-    static async createOrUpdateByEmails(ctx, sub, emails, profile) {
+    static getUid()
+    {
+        const uid = new ShortUniqueId({
+            dictionary: 'alphanum_lower',
+        });
+        return uid.stamp(10);
+    }
+
+    static async createOrUpdateByEmails(ctx, emails, profile) {
         const user = await ctx.kubeApiService.findUserByEmails(emails)
         if (!user) {
-             return await ctx.kubeApiService.createUser(sub, profile, emails, undefined)
+            return await ctx.kubeApiService.createUser(this.getUid(), profile, emails, [])
         }
         return await ctx.kubeApiService.updateUser(user.accountId, profile, emails, undefined, undefined);
     }
