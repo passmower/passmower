@@ -10,9 +10,7 @@
 <div class="login-help">
   - or -
 </div>
-<form autocomplete="off" action="/interaction/<%= uid %>/login" method="post">
-  <input required type="text" name="login" placeholder="Enter any login" <% if (!params.login_hint) { %>autofocus="on"<% } else { %> value="<%= params.login_hint %>" <% } %>>
-  <input required type="password" name="password" placeholder="and password" <% if (params.login_hint) { %>autofocus="on"<% } %>>
-
-  <button type="submit" class="login login-submit">Sign-in</button>
+<form autocomplete="off" action="/interaction/<%= uid %>/email" method="post">
+  <input required type="text" name="email" placeholder="Enter email">
+  <button type="submit" class="login login-submit">Send link</button>
 </form>

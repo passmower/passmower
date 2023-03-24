@@ -11,6 +11,7 @@ import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your o
 import Account from '../support/account.js';
 import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
+import {EmailLogin} from "../implementation/email-login.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -100,23 +101,6 @@ export default (provider) => {
         text: false, json: false, patchNode: true, patchKoa: true,
     });
 
-    router.post('/interaction/:uid/login', body, async (ctx) => {
-        const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
-        assert.equal(name, 'login');
-
-        const account = await Account.findByLogin(ctx.request.body.login);
-
-        const result = {
-            login: {
-                accountId: account.accountId,
-            },
-        };
-
-        return provider.interactionFinished(ctx.req, ctx.res, result, {
-            mergeWithLastSubmission: false,
-        });
-    });
-
     router.post('/interaction/:uid/federated', body, async (ctx) => {
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
@@ -135,11 +119,26 @@ export default (provider) => {
         return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
     });
 
+    router.post('/interaction/:uid/email', body, async (ctx) => {
+        const emailLogin = new EmailLogin()
+        return emailLogin.sendLink(ctx, provider)
+    });
+
+    router.get('/interaction/:uid/email-sent', (ctx) => {
+        // TODO: maybe use Interaction prompt mechanism.
+        return ctx.render('email-sent', { layout: false});
+    });
+
+    router.get('/interaction/:uid/verify-email/:token', (ctx) => {
+        const emailLogin = new EmailLogin()
+        return emailLogin.verifyLink(ctx, provider)
+    });
+
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
-        await ctx.kubeApiService.updateUser(accountId, {}, Date.now())
+        await ctx.kubeApiService.updateUser(accountId, {}, undefined, undefined, Date.now())
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

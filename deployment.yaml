@@ -83,3 +83,5 @@ spec:
                 name: redis-oidc-gateway-owner-secrets
             - secretRef:
                 name: oidc-jwks
+            - secretRef:
+                name: email-credentials
