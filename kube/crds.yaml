@@ -40,9 +40,6 @@ spec:
                 profile:
                   required:
                     - sub
-                    - name
-                    - company
-                    - githubId
                   type: object
                   description: Profile
                   properties:
