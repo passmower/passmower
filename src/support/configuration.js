@@ -33,6 +33,11 @@ export default {
         // TODO: manage the grant according to upstream, if needed.
         return grant
     },
+    ttl: {
+        IdToken: 3600,
+        Interaction: 3600,
+        Session: 1209600
+    },
     jwks: {
         keys: [],
     },
