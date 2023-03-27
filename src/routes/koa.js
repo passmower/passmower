@@ -128,6 +128,20 @@ export default (provider) => {
                     },
                 });
             }
+            case 'name': {
+                return ctx.render('enter-name', {
+                    client,
+                    uid,
+                    details: prompt.details,
+                    params,
+                    title: 'Enter your name',
+                    session: session ? debug(session) : undefined,
+                    dbg: {
+                        params: debug(params),
+                        prompt: debug(prompt),
+                    },
+                });
+            }
             default:
                 return next();
         }
@@ -189,6 +203,18 @@ export default (provider) => {
         const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
         await ctx.kubeApiService.updateUser(accountId, {}, undefined, undefined, Date.now())
+        return provider.interactionFinished(ctx.req, ctx.res, {}, {
+            mergeWithLastSubmission: true,
+        });
+    });
+
+    router.post('/interaction/:uid/update-name', body, async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
+        assert.equal(name, 'name');
+        await ctx.kubeApiService.updateUser(accountId, {
+            name: ctx.request.body.name
+        }, undefined, undefined, undefined)
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

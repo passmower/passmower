@@ -13,7 +13,18 @@ export default (kubeApiService) => {
         ),
     )
 
+    const namePolicy = new Prompt(
+        { name: 'name', requestable: true },
+        new Check('name_required', 'User profile requires name', 'interaction_required', async (ctx) => {
+                const { oidc } = ctx;
+                const kubeUser = await kubeApiService.findUser(oidc.session.accountId)
+                return kubeUser.profile.name ? Check.NO_NEED_TO_PROMPT : Check.REQUEST_PROMPT;
+            },
+        ),
+    )
+
     const basePolicy = base()
     basePolicy.add(tosPolicy)
+    basePolicy.add(namePolicy)
     return basePolicy
 }

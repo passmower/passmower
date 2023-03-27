@@ -1,0 +1,9 @@
+<div class="login-client-image">
+  <% if (client.logoUri) { %><img src="<%= client.logoUri %>"><% } %>
+</div>
+
+<form autocomplete="off" action="/interaction/<%= uid %>/update-name" method="post">
+    <input required type="text" name="name" placeholder="Enter name">
+    <button type="submit" class="login login-submit">Save</button>
+</form>
+
