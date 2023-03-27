@@ -6,7 +6,7 @@ build:
 
 manifests:
   rawYaml:
-    - deployment.yaml
+    - kube/deployment.yaml
 
 profiles:
   - name: dev
