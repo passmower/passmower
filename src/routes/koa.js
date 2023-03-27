@@ -124,9 +124,23 @@ export default (provider) => {
         return emailLogin.sendLink(ctx, provider)
     });
 
-    router.get('/interaction/:uid/email-sent', (ctx) => {
-        // TODO: maybe use Interaction prompt mechanism.
-        return ctx.render('email-sent', { layout: false});
+    router.get('/interaction/:uid/email-sent', async (ctx) => {
+        const {
+            uid, prompt, params, session,
+        } = await provider.interactionDetails(ctx.req, ctx.res);
+        const client = await provider.Client.find(params.client_id);
+        return ctx.render('email-sent',  {
+            client,
+            uid,
+            details: prompt.details,
+            params,
+            title: 'Email sent',
+            session: session ? debug(session) : undefined,
+            dbg: {
+                params: debug(params),
+                prompt: debug(prompt),
+            },
+        });
     });
 
     router.get('/interaction/:uid/verify-email/:token', (ctx) => {
