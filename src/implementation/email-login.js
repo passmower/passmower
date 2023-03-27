@@ -2,7 +2,9 @@ import Account from "../support/account.js";
 import Nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import RedisAdapter from "../adapters/redis.js";
-
+import { renderFile } from 'ejs';
+import path from "path";
+import {dirname} from "desm";
 
 export class EmailLogin {
     constructor() {
@@ -17,7 +19,7 @@ export class EmailLogin {
         });
         this.mailOptions = {
             from: process.env.EMAIL_USERNAME,
-            subject: 'Magic link',
+            subject: 'Login link',
         };
         this.redis = new RedisAdapter('links')
     }
@@ -33,9 +35,20 @@ export class EmailLogin {
             email: email,
             uid: uid,
         }, 3600)
-
+        const __dirname = dirname(import.meta.url);
+        const emailHtml = await renderFile(
+            path.join(__dirname, '..', 'views', 'emails', 'link.ejs'),
+            {
+                url
+            }
+        );
         await this.transporter.sendMail(
-            {...this.mailOptions, to: email, text: url},
+            {
+                ...this.mailOptions,
+                to: email,
+                text: url,
+                html: emailHtml
+            },
             function (error, info) {
             if (error) {
                 console.log(error);
