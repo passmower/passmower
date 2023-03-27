@@ -187,6 +187,7 @@
     <div class="login-card">
       <h1><%= title %></h1>
       <%- body %>
+      <% if (uid) { %>
       <div class="login-help">
         <a href="/interaction/<%= uid %>/abort">[ Cancel ]</a>
         <% if (client.tosUri) { %>
@@ -197,12 +198,15 @@
         <% } %>
       </div>
     </div>
+    <% } %>
     <div class="grant-debug">
       <details>
         <summary style="text-align: center;">(Click to expand) DEBUG information</summary>
+        <% if (uid) { %>
         <div>
           <strong>uid</strong>: <%= uid %>
         </div>
+        <% } %>
 
         <% if (session) { %>
         <div>

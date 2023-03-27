@@ -28,6 +28,42 @@ const { SessionNotFound } = errors;
 export default (provider) => {
     const router = new Router();
 
+    router.get('/', async (ctx) => {
+        const session = await provider.Session.get(ctx)
+        const signedIn = !!session.accountId
+        if (signedIn) {
+            const account = await Account.findAccount(ctx, session.accountId, '')
+            return ctx.render('me',  {
+                client: {},
+                uid: undefined,
+                details: {},
+                params: {},
+                title: `Hi, ${account.profile.name}!`,
+                session: session ? debug(session) : undefined,
+                signedIn,
+                dbg: {
+                    params: debug({}),
+                    prompt: debug({}),
+                },
+            });
+        } else {
+            // TODO: implement login to self.
+            return ctx.render('hi',  {
+                client: {},
+                uid: undefined,
+                details: {},
+                params: {},
+                title: 'Welcome to oidc-gateway',
+                session: session ? debug(session) : undefined,
+                signedIn,
+                dbg: {
+                    params: debug({}),
+                    prompt: debug({}),
+                },
+            });
+        }
+    })
+
     router.use(async (ctx, next) => {
         ctx.set('cache-control', 'no-store');
         try {
