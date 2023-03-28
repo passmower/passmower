@@ -8,4 +8,4 @@ spec:
   client_secret: 'bar'
   grant_types: [ 'implicit', 'refresh_token', 'authorization_code' ]
   response_types: [ 'id_token' ]
-  redirect_uris: [ 'https://client-gab7y.codemowers.ee/cb' ]
+  redirect_uris: [ 'https://client-gab7y.codemowers.ee/cb', 'https://oidcdebugger.com/debug' ]
