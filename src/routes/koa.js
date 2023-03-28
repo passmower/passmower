@@ -56,17 +56,22 @@ const render = async (provider, ctx, template, title) => {
         uid, prompt, details, params, session, client
     } = await sessionDetails(provider, ctx)
 
+    let dbg;
+    if (process.env.DEBUG && process.env.DEBUG === 'true') {
+        dbg = {
+                params: debug(params),
+                prompt: debug(prompt),
+                session: debug(session),
+        };
+    }
+
     return ctx.render(template, {
         client,
         uid,
         details,
         params,
         title,
-        dbg: {
-            params: debug(params),
-            prompt: debug(prompt),
-            session: debug(session),
-        },
+        dbg
     });
 }
 

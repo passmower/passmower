@@ -68,6 +68,8 @@ spec:
               value: 'https://kube.codemowers.eu'
             - name: KUBE_NAMESPACE
               value: 'veebkolm-gab7y'
+            - name: DEBUG
+              value: 'true'
             - name: GH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
