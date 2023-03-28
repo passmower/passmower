@@ -58,10 +58,11 @@ const render = async (provider, ctx, template, title) => {
 
     let dbg;
     if (process.env.DEBUG && process.env.DEBUG === 'true') {
+        const sess = session !== undefined ? session : {}
         dbg = {
                 params: debug(params),
                 prompt: debug(prompt),
-                session: debug(session),
+                session: debug(sess),
         };
     }
 
