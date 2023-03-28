@@ -23,44 +23,71 @@ const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [k
     encodeURIComponent(value) { return keys.has(value) ? `<strong>${value}</strong>` : value; },
 });
 
+const sessionDetails = async (provider, ctx) => {
+    try {
+        const {
+            uid, prompt, params, session,
+        } = await provider.interactionDetails(ctx.req, ctx.res);
+        const client = await provider.Client.find(params.client_id);
+        const details = prompt !== undefined ? prompt.details : {}
+        return {
+            uid,
+            prompt,
+            details,
+            params,
+            session,
+            client
+        }
+    } catch (e) {
+        const session = await provider.Session.get(ctx)
+        return {
+            uid: undefined,
+            prompt: {},
+            details: {},
+            params: {},
+            session: session,
+            client: {}
+        }
+    }
+}
+
+const render = async (provider, ctx, template, title) => {
+    const {
+        uid, prompt, details, params, session, client
+    } = await sessionDetails(provider, ctx)
+
+    return ctx.render(template, {
+        client,
+        uid,
+        details,
+        params,
+        title,
+        dbg: {
+            params: debug(params),
+            prompt: debug(prompt),
+            session: debug(session),
+        },
+    });
+}
+
+const body = bodyParser({
+    text: false, json: false, patchNode: true, patchKoa: true,
+});
+
 const { SessionNotFound } = errors;
 
 export default (provider) => {
     const router = new Router();
 
-    router.get('/', async (ctx) => {
+    router.get('/', async (ctx, next) => {
         const session = await provider.Session.get(ctx)
         const signedIn = !!session.accountId
         if (signedIn) {
             const account = await Account.findAccount(ctx, session.accountId, '')
-            return ctx.render('me',  {
-                client: {},
-                uid: undefined,
-                details: {},
-                params: {},
-                title: `Hi, ${account.profile.name}!`,
-                session: session ? debug(session) : undefined,
-                signedIn,
-                dbg: {
-                    params: debug({}),
-                    prompt: debug({}),
-                },
-            });
+            return render(provider, ctx, 'me', `Hi, ${account.profile.name}!`)
         } else {
             // TODO: implement login to self.
-            return ctx.render('hi',  {
-                client: {},
-                uid: undefined,
-                details: {},
-                params: {},
-                title: 'Welcome to oidc-gateway',
-                session: session ? debug(session) : undefined,
-                signedIn,
-                dbg: {
-                    params: debug({}),
-                    prompt: debug({}),
-                },
-            });
+            return render(provider, ctx, 'hi', `Welcome to oidc-gateway`)
         }
     })
 
@@ -80,75 +107,23 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
-        const {
-            uid, prompt, params, session,
-        } = await provider.interactionDetails(ctx.req, ctx.res);
-        const client = await provider.Client.find(params.client_id);
-
+        const { prompt, uid } = await provider.interactionDetails(ctx.req, ctx.res);
         switch (prompt.name) {
             case 'login': {
-                return ctx.render('login', {
-                    client,
-                    uid,
-                    details: prompt.details,
-                    params,
-                    title: 'Sign-in',
-                    session: session ? debug(session) : undefined,
-                    dbg: {
-                        params: debug(params),
-                        prompt: debug(prompt),
-                    },
-                });
-            }
+                return render(provider, ctx, 'login', 'Sign-in')
+             }
             case 'consent': {
-                return ctx.render('interaction', {
-                    client,
-                    uid,
-                    details: prompt.details,
-                    params,
-                    title: 'Authorize',
-                    session: session ? debug(session) : undefined,
-                    dbg: {
-                        params: debug(params),
-                        prompt: debug(prompt),
-                    },
-                });
+                return render(provider, ctx, 'interaction', 'Authorize')
             }
             case 'tos': {
-                return ctx.render('tos', {
-                    client,
-                    uid,
-                    details: prompt.details,
-                    params,
-                    title: 'Terms of Service',
-                    session: session ? debug(session) : undefined,
-                    dbg: {
-                        params: debug(params),
-                        prompt: debug(prompt),
-                    },
-                });
+                return render(provider, ctx, 'tos', 'Terms of Service')
             }
             case 'name': {
-                return ctx.render('enter-name', {
-                    client,
-                    uid,
-                    details: prompt.details,
-                    params,
-                    title: 'Enter your name',
-                    session: session ? debug(session) : undefined,
-                    dbg: {
-                        params: debug(params),
-                        prompt: debug(prompt),
-                    },
-                });
+                return render(provider, ctx, 'enter-name', 'Enter your name')
             }
             default:
                 return next();
         }
-    });
-
-    const body = bodyParser({
-        text: false, json: false, patchNode: true, patchKoa: true,
     });
 
     router.post('/interaction/:uid/federated', body, async (ctx) => {
@@ -175,22 +150,7 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid/email-sent', async (ctx) => {
-        const {
-            uid, prompt, params, session,
-        } = await provider.interactionDetails(ctx.req, ctx.res);
-        const client = await provider.Client.find(params.client_id);
-        return ctx.render('email-sent',  {
-            client,
-            uid,
-            details: prompt.details,
-            params,
-            title: 'Email sent',
-            session: session ? debug(session) : undefined,
-            dbg: {
-                params: debug(params),
-                prompt: debug(prompt),
-            },
-        });
+        return render(provider, ctx, 'email-sent', 'Email sent')
     });
 
     router.get('/interaction/:uid/verify-email/:token', (ctx) => {
@@ -200,7 +160,7 @@ export default (provider) => {
 
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
-        const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
+        const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
         await ctx.kubeApiService.updateUser(accountId, {}, undefined, undefined, Date.now())
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
@@ -210,7 +170,7 @@ export default (provider) => {
 
     router.post('/interaction/:uid/update-name', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
-        const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
+        const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
         await ctx.kubeApiService.updateUser(accountId, {
             name: ctx.request.body.name
@@ -219,51 +179,6 @@ export default (provider) => {
             mergeWithLastSubmission: true,
         });
     });
-
-    // router.post('/interaction/:uid/confirm', body, async (ctx) => {
-    //     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
-    //     const { prompt: { name, details }, params, session: { accountId } } = interactionDetails;
-    //     assert.equal(name, 'consent');
-    //
-    //     let { grantId } = interactionDetails;
-    //     let grant;
-    //
-    //     if (grantId) {
-    //         // we'll be modifying existing grant in existing session
-    //         grant = await provider.Grant.find(grantId);
-    //     } else {
-    //         // we're establishing a new grant
-    //         grant = new provider.Grant({
-    //             accountId,
-    //             clientId: params.client_id,
-    //         });
-    //     }
-    //
-    //     if (details.missingOIDCScope) {
-    //         grant.addOIDCScope(details.missingOIDCScope.join(' '));
-    //     }
-    //     if (details.missingOIDCClaims) {
-    //         grant.addOIDCClaims(details.missingOIDCClaims);
-    //     }
-    //     if (details.missingResourceScopes) {
-    //         for (const [indicator, scope] of Object.entries(details.missingResourceScopes)) {
-    //             grant.addResourceScope(indicator, scope.join(' '));
-    //         }
-    //     }
-    //
-    //     grantId = await grant.save();
-    //
-    //     const consent = {};
-    //     if (!interactionDetails.grantId) {
-    //         // we don't have to pass grantId to consent, we're just modifying existing one
-    //         consent.grantId = grantId;
-    //     }
-    //
-    //     const result = { consent };
-    //     return provider.interactionFinished(ctx.req, ctx.res, result, {
-    //         mergeWithLastSubmission: true,
-    //     });
-    // });
 
     router.get('/interaction/:uid/abort', async (ctx) => {
         const result = {

@@ -199,6 +199,7 @@
       </div>
     </div>
     <% } %>
+    <% if (dbg) { %>
     <div class="grant-debug">
       <details>
         <summary style="text-align: center;">(Click to expand) DEBUG information</summary>
@@ -208,13 +209,11 @@
         </div>
         <% } %>
 
-        <% if (session) { %>
         <div>
           SESSION <br>
          ========= <br>
-          <%- session %>
+          <%- dbg.session %>
         </div>
-        <% } %>
 
         <div>
           PARAMS <br>
@@ -229,5 +228,6 @@
         </div>
       </details>
     </div>
+    <% } %>
   </body>
 </html>
