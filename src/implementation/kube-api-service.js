@@ -107,7 +107,6 @@ export class KubeApiService {
                 }
             }
         ).then((r) => {
-            console.error(r.body)
             return new Account(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
@@ -161,7 +160,6 @@ export class KubeApiService {
             undefined,
             { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
         ).then((r) => {
-            console.log(r.body)
             return new Account(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
