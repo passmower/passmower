@@ -5,12 +5,16 @@ import helmet from "helmet";
 import {promisify} from "node:util";
 import {KubeApiService} from "./kube-api-service.js";
 import setupPolicies from "./setup-policies.js";
+import RedisAdapter from "../adapters/redis.js";
 
 export default async () => {
     let adapter;
     if (process.env.REDIS_URI) {
         ({ default: adapter } = await import('../adapters/redis.js'));
     }
+    const accountSessionRedis = new RedisAdapter('AccountSession')
+    const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
+
     const kubeApiService = new KubeApiService()
     configuration.interactions.policy = setupPolicies(kubeApiService)
     configuration.clients = await kubeApiService.getClients()
@@ -26,6 +30,15 @@ export default async () => {
         await pHelmet(ctx.req, ctx.res);
         ctx.req.secure = origSecure;
         return next();
+    });
+
+    provider.use(async (ctx, next) => {
+        await next();
+        if (ctx.oidc !== undefined && ctx.oidc.route === 'resume') {
+            const session = ctx.oidc.entities.Session
+            await accountSessionRedis.append(session.accountId, session.jti)
+            await sessionMetadataRedis.upsert(session.jti, ctx.request.headers)
+        }
     });
 
     provider.use(async (ctx, next) => {

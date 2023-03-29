@@ -74,6 +74,10 @@ class RedisAdapter {
         await multi.exec();
     }
 
+    async append(id, item) {
+        await client.sadd(this.key(id), item);
+    }
+
     async find(id) {
         const data = consumable.has(this.name)
             ? await client.hgetall(this.key(id))
