@@ -89,8 +89,7 @@ export default (provider) => {
         const session = await provider.Session.get(ctx)
         const signedIn = !!session.accountId
         if (signedIn) {
-            const account = await Account.findAccount(ctx, session.accountId, '')
-            return render(provider, ctx, 'me', `Hi, ${account.profile.name}!`)
+            return ctx.render('frontpage', { layout: false, title: 'oidc-gateway' })
         } else {
             // TODO: implement login to self.
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`)

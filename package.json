@@ -4,7 +4,9 @@
   "description": "",
   "main": "src/app.js",
   "scripts": {
-    "dev": "nodemon --inspect=0.0.0.0 src/app.js -e ejs,js,css,html,jpg,png,scss"
+    "dev": "nodemon --inspect=0.0.0.0 src/app.js -e ejs,js,css,html,jpg,png,scss --watch src",
+    "dev-frontpage": "npm run dev --prefix frontpage",
+    "dev-styles": "npm run --prefix styles sass-dev"
   },
   "type": "module",
   "dependencies": {
@@ -17,6 +19,7 @@
     "koa": "^2.14.1",
     "koa-body": "^6.0.1",
     "koa-router": "^12.0.0",
+    "koa-static": "^5.0.0",
     "lodash": "^4.17.21",
     "nodemailer": "^6.9.1",
     "oauth": "^0.10.0",
@@ -24,7 +27,8 @@
     "short-unique-id": "^4.4.4"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "nodemon": "^2.0.20",
+    "npm-run-all": "^4.1.5"
   },
   "author": "Erki Aas"
 }

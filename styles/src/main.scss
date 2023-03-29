@@ -1,0 +1,163 @@
+@import 'base';
+
+body {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-weight: normal;
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+  }
+}
+
+
+
+ul {
+  font-weight: 100;
+  padding-left: 1em;
+  list-style-type: circle;
+}
+
+li + ul, ul + li, li + li {
+  padding-top: 0.3em;
+}
+
+
+button {
+  cursor: pointer;
+}
+
+button, input {
+  font-family: var(--font-family);
+}
+
+textarea:focus, input:focus{
+  outline: none;
+}
+
+.login-card {
+  width: 25em;
+  margin: auto;
+  text-align: center;
+  & h1 {
+    font-weight: 100;
+    text-align: center;
+    font-size: 2.3em;
+    margin-bottom: 1em;
+  }
+  & [type=submit] {
+    width: 100%;
+    display: block;
+    position: relative;
+  }
+  & input[type=text], & input[type=email], & input[type=password], & .upstream-button, & button {
+    height: 44px;
+    font-size: 14px;
+    width: 100%;
+    margin-bottom: 10px;
+    -webkit-appearance: none;
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-top: 1px solid #c0c0c0;
+    padding: 0 8px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    color: #737373;
+    border-radius: 5px;
+    white-space: nowrap;
+    box-shadow: 1px 1px 0px 1px rgba(0, 0, 0, 0.05);
+    transition-property: background-color, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease-in-out;
+  }
+  & input[type=checkbox] {
+    margin-bottom: 10px;
+  }
+  & label {
+    color: var(--color-text);
+  }
+  & a {
+    text-decoration: none;
+    color: var(--color-text);
+    font-weight: 400;
+    text-align: center;
+    display: inline-block;
+  }
+  & .login {
+    text-align: center;
+    font-size: 14px;
+    height: 36px;
+    padding: 0 8px;
+  }
+  & .login-submit {
+    border: 0px;
+    color: #fff;
+    text-shadow: 0 1px rgba(0, 0, 0, 0.1);
+    background-color: #4d90fe;
+  }
+  & .login-help {
+    color: var(--color-text);
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    margin: 10px 0;
+  }
+  & .login-cancel {
+    margin: 20px 0;
+  }
+  & .login-client-image img {
+    margin-bottom: 20px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 20%;
+  }
+  & .upstream-button {
+    &__icon {
+      display: inline-block;
+      vertical-align: middle;
+      margin: 8px 0 8px 8px;
+      width: 18px;
+      height: 18px;
+      box-sizing: border-box;
+      &--plus {
+        width: 27px;
+      }
+    }
+    &__text {
+      display: inline-block;
+      vertical-align: middle;
+      padding: 0 24px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+  }
+}
+.grant-debug {
+  text-align: center;
+  font-family: Fixed, monospace;
+  width: 100%;
+  font-size: 12px;
+  color: #999;
+  & div {
+    padding-top: 10px;
+  }
+}

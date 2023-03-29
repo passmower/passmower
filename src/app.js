@@ -6,6 +6,7 @@ import Account from './support/account.js';
 import configuration from './support/configuration.js';
 import routes from './routes/koa.js';
 import setupProvider from "./implementation/setup-provider.js";
+import serve from 'koa-static';
 
 const __dirname = dirname(import.meta.url);
 
@@ -23,6 +24,8 @@ try {
         root: path.join(__dirname, 'views'),
     });
     provider.use(routes(provider).routes());
+    provider.use(serve('frontpage/dist'));
+    provider.use(serve('styles/dist'));
     server = provider.listen(PORT, () => {
         console.log(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
