@@ -23,7 +23,6 @@ a,
 @media (min-width: 1024px) {
   body {
     display: flex;
-    justify-content: center;
     flex-direction: column;
   }
 }
@@ -40,17 +39,65 @@ li + ul, ul + li, li + li {
   padding-top: 0.3em;
 }
 
-
-button {
-  cursor: pointer;
-}
-
 button, input {
   font-family: var(--font-family);
 }
 
 textarea:focus, input:focus{
   outline: none;
+}
+
+input[type=text], input[type=email], input[type=password], .upstream-button, button {
+  height: 44px;
+  font-size: 14px;
+  width: 100%;
+  margin-bottom: 10px;
+  -webkit-appearance: none;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-top: 1px solid #c0c0c0;
+  padding: 0 8px;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  color: #737373;
+  border-radius: 5px;
+  white-space: nowrap;
+  box-shadow: 1px 1px 0px 1px rgba(0, 0, 0, 0.05);
+  transition-property: background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
+}
+
+button {
+  background: var(--color-button);
+  border: 0;
+  color: var(--color-button-text);
+  text-shadow: 0 1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+.modal-container {
+  align-items: flex-start;
+  background: #000000c7;
+  & .modal {
+    margin-top: 5rem;
+    background: var(--color-background);
+    padding: 1rem;
+    border-radius: 5px;
+    box-shadow: 1px 1px 0px 1px rgba(0, 0, 0, 0.05);
+  }
+  button {
+    margin-top: 1em;
+  }
+}
+
+svg {
+  display: block;
+  height: 20px;
+  align-self: center;
+  margin-left: auto;
+  cursor: pointer;
+  fill: var(--color-text);
 }
 
 .login-card {
@@ -68,26 +115,7 @@ textarea:focus, input:focus{
     display: block;
     position: relative;
   }
-  & input[type=text], & input[type=email], & input[type=password], & .upstream-button, & button {
-    height: 44px;
-    font-size: 14px;
-    width: 100%;
-    margin-bottom: 10px;
-    -webkit-appearance: none;
-    background: #fff;
-    border: 1px solid #d9d9d9;
-    border-top: 1px solid #c0c0c0;
-    padding: 0 8px;
-    box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    color: #737373;
-    border-radius: 5px;
-    white-space: nowrap;
-    box-shadow: 1px 1px 0px 1px rgba(0, 0, 0, 0.05);
-    transition-property: background-color, box-shadow;
-    transition-duration: 150ms;
-    transition-timing-function: ease-in-out;
-  }
+
   & input[type=checkbox] {
     margin-bottom: 10px;
   }
@@ -100,18 +128,6 @@ textarea:focus, input:focus{
     font-weight: 400;
     text-align: center;
     display: inline-block;
-  }
-  & .login {
-    text-align: center;
-    font-size: 14px;
-    height: 36px;
-    padding: 0 8px;
-  }
-  & .login-submit {
-    border: 0px;
-    color: #fff;
-    text-shadow: 0 1px rgba(0, 0, 0, 0.1);
-    background-color: #4d90fe;
   }
   & .login-help {
     color: var(--color-text);
@@ -159,5 +175,45 @@ textarea:focus, input:focus{
   color: #999;
   & div {
     padding-top: 10px;
+  }
+}
+
+.profile-section {
+  text-align: left;
+  padding-bottom: 3em;
+  & p {
+    padding-bottom: 0.2em;
+  }
+  & .session {
+    display: flex;
+    padding-bottom: 2em;
+    & h3 {
+      padding-bottom: 0.5em;
+      & span {
+        font-size: 12px;
+      }
+    }
+    & svg {
+      height: 20px;
+    }
+  }
+}
+
+.profile-section-header, .modal-header {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 1em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid var(--color-border);
+  & svg {
+    height: 16px;
+  }
+}
+.modal-header {
+  & svg {
+    height: 24px;
+  }
+  & h2 {
+    padding-right: 1em;
   }
 }

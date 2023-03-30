@@ -50,6 +50,10 @@ class Account {
         return await ctx.kubeApiService.updateUser(user.accountId, profile, emails, undefined, undefined);
     }
 
+    static async updateProfile(ctx, accountId, profile) {
+        return await ctx.kubeApiService.updateUser(accountId, profile, undefined, undefined, undefined);
+    }
+
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint

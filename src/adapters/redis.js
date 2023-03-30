@@ -78,6 +78,14 @@ class RedisAdapter {
         await client.sadd(this.key(id), item);
     }
 
+    async remove(id, item) {
+        await client.srem(this.key(id), item);
+    }
+
+    async getSet(id) {
+        return await client.smembers(this.key(id))
+    }
+
     async find(id) {
         const data = consumable.has(this.name)
             ? await client.hgetall(this.key(id))
