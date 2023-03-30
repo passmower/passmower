@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "",
   "scripts": {
-    "sass-dev": "node-sass --watch --update --style=expanded src/main.scss dist/style.css",
+    "sass-dev": "node-sass --style=expanded src/main.scss dist/style.css && node-sass --watch --update --style=expanded src/main.scss dist/style.css",
     "sass-prod": "node-sass --no-source-map --style=compressed src/main.scss dist/style.css"
   },
   "devDependencies": {
