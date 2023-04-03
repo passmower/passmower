@@ -36,7 +36,7 @@ export default async () => {
         await next();
         if (ctx.oidc !== undefined && ctx.oidc.route === 'resume') {
             const session = ctx.oidc.entities.Session
-            await accountSessionRedis.append(session.accountId, session.jti)
+            await accountSessionRedis.appendToSet(session.accountId, session.jti)
             await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat})
         }
     });
