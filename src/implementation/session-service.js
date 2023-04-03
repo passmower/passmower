@@ -38,7 +38,7 @@ export class SessionService {
                         ua,
                         ip: metadata['x-forwarded-for'],
                         browser: ua.browser.name,
-                        os: ua.os.name + ' ' + ua.os.version,
+                        os: ua.os.name + (ua.os.version !== undefined ? (' ' + ua.os.version) : ''),
                         current: s === currentSession.id,
                         created_at: new Date(metadata.iat * 1000),
                     }
