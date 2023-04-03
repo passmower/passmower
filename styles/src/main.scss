@@ -47,19 +47,16 @@ textarea:focus, input:focus{
   outline: none;
 }
 
-input[type=text], input[type=email], input[type=password], .upstream-button, button {
+input[type=text], input[type=email], input[type=password], .button, a.button, button {
   height: 44px;
   font-size: 14px;
   width: 100%;
   margin-bottom: 10px;
   -webkit-appearance: none;
-  background: #fff;
-  border: 1px solid #d9d9d9;
-  border-top: 1px solid #c0c0c0;
+  border: 0;
   padding: 0 8px;
   box-sizing: border-box;
   -moz-box-sizing: border-box;
-  color: #737373;
   border-radius: 5px;
   white-space: nowrap;
   box-shadow: 1px 1px 0px 1px rgba(0, 0, 0, 0.05);
@@ -68,12 +65,20 @@ input[type=text], input[type=email], input[type=password], .upstream-button, but
   transition-timing-function: ease-in-out;
 }
 
-button {
+input[type=text], input[type=email], input[type=password] {
+  background: #fff;
+  color: #737373;
+  border: 1px solid #d9d9d9;
+  border-top: 1px solid #c0c0c0;
+}
+
+.button, a.button, button {
   background: var(--color-button);
   border: 0;
   color: var(--color-button-text);
   text-shadow: 0 1px rgba(0, 0, 0, 0.1);
   cursor: pointer;
+  line-height: 44px;
 }
 
 .modal-container {
@@ -147,10 +152,12 @@ svg {
     width: 20%;
   }
   & .upstream-button {
+    background: white;
+    color: #737373;
     &__icon {
       display: inline-block;
       vertical-align: middle;
-      margin: 8px 0 8px 8px;
+      margin-right: 8px;
       width: 18px;
       height: 18px;
       box-sizing: border-box;
