@@ -45,7 +45,7 @@ export default (provider) => {
 
     router.post('/api/session/end', async (ctx, next) => {
         const sessionToDelete = ctx.request.body.id
-        const sessions = await sessionService.endSession(sessionToDelete, ctx.currentSession)
+        const sessions = await sessionService.endSession(sessionToDelete, ctx.currentSession, provider)
         ctx.body = {
             sessions
         }
