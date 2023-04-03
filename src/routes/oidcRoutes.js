@@ -8,12 +8,9 @@ import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 
 import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your own, you'll need it anyway
-import Account from '../support/account.js';
 import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
-import RedisAdapter from "../adapters/redis.js";
-import {UAParser} from "ua-parser-js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
