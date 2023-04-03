@@ -4,7 +4,8 @@ import { dirname } from 'desm';
 import render from '@koa/ejs';
 import Account from './support/account.js';
 import configuration from './support/configuration.js';
-import routes from './routes/koa.js';
+import oidcRoutes from './routes/oidcRoutes.js';
+import apiRoutes from './routes/apiRoutes.js';
 import setupProvider from "./implementation/setup-provider.js";
 import serve from 'koa-static';
 
@@ -23,7 +24,8 @@ try {
         layout: '_layout',
         root: path.join(__dirname, 'views'),
     });
-    provider.use(routes(provider).routes());
+    provider.use(oidcRoutes(provider).routes());
+    provider.use(apiRoutes(provider).routes());
     provider.use(serve('frontpage/dist'));
     provider.use(serve('styles/dist'));
     server = provider.listen(PORT, () => {
