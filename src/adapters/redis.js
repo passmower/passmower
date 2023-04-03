@@ -74,15 +74,15 @@ class RedisAdapter {
         await multi.exec();
     }
 
-    async append(id, item) {
+    async appendToSet(id, item) {
         await client.sadd(this.key(id), item);
     }
 
-    async remove(id, item) {
+    async removeFromSet(id, item) {
         await client.srem(this.key(id), item);
     }
 
-    async getSet(id) {
+    async getSetMembers(id) {
         return await client.smembers(this.key(id))
     }
 
