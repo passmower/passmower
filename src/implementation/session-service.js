@@ -17,7 +17,7 @@ export class SessionService {
 
     async endSession(sessionToDelete, currentSession, provider) {
         let sessions = await this.accountSessionRedis.getSetMembers(currentSession.accountId)
-        sessionToDelete = sessions.filter((s) => {return s !== currentSession.jti}).find((s) => {
+        sessionToDelete = sessions.find((s) => {
             return s === sessionToDelete
         })
         if (sessionToDelete !== undefined) {

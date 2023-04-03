@@ -39,14 +39,22 @@ export default {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-      }).then((r) => r.json()).then((r) => {
-        this.setSessions(r.sessions)
-      }).catch((e) => {
-        console.error(e)
-        // TODO: notify user.
-      }).finally(() => {
-        closeModal()
+        redirect: 'follow'
       })
+          .then((r) => {
+            if (r.redirected) {
+              window.location.replace(r.url);
+            }
+          })
+          .then((r) => r.json())
+          .then((r) => {
+            this.setSessions(r.sessions)
+          }).catch((e) => {
+            console.error(e)
+            // TODO: notify user.
+          }).finally(() => {
+            closeModal()
+          })
     }
   }
 }

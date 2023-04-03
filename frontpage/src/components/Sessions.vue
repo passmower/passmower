@@ -11,6 +11,7 @@
       </div>
       <XMark v-if="!session.current" @click="end(session)" />
     </div>
+    <button type="submit" @click="end(sessions.find((s) => s.current))">Log out</button>
   </div>
 </template>
 

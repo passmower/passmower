@@ -49,6 +49,9 @@ export default (provider) => {
         ctx.body = {
             sessions
         }
+        if (ctx.currentSession.jti === sessionToDelete) {
+            ctx.redirect('/')
+        }
     })
 
     return router;
