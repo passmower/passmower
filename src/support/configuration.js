@@ -21,6 +21,7 @@ export default {
         devInteractions: { enabled: false }, // defaults to true
         deviceFlow: { enabled: true }, // defaults to false
         revocation: { enabled: true }, // defaults to false
+        rpInitiatedLogout: { enabled: false }, // defaults to true
     },
     loadExistingGrant: async (ctx) => {
         const accountId = ctx.oidc.entities.Account.accountId
