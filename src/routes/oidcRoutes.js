@@ -11,6 +11,7 @@ import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your o
 import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
+import {randomUUID} from "crypto";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -50,7 +51,7 @@ const sessionDetails = async (provider, ctx) => {
     }
 }
 
-const render = async (provider, ctx, template, title) => {
+const render = async (provider, ctx, template, title, extra) => {
     const {
         uid, prompt, details, params, session, client
     } = await sessionDetails(provider, ctx)
@@ -71,7 +72,8 @@ const render = async (provider, ctx, template, title) => {
         details,
         params,
         title,
-        dbg
+        dbg,
+        ...extra
     });
 }
 
@@ -90,8 +92,14 @@ export default (provider) => {
         if (signedIn) {
             return ctx.render('frontpage', { layout: false, title: 'oidc-gateway' })
         } else {
-            // TODO: implement login to self.
-            return render(provider, ctx, 'hi', `Welcome to oidc-gateway`)
+            const url = new URL(provider.urlFor('authorization'))
+            url.searchParams.append('client_id', 'oidc-gateway')
+            url.searchParams.append('response_type', 'id_token')
+            url.searchParams.append('scope', 'openid')
+            url.searchParams.append('nonce', randomUUID())
+            return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
+                url: url.href
+            })
         }
     })
 

@@ -6,6 +6,7 @@ import {promisify} from "node:util";
 import {KubeApiService} from "./kube-api-service.js";
 import setupPolicies from "./setup-policies.js";
 import RedisAdapter from "../adapters/redis.js";
+import { randomUUID } from 'crypto';
 
 export default async () => {
     let adapter;
@@ -17,7 +18,16 @@ export default async () => {
 
     const kubeApiService = new KubeApiService()
     configuration.interactions.policy = setupPolicies(kubeApiService)
-    configuration.clients = await kubeApiService.getClients()
+    configuration.clients = [
+        ...await kubeApiService.getClients(),
+        {
+            client_id: 'oidc-gateway',
+            client_secret: randomUUID(), // TODO: what if multiple instances?
+            grant_types: ['implicit'],
+            response_types: ['id_token'],
+            redirect_uris: [process.env.ISSUER],
+        }
+    ]
     configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
     const provider = new Provider(process.env.ISSUER, { adapter, ...configuration });
     provider.proxy = true
