@@ -25,7 +25,8 @@
     "oauth": "^0.10.0",
     "oidc-provider": "^8.1.0",
     "short-unique-id": "^4.4.4",
-    "ua-parser-js": "^2.0.0-alpha.1"
+    "ua-parser-js": "^2.0.0-alpha.1",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.20",
