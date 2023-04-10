@@ -62,8 +62,6 @@ spec:
           env:
             - name: ISSUER_URL
               value: 'https://gateway-gab7y.codemowers.ee/'
-            - name: KUBE_CLUSTER_NAME
-              value: 'codemowers'
             - name: KUBE_CLUSTER_URL
               value: 'https://kube.codemowers.eu'
             - name: KUBE_NAMESPACE
