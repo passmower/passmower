@@ -60,7 +60,7 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: ISSUER
+            - name: ISSUER_URL
               value: 'https://gateway-gab7y.codemowers.ee/'
             - name: KUBE_CLUSTER_NAME
               value: 'codemowers'

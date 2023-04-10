@@ -30,7 +30,7 @@ export class EmailLogin {
         const {uid} = await provider.interactionDetails(ctx.req, ctx.res);
         const email = ctx.request.body.email
         const token = randomUUID()
-        const url = `${process.env.ISSUER}interaction/${uid}/verify-email/${token}`
+        const url = `${process.env.ISSUER_URL}interaction/${uid}/verify-email/${token}`
         await this.redis.upsert(token, {
             email: email,
             uid: uid,
@@ -56,7 +56,7 @@ export class EmailLogin {
                 console.log('Email sent: ' + info.response);
             }
         });
-        return ctx.redirect(`${process.env.ISSUER}interaction/${uid}/email-sent`)
+        return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
     }
 
     async verifyLink(ctx, provider) {

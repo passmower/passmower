@@ -25,11 +25,11 @@ export default async () => {
             client_secret: randomUUID(), // TODO: what if multiple instances?
             grant_types: ['implicit'],
             response_types: ['id_token'],
-            redirect_uris: [process.env.ISSUER],
+            redirect_uris: [process.env.ISSUER_URL],
         }
     ]
     configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
-    const provider = new Provider(process.env.ISSUER, { adapter, ...configuration });
+    const provider = new Provider(process.env.ISSUER_URL, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
         const origSecure = ctx.req.secure;

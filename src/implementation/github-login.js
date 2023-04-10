@@ -17,7 +17,7 @@ export default async (ctx, provider) => {
         const state = `${ctx.params.uid}|${crypto.randomBytes(32).toString('hex')}`; // TODO: how is state used later on?
         ctx.status = 302;
         return ctx.redirect(ghOauth.getAuthorizeUrl({
-            redirect_uri: `${process.env.ISSUER}interaction/callback/gh`,
+            redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
             scope: ['user:email'],
             state,
         }));
@@ -25,7 +25,7 @@ export default async (ctx, provider) => {
 
     const token = await new Promise(resolve => {
         ghOauth.getOAuthAccessToken(callbackParams.code, {
-            'redirect_uri': `${process.env.ISSUER}interaction/callback/gh`,
+            'redirect_uri': `${process.env.ISSUER_URL}interaction/callback/gh`,
         }, (e, access_token, refresh_token, results) => {
             resolve(access_token)
         });
