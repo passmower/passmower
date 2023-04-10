@@ -36,4 +36,12 @@ ENTRYPOINT /app/node_modules/.bin/run-p dev*
 # we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
 FROM dev AS prod
 RUN npm install --production
+
+WORKDIR /app/frontpage
+RUN npm run build
+
+WORKDIR /app/styles
+RUN npm run sass-prod
+
+WORKDIR /app
 ENTRYPOINT node src/app.js
