@@ -2,8 +2,6 @@
 import * as path from 'node:path';
 import { dirname } from 'desm';
 import render from '@koa/ejs';
-import Account from './support/account.js';
-import configuration from './support/configuration.js';
 import oidcRoutes from './routes/oidcRoutes.js';
 import apiRoutes from './routes/apiRoutes.js';
 import setupProvider from "./implementation/setup-provider.js";
@@ -12,7 +10,6 @@ import serve from 'koa-static';
 const __dirname = dirname(import.meta.url);
 
 const { PORT = 3000 } = process.env;
-configuration.findAccount = Account.findAccount;
 
 let server;
 

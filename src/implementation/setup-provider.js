@@ -7,6 +7,7 @@ import {KubeApiService} from "./kube-api-service.js";
 import setupPolicies from "./setup-policies.js";
 import RedisAdapter from "../adapters/redis.js";
 import { randomUUID } from 'crypto';
+import Account from "../support/account.js";
 
 export default async () => {
     let adapter;
@@ -17,6 +18,7 @@ export default async () => {
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
 
     const kubeApiService = new KubeApiService()
+    configuration.findAccount = Account.findAccount
     configuration.interactions.policy = setupPolicies(kubeApiService)
     configuration.clients = [
         ...await kubeApiService.getClients(),
