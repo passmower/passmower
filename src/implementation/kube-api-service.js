@@ -15,25 +15,9 @@ const apiGroupVersion = 'v1alpha1'
 export class KubeApiService {
     constructor() {
         const kc = new k8s.KubeConfig();
-        const clusterName = 'cluster';
-        kc.loadFromOptions({
-            clusters: [{
-                name: clusterName,
-                server: process.env.KUBE_CLUSTER_URL,
-            }],
-            users: [{
-                name: clusterName,
-                token: readFileSync('/var/run/secrets/kubernetes.io/serviceaccount/token').toString(),
-            }],
-            contexts: [{
-                name: clusterName,
-                user: clusterName,
-                cluster: clusterName,
-            }],
-            currentContext: clusterName,
-        });
+        kc.loadFromCluster()
         this.k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
-        this.namespace = process.env.KUBE_NAMESPACE;
+        this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
     }
 
     async getClients() {

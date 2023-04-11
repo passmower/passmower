@@ -62,12 +62,6 @@ spec:
           env:
             - name: ISSUER_URL
               value: 'https://gateway-gab7y.codemowers.ee/'
-            - name: KUBE_CLUSTER_URL
-              value: 'https://kube.codemowers.eu'
-            - name: KUBE_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: DEBUG
               value: 'true'
             - name: GH_CLIENT_ID
