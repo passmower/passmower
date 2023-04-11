@@ -1,0 +1,9 @@
+export const OIDCGWUser = 'OIDCGWUser';
+export const OIDCGWUsers = 'oidcgatewayusers';
+export const OIDCGWUserSpecProfileKey = 'profile';
+export const OIDCGWUserSpecAcceptedTosKey = 'acceptedTos';
+export const OIDCGWUserSpecGroupsKey = 'groups';
+export const OIDCGWUserSpecEmailsKey = 'emails';
+export const OIDCGWClients = 'oidcgatewayclients';
+export const apiGroup = 'codemowers.io'
+export const apiGroupVersion = 'v1alpha1'

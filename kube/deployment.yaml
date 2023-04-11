@@ -64,6 +64,10 @@ spec:
               value: 'https://gateway-gab7y.codemowers.ee/'
             - name: DEBUG
               value: 'true'
+            - name: DEPLOYMENT_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app']
             - name: GH_CLIENT_ID
               valueFrom:
                 secretKeyRef:

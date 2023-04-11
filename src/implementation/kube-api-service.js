@@ -1,40 +1,29 @@
-import {readFileSync} from "fs";
 import * as k8s from "@kubernetes/client-node";
 import Account from "../support/account.js";
-
-const OIDCGWUser = 'OIDCGWUser';
-const OIDCGWUsers = 'oidcgatewayusers';
-const OIDCGWUserSpecProfileKey = 'profile';
-const OIDCGWUserSpecAcceptedTosKey = 'acceptedTos';
-const OIDCGWUserSpecGroupsKey = 'groups';
-const OIDCGWUserSpecEmailsKey = 'emails';
-const OIDCGWClients = 'oidcgatewayclients';
-const apiGroup = 'codemowers.io'
-const apiGroupVersion = 'v1alpha1'
+import {
+    OIDCGWUser,
+    OIDCGWUsers,
+    OIDCGWUserSpecProfileKey,
+    OIDCGWUserSpecAcceptedTosKey,
+    OIDCGWUserSpecGroupsKey,
+    OIDCGWUserSpecEmailsKey,
+    apiGroup,
+    apiGroupVersion
+} from "../support/kube-constants.js";
 
 export class KubeApiService {
     constructor() {
         const kc = new k8s.KubeConfig();
+        this.kc = kc
         kc.loadFromCluster()
-        this.k8sApi = kc.makeApiClient(k8s.CustomObjectsApi);
+        this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
+        this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
         this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
-    }
-
-    async getClients() {
-        return await this.k8sApi.listNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWClients
-        ).then((r) => {
-            return r.body.items.map((c) => {
-                return c.spec
-            })
-        })
+        this.currentGateway = this.namespace + '-' + process.env.DEPLOYMENT_NAME
     }
 
     async findUser(id) {
-        return  await this.k8sApi.getNamespacedCustomObject(
+        return await this.customObjectsApi.getNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
             this.namespace,
@@ -52,7 +41,7 @@ export class KubeApiService {
 
     async findUserByEmails(emails) {
         const emailsInKube = []
-        await this.k8sApi.listNamespacedCustomObject(
+        await this.customObjectsApi.listNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
             this.namespace,
@@ -74,7 +63,7 @@ export class KubeApiService {
     }
 
     async createUser(id, profile, emails, groups) {
-        return await this.k8sApi.createNamespacedCustomObject(
+        return await this.customObjectsApi.createNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
             this.namespace,
@@ -133,7 +122,7 @@ export class KubeApiService {
             })
         }
 
-        return await this.k8sApi.patchNamespacedCustomObject(
+        return await this.customObjectsApi.patchNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
             this.namespace,

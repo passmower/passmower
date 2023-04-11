@@ -7,28 +7,57 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: oidc-gateway
+  name: oidc-gateway-crds
 rules:
   - apiGroups:
       - codemowers.io
     resources:
       - oidcgatewayusers
       - oidcgatewayclients
+      - oidcgatewayclients/status
     verbs:
       - get
       - list
       - watch
       - create
+      - update
       - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: oidc-gateway-secrets
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: oidc-gateway
+  name: oidc-gateway-crds
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: oidc-gateway
+  name: oidc-gateway-crds
+subjects:
+  - kind: ServiceAccount
+    name: oidc-gateway
+    namespace: veebkolm-gab7y
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-gateway-secrets
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: oidc-gateway-secrets
 subjects:
   - kind: ServiceAccount
     name: oidc-gateway

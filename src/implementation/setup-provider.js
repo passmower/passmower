@@ -3,11 +3,11 @@ import configuration from "../support/configuration.js";
 import crypto from "node:crypto";
 import helmet from "helmet";
 import {promisify} from "node:util";
-import {KubeApiService} from "./kube-api-service.js";
 import setupPolicies from "./setup-policies.js";
 import RedisAdapter from "../adapters/redis.js";
 import { randomUUID } from 'crypto';
 import Account from "../support/account.js";
+import KubeOperator from "./kube-operator.js";
 
 export default async () => {
     let adapter;
@@ -17,11 +17,11 @@ export default async () => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
 
-    const kubeApiService = new KubeApiService()
+    const kubeApiService = new KubeOperator()
+    await kubeApiService.watchClients()
     configuration.findAccount = Account.findAccount
     configuration.interactions.policy = setupPolicies(kubeApiService)
     configuration.clients = [
-        ...await kubeApiService.getClients(),
         {
             client_id: 'oidc-gateway',
             client_secret: randomUUID(), // TODO: what if multiple instances?

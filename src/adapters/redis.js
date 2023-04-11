@@ -87,6 +87,11 @@ class RedisAdapter {
     }
 
     async find(id) {
+        // TODO: more correct approach.
+        if (this.name === 'Client') {
+            return globalThis.OIDCClients[id]
+        }
+
         const data = consumable.has(this.name)
             ? await client.hgetall(this.key(id))
             : await client.get(this.key(id));
