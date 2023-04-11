@@ -1,4 +1,4 @@
-FROM node:lts AS dev
+FROM --platform=$BUILDPLATFORM node:lts AS dev
 
 # define /app as working directory
 WORKDIR /app
@@ -34,7 +34,7 @@ ENTRYPOINT /app/node_modules/.bin/run-p dev*
 
 # production
 # build production frontends
-FROM dev as build
+FROM --platform=$BUILDPLATFORM dev as build
 
 WORKDIR /app/frontpage
 RUN npm run build
