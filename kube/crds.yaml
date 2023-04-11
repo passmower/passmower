@@ -98,39 +98,3 @@ spec:
                   type: array
                   items:
                     type: string
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: oidc-gateway
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: oidc-gateway
-rules:
-  - apiGroups:
-      - codemowers.io
-    resources:
-      - oidcgatewayusers
-      - oidcgatewayclients
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - patch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: oidc-gateway
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: oidc-gateway
-subjects:
-  - kind: ServiceAccount
-    name: oidc-gateway
-    namespace: veebkolm-gab7y
-
