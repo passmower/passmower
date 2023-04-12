@@ -84,5 +84,3 @@ spec:
               properties:
                 gateway:
                   type: string
-                hasSecret:
-                  type: boolean
