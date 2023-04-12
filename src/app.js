@@ -6,6 +6,7 @@ import oidcRoutes from './routes/oidcRoutes.js';
 import apiRoutes from './routes/apiRoutes.js';
 import setupProvider from "./implementation/setup-provider.js";
 import serve from 'koa-static';
+import KubeOperator from "./implementation/kube-operator.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -14,6 +15,9 @@ const { PORT = 3000 } = process.env;
 let server;
 
 try {
+    const kubeOperator = new KubeOperator()
+    await kubeOperator.watchClients()
+
     const provider = await setupProvider()
     render(provider.app, {
         cache: false,
