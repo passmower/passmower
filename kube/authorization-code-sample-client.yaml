@@ -2,7 +2,7 @@
 apiVersion: codemowers.io/v1alpha1
 kind: OIDCGWClient
 metadata:
-  name: test-client
+  name: authorization-code-sample-client
 redirectUris:
   - 'https://client-gab7y.codemowers.ee/cb'
 grantTypes:
