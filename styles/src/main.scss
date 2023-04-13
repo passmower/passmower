@@ -129,7 +129,6 @@ svg {
   }
   & a {
     text-decoration: none;
-    color: var(--color-text);
     font-weight: 400;
     text-align: center;
     display: inline-block;
@@ -140,6 +139,9 @@ svg {
     text-align: center;
     font-size: 12px;
     margin: 10px 0;
+    & a {
+      color: var(--color-text);
+    }
   }
   & .login-cancel {
     margin: 20px 0;
