@@ -18,6 +18,7 @@ export class KubeOperator extends KubeApiService {
     }
 
     async watchClients() {
+        console.log('Watching Kubernetes API for OIDCGWClients')
         globalThis.OIDCClients = []
         const watch = new k8s.Watch(this.kc, new WatchRequest());
         watch.watch(
@@ -38,12 +39,14 @@ export class KubeOperator extends KubeApiService {
             // done callback is called if the watch terminates normally
             (err) => {
                 // tslint:disable-next-line:no-console
-                console.log('terminated')
-                console.log(err);
+                console.log('Kubernetes API watch terminated')
+                if (err) {
+                    console.error(err)
+                }
+                this.watchClients()
             }).then((req) => {
-            // watch returns a request object which you can use to abort the watch.
-            // setTimeout(() => { req.abort(); }, 10 * 1000);
-            // TODO: handle stream closing due to CRD changing etc
+                // watch returns a request object which you can use to abort the watch.
+                // setTimeout(() => { req.abort(); }, 10);
         });
     }
 

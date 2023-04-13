@@ -16,7 +16,9 @@ class WatchRequest {
         session.on('error', err => error += err);
         session.on('close', () => {
             clearInterval(ping);
-            callback(error);
+            if (callback instanceof Function) {
+                callback(error);
+            }
         });
         const stream = session.request({
             ...headers,
@@ -42,6 +44,9 @@ class WatchRequest {
             clearInterval(ping);
             session.close();
         });
+        stream.abort = () => {
+            clearInterval(ping);
+        }
         return stream;
     }
 }
