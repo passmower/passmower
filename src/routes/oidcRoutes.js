@@ -57,7 +57,7 @@ const render = async (provider, ctx, template, title, extra) => {
     } = await sessionDetails(provider, ctx)
 
     let dbg;
-    if (process.env.DEBUG && process.env.DEBUG === 'true') {
+    if (process.env.NODE_ENV !== 'production') {
         const sess = session !== undefined ? session : {}
         dbg = {
                 params: debug(params),
