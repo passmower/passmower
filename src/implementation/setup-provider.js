@@ -22,7 +22,7 @@ export default async () => {
     configuration.clients = [
         {
             client_id: 'oidc-gateway',
-            client_secret: randomUUID(), // TODO: what if multiple instances?
+            client_secret: randomUUID(), // Doesn't matter as GW frontpage relies solely on cookies.
             grant_types: ['implicit'],
             response_types: ['id_token'],
             redirect_uris: [process.env.ISSUER_URL],
