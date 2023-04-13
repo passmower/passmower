@@ -62,8 +62,8 @@ spec:
           env:
             - name: ISSUER_URL
               value: 'https://gateway-gab7y.codemowers.ee/'
-            - name: DEBUG
-              value: 'true'
+            - name: NODE_ENV
+              value: 'production'
             - name: DEPLOYMENT_NAME
               valueFrom:
                 fieldRef:
