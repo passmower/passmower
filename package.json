@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/app.js",
   "scripts": {
-    "dev": "nodemon --inspect=0.0.0.0 src/app.js -e ejs,js,css,html,jpg,png,scss --watch src",
+    "dev": "nodemon --inspect=0.0.0.0 --trace-warnings src/app.js -e ejs,js,css,html,jpg,png,scss --watch src",
     "dev-frontpage": "npm run dev --prefix frontpage",
     "dev-styles": "npm run --prefix styles sass-dev"
   },

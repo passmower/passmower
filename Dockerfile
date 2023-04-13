@@ -44,7 +44,6 @@ WORKDIR /app/styles
 RUN npm run sass-prod
 
 # production runtime
-# we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
 FROM node:lts-alpine AS prod
 
 WORKDIR /app
@@ -65,4 +64,5 @@ COPY --from=build /app/frontpage/dist/. /app/frontpage/dist/
 # copy compiled styles
 COPY --from=build /app/styles/dist/. /app/styles/dist/
 
-ENTRYPOINT node src/app.js
+# we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
+ENTRYPOINT node --supress-warnings src/app.js
