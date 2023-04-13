@@ -1,4 +1,5 @@
 import {randomUUID} from "crypto";
+import configuration from "./configuration.js";
 
 class OIDCClient {
     #clientName = null
@@ -6,6 +7,8 @@ class OIDCClient {
     #clientSecret = null
     #grantTypes = null
     #responseTypes = null
+    #tokenEndpointAuthMethod = null
+    #idTokenSignedResponseAlg = null
     #redirectUris = null
     #gatewayUri = null
     #resourceVersion = null
@@ -23,6 +26,8 @@ class OIDCClient {
             client_namespace: this.#clientNamespace,
             client_secret: this.#clientSecret,
             grant_types: this.#grantTypes,
+            token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
+            id_token_signed_response_alg: this.#idTokenSignedResponseAlg,
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
             gateway_uri: this.#gatewayUri
@@ -32,8 +37,10 @@ class OIDCClient {
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
         this.#clientNamespace = incomingClient.metadata.namespace
-        this.#grantTypes = [ 'implicit', 'refresh_token', 'authorization_code' ] // TODO: maybe let user choose
-        this.#responseTypes = [ 'id_token' ]
+        this.#grantTypes = incomingClient.grantTypes
+        this.#responseTypes = incomingClient.responseTypes
+        this.#tokenEndpointAuthMethod = incomingClient.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
+        this.#idTokenSignedResponseAlg = incomingClient.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
         this.#redirectUris = incomingClient.redirectUris
         this.#gatewayUri = process.env.ISSUER_URL
         this.#resourceVersion = incomingClient.metadata.resourceVersion
@@ -48,6 +55,8 @@ class OIDCClient {
             OIDC_CLIENT_SECRET: this.#clientSecret,
             OIDC_GRANT_TYPES: this.#grantTypes,
             OIDC_RESPONSE_TYPES: this.#responseTypes,
+            OIDC_TOKEN_ENDPOINT_AUTH_METHOD: this.#tokenEndpointAuthMethod,
+            OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG: this.#idTokenSignedResponseAlg,
             OIDC_REDIRECT_URIS: this.#redirectUris,
             OIDC_GATEWAY_URI: this.#gatewayUri
         }

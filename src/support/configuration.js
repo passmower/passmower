@@ -42,4 +42,14 @@ export default {
     jwks: {
         keys: [],
     },
+    clientDefaults: {
+        grant_types: [
+            'authorization_code'
+        ],
+        id_token_signed_response_alg: 'RS256',
+        response_types: [
+            'code'
+        ],
+        token_endpoint_auth_method: 'client_secret_basic'
+    }
 };

@@ -5,3 +5,11 @@ metadata:
   name: test-client
 redirectUris:
   - 'https://client-gab7y.codemowers.ee/cb'
+grantTypes:
+  - 'implicit'
+  - 'authorization_code'
+responseTypes:
+  - 'id_token'
+  - 'code'
+#tokenEndpointAuthMethod: 'client_secret_basic'
+#idTokenSignedResponseAlg: 'RS256'
