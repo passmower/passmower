@@ -29,6 +29,8 @@ export class KubeOperator extends KubeApiService {
                 OIDCClient.fromIncomingClient(apiObj)
                 if (type === 'ADDED') {
                     await this.#createOIDCClient(OIDCClient)
+                } else if (type === 'MODIFIED') {
+                    await this.#updateOIDCClient(OIDCClient)
                 } else if (type === 'DELETED') {
                     await this.#deleteOIDCClient(OIDCClient)
                 } else {
@@ -73,6 +75,13 @@ export class KubeOperator extends KubeApiService {
         }
     }
 
+    async #updateOIDCClient(OIDCClient) {
+        let secret = await this.#getKubeSecret(OIDCClient)
+        OIDCClient.setSecret(secret.OIDC_CLIENT_SECRET)
+        await this.#patchKubeSecret(OIDCClient)
+        await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
+    }
+
     async #replaceClientStatus (OIDCClient) {
         return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
             apiGroup,
@@ -99,6 +108,18 @@ export class KubeOperator extends KubeApiService {
             } else {
                 console.error(e)
             }
+        })
+    }
+
+    async #getKubeSecret(OIDCClient) {
+        return await this.coreV1Api.readNamespacedSecret(
+            OIDCClient.getSecretName(),
+            OIDCClient.getClientNamespace()
+        ).then(async (r) => {
+            return this.#parseSecretData(r.body.data)
+        }).catch((e) => {
+            console.error(e)
+            return null
         })
     }
 
@@ -130,6 +151,34 @@ export class KubeOperator extends KubeApiService {
                 console.error(e)
                 return null
             }
+        })
+    }
+
+    async #patchKubeSecret(OIDCClient) {
+        const secret = await this.#generateSecretData(OIDCClient)
+        let patches = Object.keys(secret).map((k) => {
+            return {
+                "op": "replace",
+                "path": "/data/" + k,
+                "value": secret[k]
+            }
+        })
+
+        return await this.coreV1Api.patchNamespacedSecret(
+            OIDCClient.getSecretName(),
+            OIDCClient.getClientNamespace(),
+            patches,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
+        ).then((r) => {
+            return this.#parseSecretData(r.body.data)
+        }).catch((e) => {
+            console.error(e)
+            return null
         })
     }
 

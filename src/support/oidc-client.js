@@ -71,6 +71,11 @@ class OIDCClient {
         return this
     }
 
+    setSecret(secret) {
+        this.#clientSecret = secret
+        return this
+    }
+
     getSecretName() {
         return `oidc-client-${this.#clientName}-owner-secrets` // TODO: replaceable template in constants
     }
