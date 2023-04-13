@@ -18,20 +18,20 @@ class Account {
      *   or not return them in id tokens but only userinfo and so on.
      */
     async claims(use, scope) { // eslint-disable-line no-unused-vars
+        let claims = {
+            sub: this.accountId, // it is essential to always return a sub claim
+            groups: this.groups,
+            emails: this.emails,
+        };
         if (this.profile) {
-            return {
-                sub: this.accountId, // it is essential to always return a sub claim
-                groups: this.groups,
-                emails: this.profile.emails,
+            claims = {
+                ...claims,
                 name: this.profile.name,
                 company: this.profile.company,
                 githubId: this.profile.githubId,
             };
         }
-        return {
-            sub: this.accountId, // it is essential to always return a sub claim
-            groups: this.groups
-        };
+        return claims
     }
 
     static getUid()

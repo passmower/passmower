@@ -15,6 +15,13 @@ export default {
             'sub',
             'groups',
         ],
+        profile: [
+            'sub',
+            'groups',
+            'emails',
+            'name',
+            'company',
+        ],
         sid: null,
     },
     features: {
