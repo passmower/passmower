@@ -44,9 +44,10 @@ export default {
           .then((r) => {
             if (r.redirected) {
               window.location.replace(r.url);
+            } else {
+              return r.json()
             }
           })
-          .then((r) => r.json())
           .then((r) => {
             this.setSessions(r.sessions)
           }).catch((e) => {
