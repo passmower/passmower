@@ -43,7 +43,7 @@ export class KubeOperator extends KubeApiService {
                 if (err) {
                     console.error(err)
                 }
-                this.watchClients()
+                setTimeout(() => { this.watchClients(); }, 10 * 1000);
             }).then((req) => {
                 // watch returns a request object which you can use to abort the watch.
                 // setTimeout(() => { req.abort(); }, 10);
