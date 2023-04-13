@@ -50,8 +50,9 @@ export class KubeOperator extends KubeApiService {
     async #createOIDCClient (OIDCClient) {
         let clientReady = false
         if (OIDCClient.status.gateway === this.currentGateway) {
-            // upsert to Redis just in case.
-            clientReady = true
+            if (! await this.redisAdapter.find(OIDCClient.getClientId())) {
+                clientReady = true
+            }
         } else if (!OIDCClient.status.gateway) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCClient)
@@ -70,11 +71,11 @@ export class KubeOperator extends KubeApiService {
                     console.error(e)
                     return null
                 })
-                OIDCClient.generateSecret()
                 clientReady = true
             }
         }
         if (clientReady) {
+            OIDCClient.generateSecret()
             await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis(), 3600)
         }
     }
