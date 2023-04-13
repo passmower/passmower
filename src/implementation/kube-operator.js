@@ -47,37 +47,27 @@ export class KubeOperator extends KubeApiService {
             }).then((req) => {
                 // watch returns a request object which you can use to abort the watch.
                 // setTimeout(() => { req.abort(); }, 10);
-        });
+            });
     }
 
     async #createOIDCClient (OIDCClient) {
-        let clientReady = false
-        if (OIDCClient.status.gateway === this.currentGateway) {
-            if (! await this.redisAdapter.find(OIDCClient.getClientId())) {
-                clientReady = true
+        if (OIDCClient.getGateway() === this.currentGateway) {
+            if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
+                // Recreate the Kube secret if we don't have the client in Redis
+                OIDCClient.generateSecret()
+                await this.#deleteKubeSecret(OIDCClient)
+                await this.#createKubeSecret(OIDCClient)
+
             }
-        } else if (!OIDCClient.status.gateway) {
+        } else if (!OIDCClient.getGateway()) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCClient)
             if (claimedClient) {
-                let kubeSecret = new V1Secret()
-                kubeSecret.metadata = {
-                    name: OIDCClient.getSecretName(),
-                }
-                kubeSecret.data = await this.#generateSecretData(OIDCClient)
-                await this.coreV1Api.createNamespacedSecret(
-                    OIDCClient.clientNamespace,
-                    kubeSecret
-                ).then(async (r) => {
-                    return this.#parseSecretData(r.body.data)
-                }).catch((e) => {
-                    console.error(e)
-                    return null
-                })
-                clientReady = true
+                OIDCClient.generateSecret()
+                await this.#createKubeSecret(OIDCClient)
             }
         }
-        if (clientReady) {
+        if (OIDCClient.hasSecret()) {
             OIDCClient.generateSecret()
             await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis(), 3600)
         }
@@ -87,15 +77,15 @@ export class KubeOperator extends KubeApiService {
         return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
             apiGroup,
             apiGroupVersion,
-            OIDCClient.clientNamespace,
+            OIDCClient.getClientNamespace(),
             OIDCGWClients,
-            OIDCClient.clientName,
+            OIDCClient.getClientName(),
             {
                 apiVersion: apiGroup + '/' + apiGroupVersion,
                 kind: OIDCGWUser,
                 metadata: {
-                    name: OIDCClient.clientName,
-                    resourceVersion: OIDCClient.resourceVersion
+                    name: OIDCClient.getClientName(),
+                    resourceVersion: OIDCClient.getResourceVersion()
                 },
                 status: {
                     gateway: this.currentGateway
@@ -112,11 +102,42 @@ export class KubeOperator extends KubeApiService {
         })
     }
 
+    async #createKubeSecret(OIDCClient) {
+        let kubeSecret = new V1Secret()
+        kubeSecret.metadata = {
+            name: OIDCClient.getSecretName(),
+        }
+        kubeSecret.data = await this.#generateSecretData(OIDCClient)
+        await this.coreV1Api.createNamespacedSecret(
+            OIDCClient.getClientNamespace(),
+            kubeSecret
+        ).then(async (r) => {
+            return this.#parseSecretData(r.body.data)
+        }).catch((e) => {
+            console.error(e)
+            return null
+        })
+    }
+
+    async #deleteKubeSecret(OIDCClient) {
+        await this.coreV1Api.deleteNamespacedSecret(
+            OIDCClient.getSecretName(),
+            OIDCClient.getClientNamespace()
+        ).then(async (r) => {
+            return r.body.status
+        }).catch((e) => {
+            if (e.statusCode !== 404) {
+                console.error(e)
+                return null
+            }
+        })
+    }
+
     async #deleteOIDCClient (OIDCClient) {
-        if (OIDCClient.status.gateway === this.currentGateway) {
+        if (OIDCClient.getGateway() === this.currentGateway) {
             await this.coreV1Api.deleteNamespacedSecret(
                 OIDCClient.getSecretName(),
-                OIDCClient.clientNamespace,
+                OIDCClient.getClientNamespace(),
             ).catch((e) => {
                 if (e.statusCode !== 404) {
                     console.error(e)
