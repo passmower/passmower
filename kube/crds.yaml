@@ -85,7 +85,7 @@ spec:
               type: array
               items:
                 type: string
-                enum: ['implicit', 'authorization_code', 'client_credentials', 'refresh_token']
+                enum: ['implicit', 'authorization_code', 'refresh_token']
             responseTypes:
               type: array
               items:
