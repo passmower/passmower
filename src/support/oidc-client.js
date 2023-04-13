@@ -49,7 +49,7 @@ class OIDCClient {
     }
 
     toClientSecret() {
-        // TODO: provide scope & post_type
+        // TODO: provide available scopes etc.
         return {
             OIDC_CLIENT_ID: this.getClientId(),
             OIDC_CLIENT_SECRET: this.#clientSecret,

@@ -55,7 +55,7 @@ export class KubeOperator extends KubeApiService {
     async #createOIDCClient (OIDCClient) {
         if (OIDCClient.getGateway() === this.currentGateway) {
             if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
-                // Recreate the Kube secret if we don't have the client in Redis
+                // Recreate the Kube secret if we don't have the client in Redis. It's an edge case anyways.
                 OIDCClient.generateSecret()
                 await this.#deleteKubeSecret(OIDCClient)
                 await this.#createKubeSecret(OIDCClient)
@@ -70,8 +70,7 @@ export class KubeOperator extends KubeApiService {
             }
         }
         if (OIDCClient.hasSecret()) {
-            OIDCClient.generateSecret()
-            await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis(), 3600)
+            await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
         }
     }
 
