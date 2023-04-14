@@ -17,6 +17,7 @@ import {mapActions, mapState, mapStores} from "pinia";
 import {useAccountStore} from "@/stores/account";
 import XMark from "@/components/Icons/XMark.vue";
 import {closeModal} from "jenesius-vue-modal"
+import {useToast} from "vue-toast-notification";
 
 export default {
   name: "EditProfile",
@@ -42,7 +43,10 @@ export default {
         this.setAccount(r)
       }).catch((e) => {
         console.error(e)
-        // TODO: notify user.
+        const $toast = useToast();
+        $toast.error('Updating profile failed', {
+            position: 'top-right'
+        });
       }).finally(() => {
         closeModal()
       })
