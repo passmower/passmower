@@ -45,6 +45,7 @@ export default {
           .then((r) => {
             if (r.redirected) {
               window.location.replace(r.url);
+              return []
             } else {
               return r.json()
             }
