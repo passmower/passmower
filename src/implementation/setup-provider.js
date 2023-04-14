@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import Account from "../support/account.js";
 import {KubeApiService} from "./kube-api-service.js";
 import renderError from "../support/render-error.js";
+import loadExistingGrant from "../support/load-existing-grant.js";
 
 export default async () => {
     let adapter;
@@ -31,6 +32,7 @@ export default async () => {
     ]
     configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
     configuration.renderError = renderError
+    configuration.loadExistingGrant = loadExistingGrant
     const provider = new Provider(process.env.ISSUER_URL, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
