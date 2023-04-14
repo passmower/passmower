@@ -1,10 +1,10 @@
 import Account from "../support/account.js";
 import Nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
-import RedisAdapter from "../adapters/redis.js";
 import { renderFile } from 'ejs';
 import path from "path";
 import {dirname} from "desm";
+import accessDenied from "../support/access-denied.js";
 
 export class EmailLogin {
     constructor() {
@@ -21,7 +21,6 @@ export class EmailLogin {
             from: process.env.EMAIL_USERNAME,
             subject: 'Login link',
         };
-        this.redis = new RedisAdapter('links')
     }
 
 
@@ -31,10 +30,11 @@ export class EmailLogin {
         const email = ctx.request.body.email
         const token = randomUUID()
         const url = `${process.env.ISSUER_URL}interaction/${uid}/verify-email/${token}`
-        await this.redis.upsert(token, {
-            email: email,
-            uid: uid,
-        }, 3600)
+        await provider.interactionResult(ctx.req, ctx.res, {
+            email,
+            token
+        })
+
         const __dirname = dirname(import.meta.url);
         const emailHtml = await renderFile(
             path.join(__dirname, '..', 'views', 'emails', 'link.ejs'),
@@ -60,12 +60,17 @@ export class EmailLogin {
     }
 
     async verifyLink(ctx, provider) {
-        const verification = await this.redis.find(ctx.request.params.token)
+        const params = ctx.request.params
+        const details = await provider.interactionDetails(ctx.req, ctx.res)
+        if (!details.result || details.result.token !== params.token || details.jti !== params.uid) {
+            return accessDenied(ctx, provider, 'Invalid magic link')
+        }
+
         const account = await Account.createOrUpdateByEmails(
             ctx,
-            [verification.email],
+            [details.result.email],
             {
-                sub: verification.email,
+                sub: details.result.email,
             }
             );
 
