@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import Account from "../support/account.js";
 import {OAuth2} from "oauth";
+import accessDenied from "../support/access-denied.js";
 
 export default async (ctx, provider) => {
     const ghOauth = new OAuth2(process.env.GH_CLIENT_ID,
@@ -14,13 +15,21 @@ export default async (ctx, provider) => {
     delete callbackParams['upstream']
 
     if (!Object.keys(callbackParams).length) {
-        const state = `${ctx.params.uid}|${crypto.randomBytes(32).toString('hex')}`; // TODO: how is state used later on?
+        const state = `${ctx.params.uid}|${crypto.randomBytes(32).toString('hex')}`;
+        await provider.interactionResult(ctx.req, ctx.res, {
+            state,
+        })
         ctx.status = 302;
         return ctx.redirect(ghOauth.getAuthorizeUrl({
             redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
             scope: ['user:email'],
             state,
         }));
+    }
+
+    const details = await provider.interactionDetails(ctx.req, ctx.res)
+    if (!details.result || details.result.state !== callbackParams.state) {
+        return accessDenied(ctx, provider,'State does not match')
     }
 
     const token = await new Promise(resolve => {

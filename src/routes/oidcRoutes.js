@@ -12,6 +12,7 @@ import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
 import {randomUUID} from "crypto";
+import accessDenied from "../support/access-denied.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -193,14 +194,7 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid/abort', async (ctx) => {
-        const result = {
-            error: 'access_denied',
-            error_description: 'End-User aborted interaction',
-        };
-
-        return provider.interactionFinished(ctx.req, ctx.res, result, {
-            mergeWithLastSubmission: false,
-        });
+        return accessDenied(ctx, provider,  'End-User aborted interaction')
     });
 
     return router;
