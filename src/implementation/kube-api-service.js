@@ -106,7 +106,6 @@ export class KubeApiService {
             })
         }
         if (typeof groups !== 'undefined') {
-            // TODO: delete old groups
             patches.push({
                 "op": "replace",
                 "path":"/spec/" + OIDCGWUserSpecGroupsKey,
@@ -114,7 +113,6 @@ export class KubeApiService {
             })
         }
         if (typeof emails !== 'undefined') {
-            // TODO: delete old emails
             patches.push({
                 "op": "replace",
                 "path":"/spec/" + OIDCGWUserSpecEmailsKey,

@@ -47,7 +47,8 @@ class Account {
         if (!user) {
             return await ctx.kubeApiService.createUser(this.getUid(), profile, emails, [])
         }
-        return await ctx.kubeApiService.updateUser(user.accountId, profile, emails, undefined, undefined);
+        const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
+        return await ctx.kubeApiService.updateUser(user.accountId, profile, allEmails, undefined, undefined);
     }
 
     static async updateProfile(ctx, accountId, profile) {
