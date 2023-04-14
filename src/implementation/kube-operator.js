@@ -7,7 +7,7 @@ import {
     OIDCGWClients,
     apiGroup,
     OIDCGWUser,
-    apiGroupVersion
+    apiGroupVersion, OIDCGWClientSecretClientIdKey
 } from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 
@@ -76,7 +76,7 @@ export class KubeOperator extends KubeApiService {
 
     async #updateOIDCClient(OIDCClient) {
         let secret = await this.#getKubeSecret(OIDCClient)
-        OIDCClient.setSecret(secret.OIDC_CLIENT_SECRET)
+        OIDCClient.setSecret(secret[OIDCGWClientSecretClientIdKey])
         await this.#patchKubeSecret(OIDCClient)
         await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
     }

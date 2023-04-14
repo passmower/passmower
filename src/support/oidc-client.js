@@ -1,5 +1,15 @@
 import {randomUUID} from "crypto";
 import configuration from "./configuration.js";
+import {
+    OIDCGWClientId,
+    OIDCGWClientSecretClientIdKey, OIDCGWClientSecretClientSecretKey,
+    OIDCGWClientSecretGatewayUriKey, OIDCGWClientSecretGrantTypesKey,
+    OIDCGWClientSecretIdTokenSignedResponseAlgKey,
+    OIDCGWClientSecretName,
+    OIDCGWClientSecretRedirectUrisKey,
+    OIDCGWClientSecretResponseTypesKey,
+    OIDCGWClientSecretTokenEndpointAuthMethodKey
+} from "./kube-constants.js";
 
 class OIDCClient {
     #clientName = null
@@ -51,14 +61,14 @@ class OIDCClient {
     toClientSecret() {
         // TODO: provide available scopes etc.
         return {
-            OIDC_CLIENT_ID: this.getClientId(),
-            OIDC_CLIENT_SECRET: this.#clientSecret,
-            OIDC_GRANT_TYPES: this.#grantTypes,
-            OIDC_RESPONSE_TYPES: this.#responseTypes,
-            OIDC_TOKEN_ENDPOINT_AUTH_METHOD: this.#tokenEndpointAuthMethod,
-            OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG: this.#idTokenSignedResponseAlg,
-            OIDC_REDIRECT_URIS: this.#redirectUris,
-            OIDC_GATEWAY_URI: this.#gatewayUri
+            [OIDCGWClientSecretClientIdKey]: this.getClientId(),
+            [OIDCGWClientSecretClientSecretKey]: this.#clientSecret,
+            [OIDCGWClientSecretGrantTypesKey]: this.#grantTypes,
+            [OIDCGWClientSecretResponseTypesKey]: this.#responseTypes,
+            [OIDCGWClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
+            [OIDCGWClientSecretIdTokenSignedResponseAlgKey]: this.#idTokenSignedResponseAlg,
+            [OIDCGWClientSecretRedirectUrisKey]: this.#redirectUris,
+            [OIDCGWClientSecretGatewayUriKey]: this.#gatewayUri
         }
     }
 
@@ -77,11 +87,11 @@ class OIDCClient {
     }
 
     getSecretName() {
-        return `oidc-client-${this.#clientName}-owner-secrets` // TODO: replaceable template in constants
+        return OIDCGWClientSecretName(this.#clientName)
     }
 
     getClientId() {
-        return this.#clientNamespace + '-' + this.#clientName // TODO: replaceable template in constants
+        return OIDCGWClientId(this.#clientNamespace, this.#clientName)
     }
 
     getGateway() {
