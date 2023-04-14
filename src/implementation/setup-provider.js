@@ -8,6 +8,7 @@ import RedisAdapter from "../adapters/redis.js";
 import { randomUUID } from 'crypto';
 import Account from "../support/account.js";
 import {KubeApiService} from "./kube-api-service.js";
+import renderError from "../support/render-error.js";
 
 export default async () => {
     let adapter;
@@ -29,6 +30,7 @@ export default async () => {
         }
     ]
     configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
+    configuration.renderError = renderError
     const provider = new Provider(process.env.ISSUER_URL, { adapter, ...configuration });
     provider.proxy = true
     provider.use(async (ctx, next) => {
