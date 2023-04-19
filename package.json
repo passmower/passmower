@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon --inspect=0.0.0.0 --trace-warnings src/app.js -e ejs,js,css,html,jpg,png,scss --watch src",
     "dev-frontpage": "npm run dev --prefix frontpage",
+    "dev-adminpage": "npm run dev --prefix adminpage",
     "dev-styles": "npm run --prefix styles sass-dev"
   },
   "type": "module",

@@ -18,15 +18,23 @@ COPY src/. /app/src/
 COPY frontpage/package.json /app/frontpage/
 COPY frontpage/package-lock.json /app/frontpage/
 
-# install frontpage dependencies
+# install frontpage dependencies and code
 RUN npm install --prefix frontpage
 COPY frontpage/. /app/frontpage/
 
-# copy frontpage package.json and package-lock.json
+# copy adminpage package.json and package-lock.json
+COPY adminpage/package.json /app/adminpage/
+COPY adminpage/package-lock.json /app/adminpage/
+
+# install adminpage dependencies and code
+RUN npm install --prefix adminpage
+COPY adminpage/. /app/adminpage/
+
+# copy styles package.json and package-lock.json
 COPY styles/package.json /app/styles/
 COPY styles/package-lock.json /app/styles/
 
-# install frontpage dependencies
+# install styles dependencies and code
 RUN npm install --prefix styles
 COPY styles/src/. /app/styles/src/
 
