@@ -76,7 +76,7 @@ export class KubeOperator extends KubeApiService {
 
     async #updateOIDCClient(OIDCClient) {
         let secret = await this.#getKubeSecret(OIDCClient)
-        OIDCClient.setSecret(secret[OIDCGWClientSecretClientIdKey])
+        secret ? OIDCClient.setSecret(secret[OIDCGWClientSecretClientIdKey]) : OIDCClient.generateSecret()
         await this.#patchKubeSecret(OIDCClient)
         await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
     }
