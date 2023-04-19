@@ -195,17 +195,23 @@ svg {
   & p {
     padding-bottom: 0.2em;
   }
-  & .session {
+  & .item {
     display: flex;
     padding-bottom: 2em;
     & h3 {
-      padding-bottom: 0.5em;
+      padding-bottom: 0.3em;
       & span {
         font-size: 12px;
       }
     }
     & svg {
       height: 20px;
+    }
+    &-actions {
+      flex-grow: 1;
+      align-items: center;
+      justify-content: center;
+      display: flex;
     }
   }
 }

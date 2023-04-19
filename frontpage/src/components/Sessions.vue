@@ -3,8 +3,8 @@
     <div class="profile-section-header">
       <h2>Sessions</h2>
     </div>
-    <div class="session" v-for="session in sessions">
-      <div class="session-details">
+    <div class="item" v-for="session in sessions">
+      <div class="item-details">
         <h3>{{ session.browser }} on {{ session.os }} <span v-if="session.current">(current session)</span></h3>
         <p>Initial IP: {{ session.ip }}</p>
         <p>Created at: {{ session.created_at }}</p>
