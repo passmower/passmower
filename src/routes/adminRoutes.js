@@ -32,5 +32,12 @@ export default (provider) => {
         return ctx.render('adminpage', { layout: false, title: 'oidc-gateway' })
     })
 
+    router.get('/admin/api/accounts', async (ctx, next) => {
+        const accounts = await ctx.kubeApiService.listUsers()
+        ctx.body = {
+            accounts
+        }
+    })
+
     return router
 }

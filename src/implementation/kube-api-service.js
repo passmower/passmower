@@ -22,6 +22,27 @@ export class KubeApiService {
         this.currentGateway = this.namespace + '-' + process.env.DEPLOYMENT_NAME
     }
 
+    async listUsers() {
+        return await this.customObjectsApi.listNamespacedCustomObject(
+            apiGroup,
+            apiGroupVersion,
+            this.namespace,
+            OIDCGWUsers
+        ).then(async (r) => {
+            // return new Account(r.body)
+            return await Promise.all(
+                r.body.items.map(async (s) => {
+                    return new Account(s)
+                })
+            )
+        }).catch((e) => {
+            if (e.statusCode !== 404) {
+                console.error(e)
+                return null
+            }
+        })
+    }
+
     async findUser(id) {
         return await this.customObjectsApi.getNamespacedCustomObject(
             apiGroup,
