@@ -1,5 +1,6 @@
 <template>
   <header>
+      <a v-if="account.isAdmin" href="/admin">Admin panel</a>
   </header>
 
   <main>

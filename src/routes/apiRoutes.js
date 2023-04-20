@@ -23,7 +23,8 @@ export default (provider) => {
         ctx.body = {
             emails: account.emails,
             name: account.profile.name,
-            company: account.profile.company
+            company: account.profile.company,
+            isAdmin: account.isAdmin,
         }
     })
 

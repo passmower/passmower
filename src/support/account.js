@@ -1,5 +1,7 @@
 import ShortUniqueId from "short-unique-id";
 
+export const AdminGroup = 'codemowers:admins'
+
 class Account {
     constructor(apiResponse) {
         this.accountId = apiResponse.metadata.name;
@@ -7,6 +9,7 @@ class Account {
         this.acceptedTos = apiResponse.spec.acceptedTos
         this.groups = apiResponse.spec.groups
         this.emails = apiResponse.spec.emails
+        this.isAdmin = this.groups.includes(AdminGroup)
     }
 
     /**

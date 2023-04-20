@@ -1,10 +1,7 @@
 <template>
-  <header>
-  </header>
-
   <main>
     <div class="login-card">
-      <h1>Hello, {{ account.name }}!</h1>
+      <h1>oidc-gateway admin</h1>
       <Accounts />
     </div>
   </main>
@@ -12,8 +9,6 @@
 </template>
 
 <script>
-import {mapActions, mapState, mapStores} from "pinia";
-import {useAccountStore} from "@/stores/account";
 import {container} from "jenesius-vue-modal";
 import Accounts from "@/components/Accounts.vue";
 
@@ -23,22 +18,11 @@ export default {
     WidgetContainerModal: container,
   },
   data() {
-    return {
-      examineLogContent: null,
-    }
+    return {}
   },
-  computed: {
-    ...mapStores(useAccountStore),
-    ...mapState(useAccountStore, ['account']),
-  },
-  created() {
-    fetch('/api/me').then((r) => r.json()).then((r) => {
-      this.setAccount(r)
-    })
-  },
-  methods: {
-    ...mapActions(useAccountStore, ['setAccount']),
-  }
+  computed: {},
+  created() {},
+  methods: {}
 }
 
 </script>

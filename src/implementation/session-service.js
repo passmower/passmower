@@ -162,4 +162,24 @@ export class SessionService {
         //
         // await next();
     }
+
+    async getAdminSession(ctx) {
+        let adminSession = ctx.cookies.get('_admin_session') // TODO: make configurable?
+        if (adminSession) {
+            return await this.adminSessionRedis.find(adminSession)
+        }
+        return null
+    }
+
+    async setAdminSession(ctx, session) {
+        await this.adminSessionRedis.upsert(session.uid, session, 3600) // TODO: consolidate expirations
+        ctx.cookies.set(
+            '_admin_session',
+            session.jti,
+            {
+                maxAge: 3600 * 1000,
+            },
+        );
+        return true
+    }
 }
