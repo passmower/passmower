@@ -13,6 +13,7 @@ import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
 import {randomUUID} from "crypto";
 import accessDenied from "../support/access-denied.js";
+import selfOidcClient, {responseType, scope} from "../support/self-oidc-client.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -94,10 +95,10 @@ export default (provider) => {
             return ctx.render('frontpage', { layout: false, title: 'oidc-gateway' })
         } else {
             const url = new URL(provider.urlFor('authorization'))
-            url.searchParams.append('client_id', 'oidc-gateway')
-            url.searchParams.append('response_type', 'id_token')
-            url.searchParams.append('scope', 'openid')
-            url.searchParams.append('nonce', randomUUID())
+            url.searchParams.append('client_id', selfOidcClient.client_id)
+            url.searchParams.append('response_type', responseType)
+            url.searchParams.append('scope', scope)
+            url.searchParams.append('nonce', randomUUID()) // TODO: check nonce
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
                 url: url.href
             })
