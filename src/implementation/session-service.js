@@ -2,10 +2,14 @@ import RedisAdapter from "../adapters/redis.js";
 import {UAParser} from "ua-parser-js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import revoke from "oidc-provider/lib/helpers/revoke.js";
+import nanoid from "oidc-provider/lib/helpers/nanoid.js";
+import Account from "../support/account.js";
 
 export class SessionService {
     constructor() {
         this.sessionRedis = new RedisAdapter('Session')
+        this.adminSessionRedis = new RedisAdapter('AdminSession')
+        this.impersonationRedis = new RedisAdapter('Impersonation')
         this.accountSessionRedis = new RedisAdapter('AccountSession')
         this.metadataRedis = new RedisAdapter('SessionMetadata')
     }
@@ -121,7 +125,7 @@ export class SessionService {
                     }),
                 );
             }
-
+            // TODO: destroy session if logging out from current session.
             // await session.destroy();
 
             // Do not destroy current session.
@@ -172,7 +176,7 @@ export class SessionService {
     }
 
     async setAdminSession(ctx, session) {
-        await this.adminSessionRedis.upsert(session.uid, session, 3600) // TODO: consolidate expirations
+        await this.adminSessionRedis.upsert(session.jti, session, 3600) // TODO: consolidate expirations
         ctx.cookies.set(
             '_admin_session',
             session.jti,
@@ -181,5 +185,58 @@ export class SessionService {
             },
         );
         return true
+    }
+
+    async impersonate(ctx, accountId) {
+        let account = Account.findAccount(ctx, accountId)
+        if (!accountId) {
+            ctx.statusCode = 404
+            return
+        }
+        // Remove the session cookie but keep the session itself intact - admin can later return to it.
+        // TODO: would back-channel log-out be required?
+        ctx.cookies.set(
+            '_session', // TODO: use provider's configuration mechanism
+            null,
+        );
+        ctx.cookies.set(
+            '_session.legacy', // TODO: use provider's configuration mechanism
+            null,
+        );
+
+        const impersonation = {
+            jti: nanoid(),
+            actor: ctx.adminSession.accountId,
+            accountId,
+        }
+        await this.impersonationRedis.upsert(impersonation.jti, impersonation, 3600) // TODO: consolidate expirations
+        ctx.cookies.set(
+            '_impersonation',  // TODO: make configurable?
+            impersonation.jti,
+            {
+                // path: url.parse(destination).pathname,
+                // ...cookieOptions, // TODO: check if oidc-provider uses some relevant cookieOptions
+                maxAge: 3600 * 1000,
+            },
+        );
+        return impersonation
+    }
+
+    async getImpersonation(ctx) {
+        let impersonation = ctx.cookies.get('_impersonation')
+        if (impersonation) {
+            impersonation = await this.impersonationRedis.find(impersonation)
+        }
+        return impersonation
+    }
+
+    async endImpersonation(ctx) {
+        let impersonation = ctx.cookies.get('_impersonation')
+        await this.impersonationRedis.destroy(impersonation)
+        ctx.cookies.set(
+            '_impersonation',
+            null,
+        );
+        // TODO: restore regular session
     }
 }

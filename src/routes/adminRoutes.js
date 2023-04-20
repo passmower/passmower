@@ -39,5 +39,26 @@ export default (provider) => {
         }
     })
 
+    router.get('/admin/api/account/impersonation', async (ctx, next) => {
+        ctx.body = {
+            impersonation: await sessionService.getImpersonation(ctx)
+        }
+    })
+
+    router.post('/admin/api/account/impersonation', async (ctx, next) => {
+        const accountId = ctx.request.body.accountId
+        const impersonation = await sessionService.impersonate(ctx, accountId)
+        ctx.body = {
+            impersonation
+        }
+    })
+
+    router.post('/admin/api/account/impersonation/end', async (ctx, next) => {
+        await sessionService.endImpersonation(ctx)
+        ctx.body = {
+            impersonation: null
+        }
+    })
+
     return router
 }

@@ -14,3 +14,12 @@
   <input required type="text" name="email" placeholder="Enter email">
   <button type="submit" class="login login-submit">Send link</button>
 </form>
+<% if (impersonation) { %>
+  <div class="login-help">
+    - or -
+  </div>
+  <form autocomplete="off" action="/interaction/<%= uid %>/impersonate" method="post">
+    <button type="submit" class="login login-submit">Impersonate <%= impersonation.accountId %></button>
+  </form>
+<% } %>
+
