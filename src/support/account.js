@@ -42,7 +42,7 @@ class Account {
         const uid = new ShortUniqueId({
             dictionary: 'alphanum_lower',
         });
-        return uid.stamp(10);
+        return 'u' + uid.stamp(10);
     }
 
     static async createOrUpdateByEmails(ctx, emails, profile) {
