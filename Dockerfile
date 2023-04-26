@@ -52,7 +52,7 @@ WORKDIR /app/styles
 RUN npm run sass-prod
 
 # production runtime
-FROM node:lts-slim AS prod
+FROM node:lts-alpine AS prod
 
 WORKDIR /app
 
