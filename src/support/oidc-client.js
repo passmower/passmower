@@ -47,11 +47,11 @@ class OIDCClient {
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
         this.#clientNamespace = incomingClient.metadata.namespace
-        this.#grantTypes = incomingClient.grantTypes
-        this.#responseTypes = incomingClient.responseTypes
-        this.#tokenEndpointAuthMethod = incomingClient.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
-        this.#idTokenSignedResponseAlg = incomingClient.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
-        this.#redirectUris = incomingClient.redirectUris
+        this.#grantTypes = incomingClient.spec.grantTypes
+        this.#responseTypes = incomingClient.spec.responseTypes
+        this.#tokenEndpointAuthMethod = incomingClient.spec.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
+        this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
+        this.#redirectUris = incomingClient.spec.redirectUris
         this.#gatewayUri = process.env.ISSUER_URL
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
