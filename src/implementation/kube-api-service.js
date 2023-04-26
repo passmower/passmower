@@ -3,12 +3,8 @@ import Account from "../support/account.js";
 import {
     OIDCGWUser,
     OIDCGWUsers,
-    OIDCGWUserSpecProfileKey,
-    OIDCGWUserSpecAcceptedTosKey,
-    OIDCGWUserSpecGroupsKey,
-    OIDCGWUserSpecEmailsKey,
     apiGroup,
-    apiGroupVersion
+    apiGroupVersion,
 } from "../support/kube-constants.js";
 
 export class KubeApiService {
@@ -83,7 +79,7 @@ export class KubeApiService {
         return foundUser ? new Account(foundUser.user) : null
     }
 
-    async createUser(id, profile, emails, groups) {
+    async createUser(id, emails) {
         return await this.customObjectsApi.createNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -96,13 +92,14 @@ export class KubeApiService {
                     'name': id,
                 },
                 'spec': {
-                    'profile': profile,
-                    'groups': groups,
                     'emails': emails,
+                    'githubProfile': {},
+                    'customProfile': {},
                 }
+
             }
-        ).then((r) => {
-            return new Account(r.body)
+        ).then(async (r) => {
+            return await this.#updateUserStatus(new Account(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -111,34 +108,11 @@ export class KubeApiService {
         })
     }
 
-    async updateUser(id, profile, emails, groups, tos) {
-        let patches = Object.keys(profile).map((k) => {
-            return {
-                "op": "replace",
-                "path":"/spec/" + OIDCGWUserSpecProfileKey + '/' + k,
-                "value": profile[k]
-            }
-        })
-        if (typeof tos !== 'undefined') {
-            patches.push({
-                "op": "replace",
-                "path":"/spec/" + OIDCGWUserSpecAcceptedTosKey,
-                "value": tos
-            })
-        }
-        if (typeof groups !== 'undefined') {
-            patches.push({
-                "op": "replace",
-                "path":"/spec/" + OIDCGWUserSpecGroupsKey,
-                "value": groups
-            })
-        }
-        if (typeof emails !== 'undefined') {
-            patches.push({
-                "op": "replace",
-                "path":"/spec/" + OIDCGWUserSpecEmailsKey,
-                "value": emails
-            })
+    async updateUserSpec({accountId, emails, customGroups, customProfile, githubGroups, githubProfile, acceptedTos} = {}) {
+        const account = await this.findUser(accountId)
+        let patches = []
+        for (let [key, value] of Object.entries(arguments[0])) {
+            patches = [...patches, ...this.#getPatches(key, value, account.spec)]
         }
 
         return await this.customObjectsApi.patchNamespacedCustomObject(
@@ -146,19 +120,65 @@ export class KubeApiService {
             apiGroupVersion,
             this.namespace,
             OIDCGWUsers,
-            id,
+            accountId,
             patches,
             undefined,
             undefined,
             undefined,
             { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
-        ).then((r) => {
-            return new Account(r.body)
+        ).then(async (r) => {
+            return await this.#updateUserStatus(new Account(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
                 return null
             }
+        })
+    }
+
+    #getPatches (name, values, existingSpec) {
+        let patches = []
+        if (typeof values !== 'undefined') {
+            const op = existingSpec?.[name] ? 'replace' : 'add'
+            if (typeof values === 'object' && !Array.isArray(values)) {
+                for (let [key, value] of Object.entries(values)) {
+                    patches.push({
+                        op,
+                        "path": "/spec/" + name + '/' + key,
+                        "value": value
+                    })
+                }
+            } else {
+                patches.push({
+                    op,
+                    "path":"/spec/" + name,
+                    "value": values
+                })
+            }
+        }
+        return patches
+    }
+
+    async #updateUserStatus(account) {
+        return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
+            apiGroup,
+            apiGroupVersion,
+            this.namespace,
+            OIDCGWUsers,
+            account.accountId,
+            {
+                apiVersion: apiGroup + '/' + apiGroupVersion,
+                kind: OIDCGWUser,
+                metadata: {
+                    name: account.accountId,
+                    resourceVersion: account.resourceVersion
+                },
+                status: account.getIntendedStatus(),
+            }
+        ).then((r) => {
+            return new Account(r.body)
+        }).catch((e) => {
+            console.error(e)
         })
     }
 }

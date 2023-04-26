@@ -3,12 +3,16 @@ import ShortUniqueId from "short-unique-id";
 export const AdminGroup = 'codemowers:admins'
 
 class Account {
+    #spec = null
+
     constructor(apiResponse) {
-        this.accountId = apiResponse.metadata.name;
-        this.profile = apiResponse.spec.profile;
-        this.acceptedTos = apiResponse.spec.acceptedTos
-        this.groups = apiResponse.spec.groups
-        this.emails = apiResponse.spec.emails
+        this.accountId = apiResponse.metadata.name
+        this.#spec = apiResponse.spec
+        this.resourceVersion = apiResponse.metadata.resourceVersion
+        this.emails = apiResponse.status?.emails ?? []
+        this.groups = apiResponse.status?.groups ?? []
+        this.profile = apiResponse.status?.profile ?? {}
+        this.acceptedTos = apiResponse.status?.acceptedTos ?? null
         this.isAdmin = this.groups.includes(AdminGroup)
     }
 
@@ -37,6 +41,18 @@ class Account {
         return claims
     }
 
+    getIntendedStatus() {
+        return {
+            emails: this.#spec.emails,
+            groups: [...(this.#spec.customGroups ?? []), ...(this.#spec.githubGroups ?? [])],
+            profile: {
+                name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
+                company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
+            },
+            acceptedTos: this.#spec.acceptedTos,
+        }
+    }
+
     static getUid()
     {
         const uid = new ShortUniqueId({
@@ -45,17 +61,16 @@ class Account {
         return 'u' + uid.stamp(10);
     }
 
-    static async createOrUpdateByEmails(ctx, emails, profile) {
+    static async createOrUpdateByEmails(ctx, emails) {
         const user = await ctx.kubeApiService.findUserByEmails(emails)
         if (!user) {
-            return await ctx.kubeApiService.createUser(this.getUid(), profile, emails, [])
+            return await ctx.kubeApiService.createUser(this.getUid(), emails)
         }
         const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
-        return await ctx.kubeApiService.updateUser(user.accountId, profile, allEmails, undefined, undefined);
-    }
-
-    static async updateProfile(ctx, accountId, profile) {
-        return await ctx.kubeApiService.updateUser(accountId, profile, undefined, undefined, undefined);
+        return await ctx.kubeApiService.updateUserSpec({
+            accountId: user.accountId,
+            emails: allEmails
+        });
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars

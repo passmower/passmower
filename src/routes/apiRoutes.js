@@ -29,7 +29,10 @@ export default (provider) => {
     })
 
     router.post('/api/me', async (ctx, next) => {
-        const account = await Account.updateProfile(ctx, ctx.currentSession.accountId, ctx.request.body)
+        const account = await ctx.kubeApiService.updateUserSpec({
+            accountId: ctx.currentSession.accountId,
+            customProfile: ctx.request.body
+        })
         ctx.body = {
             emails: account.emails,
             name: account.profile.name,

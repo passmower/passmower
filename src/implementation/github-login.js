@@ -54,16 +54,19 @@ export default async (ctx, provider) => {
         },
     }).then((r) => r.json()).then((r) => r.map((r) => r.email));
 
-    const account = await Account.createOrUpdateByEmails(
-        ctx,
-        emails,
-        {
-            sub: user.login.toLowerCase(),
-            name: user.name,
-            company: user.company,
-            githubId: user.id,
-        }
-        );
+    const account = await Account.createOrUpdateByEmails(ctx, emails);
+
+    const githubProfile = {
+        name: user.name,
+        company: user.company,
+        id: user.id,
+        login: user.login,
+    }
+    // TODO: githubGroups
+    await ctx.kubeApiService.updateUserSpec({
+        accountId: account.accountId,
+        githubProfile
+    })
 
     const result = {
         login: {

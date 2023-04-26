@@ -192,7 +192,10 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
-        await ctx.kubeApiService.updateUser(accountId, {}, undefined, undefined, Date.now())
+        await ctx.kubeApiService.updateUserSpec({
+            accountId,
+            acceptedTos: Date.now()
+        })
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });
@@ -202,9 +205,12 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
-        await ctx.kubeApiService.updateUser(accountId, {
-            name: ctx.request.body.name
-        }, undefined, undefined, undefined)
+        await ctx.kubeApiService.updateUserSpec({
+            accountId,
+            customProfile: {
+                name: ctx.request.body.name
+            }
+        })
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

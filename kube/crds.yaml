@@ -14,6 +14,8 @@ spec:
     - name: v1alpha1
       served: true
       storage: true
+      subresources:
+        status: { }
       schema:
         openAPIV3Schema:
           required:
@@ -22,45 +24,71 @@ spec:
           properties:
             spec:
               required:
-                - profile
-                - groups
                 - emails
               type: object
               properties:
-                acceptedTos:
-                  type: integer
-                groups:
-                  type: array
-                  items:
-                    type: string
                 emails:
                   type: array
                   items:
                     type: string
-                profile:
-                  required:
-                    - sub
+                customGroups:
+                  type: array
+                  items:
+                    type: string
+                customProfile:
                   type: object
-                  description: Profile
                   properties:
-                    sub:
-                      type: string
                     name:
                       type: string
                     company:
                       type: string
-                    githubId:
+                githubGroups:
+                  type: array
+                  items:
+                    type: string
+                githubProfile:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    company:
+                      type: string
+                    id:
                       type: integer
+                    login:
+                      type: string
+                acceptedTos:
+                  type: integer
+            status:
+              type: object
+              properties:
+                emails:
+                  type: array
+                  items:
+                    type: string
+                groups:
+                  type: array
+                  items:
+                    type: string
+                profile:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    company:
+                      type: string
+                acceptedTos:
+                  type: integer
       additionalPrinterColumns:
         - name: Name
           type: string
-          jsonPath: .spec.profile.name
+          jsonPath: .status.profile.name
         - name: Emails
           type: string
-          jsonPath: .spec.emails
+          jsonPath: .status.emails
         - name: Groups
           type: string
-          jsonPath: .spec.groups
+          jsonPath: .status.groups
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

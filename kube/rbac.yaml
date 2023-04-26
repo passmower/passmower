@@ -13,6 +13,7 @@ rules:
       - codemowers.io
     resources:
       - oidcgatewayusers
+      - oidcgatewayusers/status
       - oidcgatewayclients
       - oidcgatewayclients/status
     verbs:

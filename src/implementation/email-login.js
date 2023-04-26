@@ -69,10 +69,7 @@ export class EmailLogin {
         const account = await Account.createOrUpdateByEmails(
             ctx,
             [details.result.email],
-            {
-                sub: details.result.email,
-            }
-            );
+        );
 
         const result = {
             login: {
