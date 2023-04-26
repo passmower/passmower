@@ -64,7 +64,7 @@ export class KubeOperator extends KubeApiService {
         } else if (!OIDCClient.getGateway()) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCClient)
-            if (claimedClient) {
+            if (claimedClient.getGateway() === this.currentGateway) {
                 OIDCClient.generateSecret()
                 await this.#createKubeSecret(OIDCClient)
             }
@@ -117,8 +117,11 @@ export class KubeOperator extends KubeApiService {
         ).then(async (r) => {
             return this.#parseSecretData(r.body.data)
         }).catch((e) => {
-            console.error(e)
-            return null
+            if (e.statusCode === 404) {
+                return null
+            } else {
+                console.error(e)
+            }
         })
     }
 
