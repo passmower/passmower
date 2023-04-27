@@ -31,10 +31,10 @@ export default async (provider, kubeApiService) => {
 
     provider.use(async (ctx, next) => {
         await next();
-        if (ctx.oidc !== undefined && ctx.oidc.route === 'resume') {
+        if (ctx.oidc?.route === 'resume') {
             const session = ctx.oidc.entities.Session
             await accountSessionRedis.appendToSet(session.accountId, session.jti)
-            await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat})
+            await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)})
         }
     });
 
