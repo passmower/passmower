@@ -25,6 +25,7 @@ export default (provider) => {
             name: account.profile.name,
             company: account.profile.company,
             isAdmin: account.isAdmin,
+            groups: account.groups,
         }
     })
 
