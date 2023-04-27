@@ -2,6 +2,7 @@ import Router from "koa-router";
 import {SessionService} from "../implementation/session-service.js";
 import {koaBody as bodyParser} from "koa-body";
 import Account from "../support/account.js";
+import {GitHubGroupPrefix} from "../support/kube-constants.js";
 
 export default (provider) => {
     const router = new Router();
@@ -33,6 +34,24 @@ export default (provider) => {
     })
 
     router.get('/admin/api/accounts', async (ctx, next) => {
+        let accounts = await ctx.kubeApiService.listUsers()
+        ctx.body = {
+            accounts: accounts.map((acc) => acc.getProfileResponse(true))
+        }
+    })
+
+    router.post('/admin/api/accounts/:accountId', async (ctx, next) => {
+        const accountId = ctx.request.params.accountId
+        const body = ctx.request.body
+        await ctx.kubeApiService.updateUserSpec({
+            accountId,
+            customProfile: {
+                name: body.name,
+                company: body.company,
+            },
+            customGroups: body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
+                .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
+        })
         let accounts = await ctx.kubeApiService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))

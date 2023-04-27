@@ -1,6 +1,8 @@
 import ShortUniqueId from "short-unique-id";
+import {GitHubGroupPrefix} from "./kube-constants.js";
 
-export const AdminGroup = 'codemowers:admins'
+export const AdminGroup = process.env.ADMIN_GROUP;
+export const CustomGroupPrefix = process.env.GROUP_PREFIX;
 
 class Account {
     #spec = null
@@ -13,7 +15,7 @@ class Account {
         this.groups = apiResponse.status?.groups ?? []
         this.profile = apiResponse.status?.profile ?? {}
         this.acceptedTos = apiResponse.status?.acceptedTos ?? null
-        this.isAdmin = this.groups.includes(AdminGroup)
+        this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
     }
 
     /**
@@ -59,15 +61,27 @@ class Account {
             name: this.profile.name,
             company: this.profile.company,
             isAdmin: this.isAdmin,
-            groups: this.groups,
+            groups: this.#mapGroups(),
         }
         if (forAdmin) {
             profile = {
                 ...profile,
-                accountId: this.accountId
+                accountId: this.accountId,
+                groupPrefix: CustomGroupPrefix, // TODO: not really the right place
             }
         }
         return profile
+    }
+
+    #mapGroups() {
+        return this.groups ? this.groups.map((g) => {
+            return {
+                name: g.name,
+                prefix: g.prefix,
+                displayName: g.prefix + ':' + g.name,
+                editable: g.prefix !== GitHubGroupPrefix,
+            }
+        }).sort(g => g.editable ? 1 : -1) : []
     }
 
     static getUid()

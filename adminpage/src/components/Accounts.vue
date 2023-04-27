@@ -14,7 +14,7 @@
                 <h3>{{ account.accountId }}</h3>
                 <p>Name: {{ account.name }}</p>
                 <p>Emails: {{ account.emails.join(', ') }}</p>
-                <p>Groups: {{ account.groups.join(', ') }}</p>
+                <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
             </div>
             <div class="item-actions">
                 <Info @click="editProfile(account)" />

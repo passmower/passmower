@@ -34,7 +34,12 @@ spec:
                 customGroups:
                   type: array
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      prefix:
+                        type: string
+                      name:
+                        type: string
                 customProfile:
                   type: object
                   properties:
@@ -45,7 +50,13 @@ spec:
                 githubGroups:
                   type: array
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      prefix:
+                        type: string
+                        enum: [ 'github.com' ]
+                      name:
+                        type: string
                 githubProfile:
                   type: object
                   properties:
@@ -69,7 +80,12 @@ spec:
                 groups:
                   type: array
                   items:
-                    type: string
+                    type: object
+                    properties:
+                      prefix:
+                        type: string
+                      name:
+                        type: string
                 profile:
                   type: object
                   properties:

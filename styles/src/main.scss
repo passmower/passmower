@@ -52,10 +52,11 @@ textarea:focus, input:focus{
   outline: none;
 }
 
-input[type=text], input[type=email], input[type=password], .button, a.button, button {
+input[type=text], input[type=email], input[type=password], .button, a.button, button, .input-box {
   height: 44px;
   font-size: 14px;
   width: 100%;
+  margin-top: 5px;
   margin-bottom: 10px;
   -webkit-appearance: none;
   border: 0;
@@ -70,11 +71,38 @@ input[type=text], input[type=email], input[type=password], .button, a.button, bu
   transition-timing-function: ease-in-out;
 }
 
-input[type=text], input[type=email], input[type=password] {
+input[type=text], input[type=email], input[type=password], .input-box {
   background: #fff;
   color: #737373;
   border: 1px solid #d9d9d9;
   border-top: 1px solid #c0c0c0;
+}
+
+input:disabled {
+  color: #afafaf;
+}
+
+.input-box {
+  display: flex;
+  & input {
+    flex-grow: 1;
+    font-size: 14px;
+    background: #fff;
+    border: none;
+    outline: none;
+    padding: 0.5rem;
+    margin: 0;
+    box-shadow: none;
+    height: auto;
+  }
+  & label {
+    display: flex;
+    align-items: center;
+    color: #afafaf;
+  }
+  & svg {
+    fill: #737373;
+  }
 }
 
 .button, a.button, button {

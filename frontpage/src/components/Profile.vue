@@ -12,7 +12,7 @@
         </ul>
         <p><strong>Groups: </strong></p>
         <ul>
-            <li v-for="group in account.groups">{{ group }}</li>
+            <li v-for="group in account.groups">{{ group.displayName }}</li>
         </ul>
     </div>
 </template>

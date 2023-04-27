@@ -76,6 +76,10 @@ spec:
                 secretKeyRef:
                   name: github-client
                   key: secret
+            - name: GROUP_PREFIX
+              value: 'codemowers'
+            - name: ADMIN_GROUP
+              value: 'codemowers:admins'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets
