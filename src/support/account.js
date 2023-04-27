@@ -53,6 +53,16 @@ class Account {
         }
     }
 
+    getProfileResponse() {
+        return {
+            emails: this.emails,
+            name: this.profile.name,
+            company: this.profile.company,
+            isAdmin: this.isAdmin,
+            groups: this.groups,
+        }
+    }
+
     static getUid()
     {
         const uid = new ShortUniqueId({

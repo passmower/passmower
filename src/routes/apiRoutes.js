@@ -20,13 +20,7 @@ export default (provider) => {
 
     router.get('/api/me', async (ctx, next) => {
         const account = await Account.findAccount(ctx, ctx.currentSession.accountId)
-        ctx.body = {
-            emails: account.emails,
-            name: account.profile.name,
-            company: account.profile.company,
-            isAdmin: account.isAdmin,
-            groups: account.groups,
-        }
+        ctx.body = account.getProfileResponse()
     })
 
     router.post('/api/me', async (ctx, next) => {
@@ -34,11 +28,7 @@ export default (provider) => {
             accountId: ctx.currentSession.accountId,
             customProfile: ctx.request.body
         })
-        ctx.body = {
-            emails: account.emails,
-            name: account.profile.name,
-            company: account.profile.company
-        }
+        ctx.body = account.getProfileResponse()
     })
 
     router.get('/api/sessions', async (ctx, next) => {
