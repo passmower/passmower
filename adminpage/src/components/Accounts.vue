@@ -12,11 +12,12 @@
         <div class="item" v-for="account in accounts">
             <div class="item-details">
                 <h3>{{ account.accountId }}</h3>
-                <p>Name: {{ account.profile?.name }}</p>
-                <p>(First) email: {{ account.emails[0] }}</p>
+                <p>Name: {{ account.name }}</p>
+                <p>Emails: {{ account.emails.join(', ') }}</p>
+                <p>Groups: {{ account.groups.join(', ') }}</p>
             </div>
             <div class="item-actions">
-                <Info />
+                <Info @click="editProfile(account)" />
                 <Impersonate @click="impersonate(account)" />
             </div>
         </div>
@@ -31,6 +32,9 @@ import Info from "@/components/Icons/Info.vue";
 import {useToast} from "vue-toast-notification";
 import {useImpersonationStore} from "@/stores/impersonation";
 import Notice from "@/components/Notice.vue";
+import EditProfile from "@/components/Modals/EditProfile.vue";
+import {openModal} from "jenesius-vue-modal";
+import {useAccountStore} from "@/stores/account";
 
 export default {
     name: "Accounts",
@@ -49,8 +53,16 @@ export default {
         ...mapState(useImpersonationStore, ['impersonation']),
     },
     methods: {
+        ...mapActions(useAccountStore, ['setAccount', 'originalAccount']),
         ...mapActions(useAccountsStore, ['setAccounts']),
         ...mapActions(useImpersonationStore, ['setImpersonation']),
+        async editProfile(account) {
+            this.setAccount(account)
+            const modal = await openModal(EditProfile);
+            modal.onclose = () => {
+                this.setAccount(this.originalAccount)
+            }
+        },
         impersonate(account) {
             fetch('/admin/api/account/impersonation', {
                 method: 'POST',

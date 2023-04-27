@@ -228,6 +228,10 @@ svg {
     & svg {
       height: 20px;
     }
+    &-details {
+      width: 75%;
+      overflow-wrap: anywhere;
+    }
     &-actions {
       flex-grow: 1;
       align-items: center;

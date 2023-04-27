@@ -53,14 +53,21 @@ class Account {
         }
     }
 
-    getProfileResponse() {
-        return {
+    getProfileResponse(forAdmin = false) {
+        let profile =  {
             emails: this.emails,
             name: this.profile.name,
             company: this.profile.company,
             isAdmin: this.isAdmin,
             groups: this.groups,
         }
+        if (forAdmin) {
+            profile = {
+                ...profile,
+                accountId: this.accountId
+            }
+        }
+        return profile
     }
 
     static getUid()
