@@ -14,21 +14,13 @@ RUN npm install
 # copy backend code
 COPY src/. /app/src/
 
-# copy frontpage package.json and package-lock.json
-COPY frontpage/package.json /app/frontpage/
-COPY frontpage/package-lock.json /app/frontpage/
-
-# install frontpage dependencies and code
-RUN npm install --prefix frontpage
-COPY frontpage/. /app/frontpage/
-
-# copy adminpage package.json and package-lock.json
-COPY adminpage/package.json /app/adminpage/
-COPY adminpage/package-lock.json /app/adminpage/
+# copy frontend package.json and package-lock.json
+COPY frontend/package.json /app/frontend/
+COPY frontend/package-lock.json /app/frontend/
 
 # install adminpage dependencies and code
-RUN npm install --prefix adminpage
-COPY adminpage/. /app/adminpage/
+RUN npm install --prefix frontend
+COPY frontend/. /app/frontend/
 
 # copy styles package.json and package-lock.json
 COPY styles/package.json /app/styles/
@@ -45,7 +37,7 @@ ENTRYPOINT /app/node_modules/.bin/run-p dev*
 # build production frontends
 FROM --platform=$BUILDPLATFORM dev as build
 
-WORKDIR /app/frontpage
+WORKDIR /app/frontend
 RUN npm run build
 
 WORKDIR /app/styles
@@ -66,8 +58,8 @@ RUN npm install --omit=dev
 # copy backend code
 COPY src/. /app/src/
 
-# copy compiled frontpage
-COPY --from=build /app/frontpage/dist/. /app/frontpage/dist/
+# copy compiled frontend
+COPY --from=build /app/frontend/dist/. /app/frontend/dist/
 
 # copy compiled styles
 COPY --from=build /app/styles/dist/. /app/styles/dist/

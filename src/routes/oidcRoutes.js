@@ -96,7 +96,7 @@ export default (provider) => {
         const session = await provider.Session.get(ctx)
         const signedIn = !!session.accountId
         if (signedIn) {
-            return ctx.render('frontpage', { layout: false, title: 'oidc-gateway' })
+            return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {
             const url = new URL(provider.urlFor('authorization'))
             url.searchParams.append('client_id', selfOidcClient.client_id)

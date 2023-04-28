@@ -31,8 +31,8 @@ import Impersonate from "@/components/Icons/Impersonate.vue";
 import Info from "@/components/Icons/Info.vue";
 import {useToast} from "vue-toast-notification";
 import {useImpersonationStore} from "@/stores/impersonation";
-import Notice from "@/components/Notice.vue";
-import EditProfile from "@/components/Modals/EditProfile.vue";
+import Notice from "@/components/Admin/Notice.vue";
+import EditProfile from "@/components/Admin/Modals/EditProfile.vue";
 import {openModal} from "jenesius-vue-modal";
 import {useAccountStore} from "@/stores/account";
 

@@ -20,7 +20,7 @@ import {mapState, mapStores} from "pinia";
 import {useAccountStore} from "@/stores/account";
 import XMark from "@/components/Icons/XMark.vue";
 import {openModal} from "jenesius-vue-modal";
-import EndSession from "@/components/Modals/EndSession.vue";
+import EndSession from "@/components/User/Modals/EndSession.vue";
 
 export default {
   name: "Profile",

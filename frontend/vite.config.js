@@ -15,8 +15,8 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        entryFileNames: `oidc-gateway-adminpage.js`,
-        assetFileNames: `oidc-gateway-adminpage.[ext]`
+        entryFileNames: `oidc-gateway-frontend.js`,
+        assetFileNames: `oidc-gateway-frontend.[ext]`
       }
     }
   },

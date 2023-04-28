@@ -30,7 +30,7 @@ export default (provider) => {
     })
 
     router.get('/admin', async (ctx, next) => {
-        return ctx.render('adminpage', { layout: false, title: 'oidc-gateway' })
+        return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
     })
 
     router.get('/admin/api/accounts', async (ctx, next) => {

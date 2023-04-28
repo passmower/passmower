@@ -21,9 +21,7 @@ profiles:
             manual:
               - src: 'src/**'
                 dest: .
-              - src: 'frontpage/src/**'
-                dest: .
-              - src: 'adminpage/src/**'
+              - src: 'frontend/src/**'
                 dest: .
               - src: 'styles/src/**'
                 dest: .

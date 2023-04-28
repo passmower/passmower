@@ -32,7 +32,7 @@ import {closeModal} from "jenesius-vue-modal"
 import {useToast} from "vue-toast-notification";
 import {useAccountsStore} from "@/stores/accounts";
 import Plus from "@/components/Icons/Plus.vue";
-import UserGroup from "@/components/UserGroup.vue";
+import UserGroup from "@/components/Admin/UserGroup.vue";
 
 export default {
     name: "EditProfile",

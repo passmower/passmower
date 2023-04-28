@@ -22,8 +22,7 @@ import Pencil from "@/components/Icons/Pencil.vue";
 import {mapActions, mapState, mapStores} from "pinia";
 import {useAccountStore} from "@/stores/account";
 import {openModal} from "jenesius-vue-modal";
-import EditProfile from "@/components/Modals/EditProfile.vue";
-
+import EditProfile from "@/components/User/Modals/EditProfile.vue";
 export default {
     name: "Profile",
     components: {

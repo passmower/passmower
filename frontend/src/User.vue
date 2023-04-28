@@ -16,8 +16,8 @@
 <script>
 import {mapActions, mapState, mapStores} from "pinia";
 import {useAccountStore} from "@/stores/account";
-import Profile from "@/components/Profile.vue";
-import Sessions from "@/components/Sessions.vue";
+import Profile from "@/components/User/Profile.vue";
+import Sessions from "@/components/User/Sessions.vue";
 import {container} from "jenesius-vue-modal";
 
 export default {
@@ -36,6 +36,7 @@ export default {
     ...mapState(useAccountStore, ['account']),
   },
   created() {
+      console.log('test')
     fetch('/api/me').then((r) => r.json()).then((r) => {
       this.setAccount(r)
     })
