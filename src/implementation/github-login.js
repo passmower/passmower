@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import Account from "../support/account.js";
 import {OAuth2} from "oauth";
 import accessDenied from "../support/access-denied.js";
+import getLoginResult from "../support/get-login-result.js";
 
 export default async (ctx, provider) => {
     const ghOauth = new OAuth2(process.env.GH_CLIENT_ID,
@@ -68,13 +69,7 @@ export default async (ctx, provider) => {
         githubProfile
     })
 
-    const result = {
-        login: {
-            accountId: account.accountId,
-        },
-    };
-
-    return provider.interactionFinished(ctx.req, ctx.res, result, {
+    return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
         mergeWithLastSubmission: false,
     });
 }

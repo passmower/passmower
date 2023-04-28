@@ -20,6 +20,7 @@ class OIDCClient {
     #tokenEndpointAuthMethod = null
     #idTokenSignedResponseAlg = null
     #redirectUris = null
+    #allowedGroups = null
     #gatewayUri = null
     #resourceVersion = null
     #status = {
@@ -40,6 +41,7 @@ class OIDCClient {
             id_token_signed_response_alg: this.#idTokenSignedResponseAlg,
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
+            allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
             gateway_uri: this.#gatewayUri
         }
     }
@@ -52,6 +54,7 @@ class OIDCClient {
         this.#tokenEndpointAuthMethod = incomingClient.spec.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
         this.#redirectUris = incomingClient.spec.redirectUris
+        this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#gatewayUri = process.env.ISSUER_URL
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}

@@ -15,6 +15,8 @@ import {randomUUID} from "crypto";
 import accessDenied from "../support/access-denied.js";
 import selfOidcClient, {responseType, scope} from "../support/self-oidc-client.js";
 import {SessionService} from "../implementation/session-service.js";
+import getLoginResult from "../support/get-login-result.js";
+import Account from "../support/account.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -169,12 +171,8 @@ export default (provider) => {
 
     router.post('/interaction/:uid/impersonate', body, async (ctx) => {
         const impersonation = await sessionService.getImpersonation(ctx)
-        const result = {
-            login: {
-                accountId: impersonation.accountId,
-            },
-        };
-        return provider.interactionFinished(ctx.req, ctx.res, result, {
+        const account = await Account.findAccount(ctx, impersonation.accountId)
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
             mergeWithLastSubmission: true,
         });
     });

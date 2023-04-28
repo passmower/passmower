@@ -6,6 +6,8 @@ metadata:
 spec:
   redirectUris:
     - 'https://client-gab7y.codemowers.ee/cb'
+#  allowedGroups: # if no groups are set, everyone is allowed
+#    - 'codemowers:users'
   grantTypes:
     - 'authorization_code'
     - 'refresh_token' # might be supported by some implementations

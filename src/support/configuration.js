@@ -47,5 +47,10 @@ export default {
             'code'
         ],
         token_endpoint_auth_method: 'client_secret_basic'
+    },
+    extraClientMetadata: {
+        properties: [
+            'allowedGroups'
+        ]
     }
 };

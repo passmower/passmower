@@ -156,6 +156,10 @@ spec:
                 idTokenSignedResponseAlg:
                   type: string
                   enum: [ 'PS256','RS256', 'ES256' ]
+                allowedGroups:
+                  type: array
+                  items:
+                    type: string
             status:
               type: object
               properties:
@@ -169,4 +173,8 @@ spec:
         - name: Uris
           type: string
           description: 'Redirect URLs configured for this client'
-          jsonPath: .redirectUris
+          jsonPath: .spec.redirectUris
+        - name: Allowed groups
+          type: string
+          description: 'Groups allowed to this client'
+          jsonPath: .spec.allowedGroups

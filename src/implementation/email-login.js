@@ -5,6 +5,7 @@ import { renderFile } from 'ejs';
 import path from "path";
 import {dirname} from "desm";
 import accessDenied from "../support/access-denied.js";
+import getLoginResult from "../support/get-login-result.js";
 
 export class EmailLogin {
     constructor() {
@@ -71,13 +72,7 @@ export class EmailLogin {
             [details.result.email],
         );
 
-        const result = {
-            login: {
-                accountId: account.accountId,
-            },
-        };
-
-        return provider.interactionFinished(ctx.req, ctx.res, result, {
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
             mergeWithLastSubmission: true,
         });
     }
