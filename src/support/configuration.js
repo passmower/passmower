@@ -5,7 +5,7 @@ export default {
         },
     },
     cookies: {
-        keys: ['some secret key', 'and also the old rotated away some time ago', 'and one more'],
+        keys: [],
     },
     claims: {
         acr: null,

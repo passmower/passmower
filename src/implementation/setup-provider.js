@@ -20,6 +20,7 @@ export default async () => {
     configuration.interactions.policy = setupPolicies(kubeApiService)
     configuration.clients = [selfOidcClient]
     configuration.jwks.keys = JSON.parse(process.env.OIDC_JWKS)
+    configuration.cookies.keys = JSON.parse(process.env.OIDC_COOKIE_KEYS)
     configuration.renderError = renderError
     configuration.loadExistingGrant = loadExistingGrant
 

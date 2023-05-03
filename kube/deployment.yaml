@@ -37,6 +37,20 @@ spec:
     - protocol: TCP
       port: 3000
 ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oidc-key-manager
+spec:
+  template:
+    spec:
+      serviceAccountName: oidc-gateway
+      containers:
+        - name: oidc-key-manager
+          image: oidc-gateway
+          command: [ '/app/node_modules/.bin/key-manager', 'initialize', '-c', 'cluster' ]
+      restartPolicy: Never
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -84,6 +98,6 @@ spec:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets
             - secretRef:
-                name: oidc-jwks
+                  name: oidc-keys
             - secretRef:
                 name: email-credentials
