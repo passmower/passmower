@@ -64,7 +64,7 @@ export class KubeOperator extends KubeApiService {
         } else if (!OIDCClient.getGateway()) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCClient)
-            if (claimedClient.getGateway() === this.currentGateway) {
+            if (claimedClient?.getGateway() === this.currentGateway) {
                 OIDCClient.generateSecret()
                 await this.#createKubeSecret(OIDCClient)
             }
