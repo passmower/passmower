@@ -101,3 +101,9 @@ spec:
                   name: oidc-keys
             - secretRef:
                 name: email-credentials
+          readinessProbe:
+            httpGet:
+              path: /.well-known/openid-configuration
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 1
