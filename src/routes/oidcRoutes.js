@@ -102,7 +102,7 @@ export default (provider) => {
             url.searchParams.append('client_id', selfOidcClient.client_id)
             url.searchParams.append('response_type', responseType)
             url.searchParams.append('scope', scope)
-            url.searchParams.append('nonce', randomUUID()) // TODO: check nonce
+            url.searchParams.append('nonce', randomUUID()) // Doesn't matter
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
                 url: url.href
             })
