@@ -80,16 +80,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['app']
-            - name: GH_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: github-client
-                  key: id
-            - name: GH_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: github-client
-                  key: secret
             - name: GROUP_PREFIX
               value: 'codemowers'
             - name: ADMIN_GROUP
@@ -101,9 +91,16 @@ spec:
                   name: oidc-keys
             - secretRef:
                 name: email-credentials
+            - secretRef:
+                name: github-client
           readinessProbe:
             httpGet:
               path: /.well-known/openid-configuration
               port: 3000
+              httpHeaders:
+                - name: x-forwarded-for # suppress oidc-provider warning
+                  value: 'https://gateway-gab7y.codemowers.ee/'
+                - name: x-forwarded-proto # suppress oidc-provider warning
+                  value: https
             initialDelaySeconds: 5
             periodSeconds: 1
