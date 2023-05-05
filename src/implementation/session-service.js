@@ -1,9 +1,8 @@
 import RedisAdapter from "../adapters/redis.js";
 import {UAParser} from "ua-parser-js";
-import instance from "oidc-provider/lib/helpers/weak_cache.js";
-import revoke from "oidc-provider/lib/helpers/revoke.js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import Account from "../support/account.js";
+import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 
 export class SessionService {
     constructor() {
@@ -19,20 +18,18 @@ export class SessionService {
         return await this.mapResponse(sessions, currentSession)
     }
 
-    async endSession(sessionToDelete, currentSession, provider) {
-        let sessions = await this.accountSessionRedis.getSetMembers(currentSession.accountId)
+    async endSession(sessionToDelete, ctx, next, provider) {
+        let sessions = await this.accountSessionRedis.getSetMembers(ctx.currentSession.accountId)
         sessionToDelete = sessions.find((s) => {
             return s === sessionToDelete
         })
         if (sessionToDelete !== undefined) {
+            await this.endOIDCSession(sessionToDelete, ctx, next, provider)
             await this.metadataRedis.destroy(sessionToDelete)
-            await this.accountSessionRedis.removeFromSet(currentSession.accountId, sessionToDelete)
-            const session = this.sessionRedis.find(sessionToDelete)
-            await this.sessionRedis.destroy(sessionToDelete)
-            await this.endOIDCSession(session, provider)
+            await this.accountSessionRedis.removeFromSet(ctx.currentSession.accountId, sessionToDelete)
         }
-        sessions = await this.accountSessionRedis.getSetMembers(currentSession.accountId)
-        return await this.mapResponse(sessions, currentSession)
+        sessions = await this.accountSessionRedis.getSetMembers(ctx.currentSession.accountId)
+        return await this.mapResponse(sessions, ctx.currentSession)
     }
 
     async mapResponse(sessions, currentSession) {
@@ -56,115 +53,49 @@ export class SessionService {
         return sessions.filter(item => item);
     }
 
-    async endOIDCSession(session, provider) {
-        // This is a modified version of oidc-provider/lib/actions/end_session.js
-        // It will execute some relevant logic, but redirection, removal of current session cookie and so on are commented out.
-
-        // const { oidc: { session } } = ctx;
-        // const { state } = session;
-
-        const state = {
-            clientId: undefined
-        }
-
-        const params = {
-            logout: true
-        };
-
-        const ctx = {
-            oidc: {
-                provider
-            }
-        }
-
-        const {
-            features: { backchannelLogout },
-            cookies: { long: opts },
-        } = instance(ctx.oidc.provider).configuration();
-
-        if (backchannelLogout.enabled) {
-            const clientIds = Object.keys(session.authorizations || {});
-
-            const back = [];
-
-            for (const clientId of clientIds) {
-                if (params.logout || clientId === state.clientId) {
-                    const client = await ctx.oidc.provider.Client.find(clientId); // eslint-disable-line no-await-in-loop
-                    if (client) {
-                        const sid = session.sidFor(client.clientId);
-                        if (client.backchannelLogoutUri) {
-                            const { accountId } = session;
-                            back.push(client.backchannelLogout(accountId, sid)
-                                .then(() => {
-                                    ctx.oidc.provider.emit('backchannel.success', ctx, client, accountId, sid);
-                                }, (err) => {
-                                    ctx.oidc.provider.emit('backchannel.error', ctx, err, client, accountId, sid);
-                                }));
-                        }
+    async endOIDCSession(sessionToDelete, ctx, next, provider) {
+        sessionToDelete = await this.sessionRedis.find(sessionToDelete)
+        ctx.oidc = {
+            // don't clear cookies when it's not current session
+            cookies: sessionToDelete?.jti === ctx.currentSession?.jti ? ctx.cookies : {
+                set: () => {}
+            },
+            urlFor: () => {
+                // don't redirect when ending other sessions in frontpage
+                return ''
+            },
+            provider,
+            session: {
+                ...sessionToDelete,
+                state: {
+                    // do regular full log-out instead of revoking certain client grant
+                    clientId: undefined
+                },
+                authorizationFor: (clientId) => {
+                    // copy from oidc-provider/lib/models/session.js
+                    // the call will not set, let's not modify the session object
+                    if (arguments.length === 1 && !sessionToDelete.authorizations) {
+                        return {};
                     }
+
+                    sessionToDelete.authorizations = sessionToDelete.authorizations || {};
+                    if (!sessionToDelete.authorizations[clientId]) {
+                        sessionToDelete.authorizations[clientId] = {};
+                    }
+
+                    return sessionToDelete.authorizations[clientId];
+                },
+                destroy: async () => {
+                    await this.sessionRedis.destroy(sessionToDelete?.jti)
                 }
-            }
-
-            await Promise.all(back);
+            },
+            params: {
+                // do regular full log-out instead of revoking certain client grant
+                logout: true
+            },
         }
-
-        if (state.clientId) {
-            ctx.oidc.entity('Client', await ctx.oidc.provider.Client.find(state.clientId));
-        }
-
-        if (params.logout) {
-            if (session.authorizations) {
-                await Promise.all(
-                    Object.entries(session.authorizations).map(async ([clientId, { grantId }]) => {
-                        // Drop the grants without offline_access
-                        // Note: tokens that don't get dropped due to offline_access having being added
-                        // later will still not work, as such they will be orphaned until their TTL hits
-                        if (grantId && !session.authorizationFor(clientId).persistsLogout) {
-                            await revoke(ctx, grantId);
-                        }
-                    }),
-                );
-            }
-            // TODO: destroy session if logging out from current session.
-            // await session.destroy();
-
-            // Do not destroy current session.
-            // ssHandler.set(
-            //     ctx.oidc.cookies,
-            //     ctx.oidc.provider.cookieName('session'),
-            //     null,
-            //     opts,
-            // );
-        } else if (state.clientId) {
-            const grantId = session.grantIdFor(state.clientId);
-            if (grantId && !session.authorizationFor(state.clientId).persistsLogout) {
-                await revoke(ctx, grantId);
-                ctx.oidc.provider.emit('grant.revoked', ctx, grantId);
-            }
-            session.state = undefined;
-            if (session.authorizations) {
-                delete session.authorizations[state.clientId];
-            }
-            session.resetIdentifier();
-        }
-
-        // const usePostLogoutUri = state.postLogoutRedirectUri;
-        // const forwardClientId = !usePostLogoutUri && !params.logout && state.clientId;
-        // const uri = redirectUri(
-        //     usePostLogoutUri ? state.postLogoutRedirectUri : ctx.oidc.urlFor('end_session_success'),
-        //     {
-        //         ...(usePostLogoutUri && state.state != null
-        //             ? { state: state.state } : undefined), // != intended
-        //         ...(forwardClientId ? { client_id: state.clientId } : undefined),
-        //     },
-        // );
-
-        ctx.oidc.provider.emit('end_session.success', ctx);
-
-        // ctx.status = 303;
-        // ctx.redirect(uri);
-        //
-        // await next();
+        // dirty hack to call out confirm function in oidc-provider/lib/actions/end_session.js
+        await providerEndSession['6'](ctx, next)
     }
 
     async getAdminSession(ctx) {
