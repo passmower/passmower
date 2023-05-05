@@ -23,7 +23,7 @@
     "lodash": "^4.17.21",
     "nodemailer": "^6.9.1",
     "oauth": "^0.10.0",
-    "oidc-provider": "^8.1.0",
+    "oidc-provider": "^8.2.0",
     "query-string": "^8.1.0",
     "short-unique-id": "^4.4.4",
     "ua-parser-js": "^2.0.0-alpha.1",
