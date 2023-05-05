@@ -122,8 +122,8 @@ export class SessionService {
     }
 
     async impersonate(ctx, accountId) {
-        let account = Account.findAccount(ctx, accountId)
-        if (!accountId) {
+        let account = await Account.findAccount(ctx, accountId)
+        if (!account) {
             ctx.statusCode = 404
             return
         }
