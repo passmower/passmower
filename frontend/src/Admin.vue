@@ -11,6 +11,8 @@
 <script>
 import {container} from "jenesius-vue-modal";
 import Accounts from "@/components/Admin/Accounts.vue";
+import {mapActions} from "pinia";
+import {userAdminStore} from "./stores/admin";
 
 export default {
     components: {
@@ -21,8 +23,14 @@ export default {
         return {}
     },
     computed: {},
-    created() {},
-    methods: {}
+    created() {
+        fetch('/admin/api/metadata').then((r) => r.json()).then((r) => {
+            this.setGroupPrefix(r.groupPrefix)
+        })
+    },
+    methods: {
+        ...mapActions(userAdminStore, ['setGroupPrefix']),
+    }
 }
 
 </script>

@@ -2,7 +2,6 @@ import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
-export const CustomGroupPrefix = process.env.GROUP_PREFIX;
 
 class Account {
     #spec = null
@@ -67,7 +66,6 @@ class Account {
             profile = {
                 ...profile,
                 accountId: this.accountId,
-                groupPrefix: CustomGroupPrefix, // TODO: not really the right place
             }
         }
         return profile

@@ -33,6 +33,7 @@ import {useToast} from "vue-toast-notification";
 import {useAccountsStore} from "@/stores/accounts";
 import Plus from "@/components/Icons/Plus.vue";
 import UserGroup from "@/components/Admin/UserGroup.vue";
+import {userAdminStore} from "../../../stores/admin";
 
 export default {
     name: "EditProfile",
@@ -44,13 +45,14 @@ export default {
     computed: {
         ...mapStores(useAccountStore),
         ...mapState(useAccountStore, ['account']),
+        ...mapState(userAdminStore, ['groupPrefix']),
     },
     methods: {
         ...mapActions(useAccountsStore, ['setAccounts']),
         closeModal,
         addGroup() {
            this.account.groups.push({
-               prefix: this.account.groupPrefix,
+               prefix: this.groupPrefix,
                name: null,
                editable: true
            })

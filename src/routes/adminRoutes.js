@@ -31,6 +31,12 @@ export default (provider) => {
         return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
     })
 
+    router.get('/admin/api/metadata', async (ctx, next) => {
+        ctx.body = {
+            groupPrefix: process.env.GROUP_PREFIX
+        }
+    })
+
     router.get('/admin/api/accounts', async (ctx, next) => {
         let accounts = await ctx.kubeApiService.listUsers()
         ctx.body = {

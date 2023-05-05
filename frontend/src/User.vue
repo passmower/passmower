@@ -36,7 +36,6 @@ export default {
     ...mapState(useAccountStore, ['account']),
   },
   created() {
-      console.log('test')
     fetch('/api/me').then((r) => r.json()).then((r) => {
       this.setAccount(r)
     })
