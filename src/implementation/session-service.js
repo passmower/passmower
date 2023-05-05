@@ -170,6 +170,19 @@ export class SessionService {
             this.provider.cookieName('impersonation'),
             null,
         );
-        // TODO: restore regular session
+        ctx.cookies.set(
+            this.provider.cookieName('session'),
+            ctx.cookies.get(this.provider.cookieName('admin_session')),
+            {
+                ...instance(this.provider).configuration('cookies.long'),
+            }
+        );
+        ctx.cookies.set(
+            this.provider.cookieName('session') + '.legacy',
+            ctx.cookies.get(this.provider.cookieName('admin_session')),
+            {
+                ...instance(this.provider).configuration('cookies.long'),
+            }
+        );
     }
 }
