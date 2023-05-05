@@ -51,8 +51,37 @@ export default {
         rpInitiatedLogout: { enabled: false }, // defaults to true
     },
     ttl: {
+        AccessToken: function AccessTokenTTL(ctx, token, client) {
+            return token.resourceServer?.accessTokenTTL || 60 * 60;
+        },
+        AuthorizationCode: 60,
+        BackchannelAuthenticationRequest: function BackchannelAuthenticationRequestTTL(ctx, request, client) {
+            if (ctx?.oidc && ctx.oidc.params.requested_expiry) {
+                return Math.min(10 * 60, +ctx.oidc.params.requested_expiry); // 10 minutes in seconds or requested_expiry, whichever is shorter
+            }
+
+            return 10 * 60;
+        },
+        ClientCredentials: function ClientCredentialsTTL(ctx, token, client) {
+            return token.resourceServer?.accessTokenTTL || 10 * 60;
+        },
+        DeviceCode: 600,
+        Grant: 1209600,
         IdToken: 3600,
         Interaction: 3600,
+        RefreshToken: function RefreshTokenTTL(ctx, token, client) {
+            if (
+                ctx && ctx.oidc.entities.RotatedRefreshToken
+                && client.applicationType === 'web'
+                && client.clientAuthMethod === 'none'
+                && !token.isSenderConstrained()
+            ) {
+                // Non-Sender Constrained SPA RefreshTokens do not have infinite expiration through rotation
+                return ctx.oidc.entities.RotatedRefreshToken.remainingTTL;
+            }
+
+            return 14 * 24 * 60 * 60;
+        },
         Session: 1209600,
         AdminSession: 3600,
         Impersonation: 3600,
