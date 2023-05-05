@@ -1,11 +1,24 @@
+import Account from "./account.js";
+import selfOidcClient from "./self-oidc-client.js";
+import renderError from "./render-error.js";
+import loadExistingGrant from "./load-existing-grant.js";
+import setupPolicies from "../implementation/setup-policies.js";
+
 export default {
+    findAccount: Account.findAccount,
+    renderError,
+    loadExistingGrant,
     interactions: {
         url(ctx, interaction) { // eslint-disable-line no-unused-vars
             return `/interaction/${interaction.uid}`;
         },
+        policy: setupPolicies()
     },
+    clients: [
+        selfOidcClient,
+    ],
     cookies: {
-        keys: [],
+        keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
         names: {
             interaction: '_interaction',
             resume: '_interaction_resume',
@@ -45,7 +58,7 @@ export default {
         Impersonation: 3600,
     },
     jwks: {
-        keys: [],
+        keys: JSON.parse(process.env.OIDC_JWKS),
     },
     clientDefaults: {
         grant_types: [

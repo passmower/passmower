@@ -3,8 +3,9 @@ import RedisAdapter from "../adapters/redis.js";
 import {promisify} from "node:util";
 import helmet from "helmet";
 import {SessionService} from "./session-service.js";
+import {KubeApiService} from "./kube-api-service.js";
 
-export default async (provider, kubeApiService) => {
+export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
 
@@ -40,7 +41,7 @@ export default async (provider, kubeApiService) => {
     });
 
     provider.use(async (ctx, next) => {
-        ctx.kubeApiService = kubeApiService
+        ctx.kubeApiService = new KubeApiService()
         ctx.sessionService = new SessionService(provider)
         return next();
     });
