@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import RedisAdapter from "../adapters/redis.js";
 import {promisify} from "node:util";
 import helmet from "helmet";
+import {SessionService} from "./session-service.js";
 
 export default async (provider, kubeApiService) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -40,6 +41,7 @@ export default async (provider, kubeApiService) => {
 
     provider.use(async (ctx, next) => {
         ctx.kubeApiService = kubeApiService
+        ctx.sessionService = new SessionService(provider)
         return next();
     });
 

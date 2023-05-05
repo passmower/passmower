@@ -1,16 +1,14 @@
 import Router from "koa-router";
-import {SessionService} from "../implementation/session-service.js";
 import {koaBody as bodyParser} from "koa-body";
 import Account from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
 
 export default (provider) => {
     const router = new Router();
-    const sessionService = new SessionService();
 
     router.use(bodyParser({ json: true }))
     router.use(async (ctx, next) => {
-        let session = await sessionService.getAdminSession(ctx)
+        let session = await ctx.sessionService.getAdminSession(ctx)
         if (session) {
             ctx.adminSession = session
             return next()
@@ -22,7 +20,7 @@ export default (provider) => {
                 const account = await Account.findAccount(ctx, session.accountId)
                 if (account.isAdmin) {
                     ctx.adminSession = session
-                    await sessionService.setAdminSession(ctx, session)
+                    await ctx.sessionService.setAdminSession(ctx, session)
                     return next()
                 }
             }
@@ -60,20 +58,20 @@ export default (provider) => {
 
     router.get('/admin/api/account/impersonation', async (ctx, next) => {
         ctx.body = {
-            impersonation: await sessionService.getImpersonation(ctx)
+            impersonation: await ctx.sessionService.getImpersonation(ctx)
         }
     })
 
     router.post('/admin/api/account/impersonation', async (ctx, next) => {
         const accountId = ctx.request.body.accountId
-        const impersonation = await sessionService.impersonate(ctx, accountId)
+        const impersonation = await ctx.sessionService.impersonate(ctx, accountId)
         ctx.body = {
             impersonation
         }
     })
 
     router.post('/admin/api/account/impersonation/end', async (ctx, next) => {
-        await sessionService.endImpersonation(ctx)
+        await ctx.sessionService.endImpersonation(ctx)
         ctx.body = {
             impersonation: null
         }

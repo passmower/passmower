@@ -5,7 +5,8 @@ import Account from "../support/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 
 export class SessionService {
-    constructor() {
+    constructor(provider) {
+        this.provider = provider
         this.sessionRedis = new RedisAdapter('Session')
         this.adminSessionRedis = new RedisAdapter('AdminSession')
         this.impersonationRedis = new RedisAdapter('Impersonation')
@@ -18,13 +19,13 @@ export class SessionService {
         return await this.mapResponse(sessions, currentSession)
     }
 
-    async endSession(sessionToDelete, ctx, next, provider) {
+    async endSession(sessionToDelete, ctx, next) {
         let sessions = await this.accountSessionRedis.getSetMembers(ctx.currentSession.accountId)
         sessionToDelete = sessions.find((s) => {
             return s === sessionToDelete
         })
         if (sessionToDelete !== undefined) {
-            await this.endOIDCSession(sessionToDelete, ctx, next, provider)
+            await this.endOIDCSession(sessionToDelete, ctx, next)
             await this.metadataRedis.destroy(sessionToDelete)
             await this.accountSessionRedis.removeFromSet(ctx.currentSession.accountId, sessionToDelete)
         }
@@ -53,7 +54,7 @@ export class SessionService {
         return sessions.filter(item => item);
     }
 
-    async endOIDCSession(sessionToDelete, ctx, next, provider) {
+    async endOIDCSession(sessionToDelete, ctx, next) {
         sessionToDelete = await this.sessionRedis.find(sessionToDelete)
         ctx.oidc = {
             // don't clear cookies when it's not current session
@@ -64,7 +65,7 @@ export class SessionService {
                 // don't redirect when ending other sessions in frontpage
                 return ''
             },
-            provider,
+            provider: this.provider,
             session: {
                 ...sessionToDelete,
                 state: {

@@ -2,11 +2,9 @@
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 import Account from '../support/account.js';
-import {SessionService} from "../implementation/session-service.js";
 
 export default (provider) => {
     const router = new Router();
-    const sessionService = new SessionService();
 
     router.use(bodyParser({ json: true }))
     router.use(async (ctx, next) => {
@@ -32,7 +30,7 @@ export default (provider) => {
     })
 
     router.get('/api/sessions', async (ctx, next) => {
-        let sessions = await sessionService.getSessions(ctx.currentSession.accountId, ctx.currentSession)
+        let sessions = await ctx.sessionService.getSessions(ctx.currentSession.accountId, ctx.currentSession)
         ctx.body = {
             sessions
         }
@@ -40,7 +38,7 @@ export default (provider) => {
 
     router.post('/api/session/end', async (ctx, next) => {
         const sessionToDelete = ctx.request.body.id
-        const sessions = await sessionService.endSession(sessionToDelete, ctx, next, provider)
+        const sessions = await ctx.sessionService.endSession(sessionToDelete, ctx, next, provider)
         ctx.body = {
             sessions
         }

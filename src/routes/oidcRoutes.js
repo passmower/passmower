@@ -14,7 +14,6 @@ import {EmailLogin} from "../implementation/email-login.js";
 import {randomUUID} from "crypto";
 import accessDenied from "../support/access-denied.js";
 import selfOidcClient, {responseType, scope} from "../support/self-oidc-client.js";
-import {SessionService} from "../implementation/session-service.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
 
@@ -90,7 +89,6 @@ const { SessionNotFound } = errors;
 
 export default (provider) => {
     const router = new Router();
-    const sessionService = new SessionService();
 
     router.get('/', async (ctx, next) => {
         const session = await provider.Session.get(ctx)
@@ -129,7 +127,7 @@ export default (provider) => {
         switch (prompt.name) {
             case 'login': {
                 return render(provider, ctx, 'login', 'Sign-in', {
-                    impersonation: await sessionService.getImpersonation(ctx)
+                    impersonation: await ctx.sessionService.getImpersonation(ctx)
                 })
              }
             case 'consent': {
@@ -170,7 +168,7 @@ export default (provider) => {
     });
 
     router.post('/interaction/:uid/impersonate', body, async (ctx) => {
-        const impersonation = await sessionService.getImpersonation(ctx)
+        const impersonation = await ctx.sessionService.getImpersonation(ctx)
         const account = await Account.findAccount(ctx, impersonation.accountId)
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
             mergeWithLastSubmission: true,
