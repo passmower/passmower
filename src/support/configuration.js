@@ -6,6 +6,13 @@ export default {
     },
     cookies: {
         keys: [],
+        names: {
+            interaction: '_interaction',
+            resume: '_interaction_resume',
+            session: '_session',
+            admin_session: '_admin_session',
+            impersonation: '_impersonation',
+        }
     },
     claims: {
         acr: null,
@@ -33,7 +40,9 @@ export default {
     ttl: {
         IdToken: 3600,
         Interaction: 3600,
-        Session: 1209600
+        Session: 1209600,
+        AdminSession: 3600,
+        Impersonation: 3600,
     },
     jwks: {
         keys: [],

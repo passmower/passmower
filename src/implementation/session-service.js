@@ -3,6 +3,7 @@ import {UAParser} from "ua-parser-js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import Account from "../support/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
+import instance from "oidc-provider/lib/helpers/weak_cache.js";
 
 export class SessionService {
     constructor(provider) {
@@ -100,7 +101,7 @@ export class SessionService {
     }
 
     async getAdminSession(ctx) {
-        let adminSession = ctx.cookies.get('_admin_session') // TODO: make configurable?
+        let adminSession = ctx.cookies.get(this.provider.cookieName('admin_session'))
         if (adminSession) {
             return await this.adminSessionRedis.find(adminSession)
         }
@@ -108,12 +109,13 @@ export class SessionService {
     }
 
     async setAdminSession(ctx, session) {
-        await this.adminSessionRedis.upsert(session.jti, session, 3600) // TODO: consolidate expirations
+        await this.adminSessionRedis.upsert(session.jti, session, instance(this.provider).configuration('ttl.AdminSession'))
         ctx.cookies.set(
-            '_admin_session',
+            this.provider.cookieName('admin_session'),
             session.jti,
             {
-                maxAge: 3600 * 1000,
+                ...instance(this.provider).configuration('cookies.long'),
+                maxAge: instance(this.provider).configuration('ttl.AdminSession') * 1000,
             },
         );
         return true
@@ -128,11 +130,11 @@ export class SessionService {
         // Remove the session cookie but keep the session itself intact - admin can later return to it.
         // TODO: would back-channel log-out be required?
         ctx.cookies.set(
-            '_session', // TODO: use provider's configuration mechanism
+            this.provider.cookieName('session'),
             null,
         );
         ctx.cookies.set(
-            '_session.legacy', // TODO: use provider's configuration mechanism
+            this.provider.cookieName('session') + '.legacy',
             null,
         );
 
@@ -141,21 +143,20 @@ export class SessionService {
             actor: ctx.adminSession.accountId,
             accountId,
         }
-        await this.impersonationRedis.upsert(impersonation.jti, impersonation, 3600) // TODO: consolidate expirations
+        await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration('ttl.Impersonation'))
         ctx.cookies.set(
-            '_impersonation',  // TODO: make configurable?
+            this.provider.cookieName('impersonation'),
             impersonation.jti,
             {
-                // path: url.parse(destination).pathname,
-                // ...cookieOptions, // TODO: check if oidc-provider uses some relevant cookieOptions
-                maxAge: 3600 * 1000,
+                ...instance(this.provider).configuration('cookies.long'),
+                maxAge: instance(this.provider).configuration('ttl.Impersonation') * 1000,
             },
         );
         return impersonation
     }
 
     async getImpersonation(ctx) {
-        let impersonation = ctx.cookies.get('_impersonation')
+        let impersonation = ctx.cookies.get(this.provider.cookieName('impersonation'))
         if (impersonation) {
             impersonation = await this.impersonationRedis.find(impersonation)
         }
@@ -163,10 +164,10 @@ export class SessionService {
     }
 
     async endImpersonation(ctx) {
-        let impersonation = ctx.cookies.get('_impersonation')
+        let impersonation = ctx.cookies.get(this.provider.cookieName('impersonation'))
         await this.impersonationRedis.destroy(impersonation)
         ctx.cookies.set(
-            '_impersonation',
+            this.provider.cookieName('impersonation'),
             null,
         );
         // TODO: restore regular session
