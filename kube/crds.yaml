@@ -160,6 +160,12 @@ spec:
                   type: array
                   items:
                     type: string
+                availableScopes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [ 'openid', 'profile' ]
+                  default: [ 'openid' ]
             status:
               type: object
               properties:

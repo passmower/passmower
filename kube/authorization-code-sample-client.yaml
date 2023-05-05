@@ -14,5 +14,8 @@ spec:
   responseTypes:
     - 'code'
 #    - 'code id_token' # might be needed in some implementations
+  availableScopes:
+    - 'openid'
+    - 'profile'
 #  tokenEndpointAuthMethod: 'client_secret_basic'
 #  idTokenSignedResponseAlg: 'RS256'

@@ -101,7 +101,8 @@ export default {
     },
     extraClientMetadata: {
         properties: [
-            'allowedGroups'
+            'allowedGroups',
+            'availableScopes',
         ]
-    }
+    },
 };

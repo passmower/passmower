@@ -9,4 +9,5 @@ export default {
     grant_types: ['implicit'],
     response_types: [responseType],
     redirect_uris: [process.env.ISSUER_URL],
+    availableScopes: [ 'openid' ],
 }

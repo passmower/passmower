@@ -7,8 +7,8 @@ export default async (ctx) => {
         accountId,
         clientId: clientId,
     });
-    grant.addOIDCScope('openid profile')
-    // TODO: add other OIDCScopes, OIDCClaims and resourceScopes, dynamically or via OIDCGWClient CRD.
+    const scopes = ctx.oidc.entities.Client.availableScopes
+    grant.addOIDCScope(scopes)
     await grant.save(); // We must save the grant so that the provider can use it when client accesses the userinfo endpoint.
     return grant;
 }

@@ -1,7 +1,7 @@
 import {randomUUID} from "crypto";
 import configuration from "./configuration.js";
 import {
-    OIDCGWClientId,
+    OIDCGWClientId, OIDCGWClientSecretAvailableScopesKey,
     OIDCGWClientSecretClientIdKey, OIDCGWClientSecretClientSecretKey,
     OIDCGWClientSecretGatewayUriKey, OIDCGWClientSecretGrantTypesKey,
     OIDCGWClientSecretIdTokenSignedResponseAlgKey,
@@ -21,6 +21,7 @@ class OIDCClient {
     #idTokenSignedResponseAlg = null
     #redirectUris = null
     #allowedGroups = null
+    #availableScopes = null
     #gatewayUri = null
     #resourceVersion = null
     #status = {
@@ -42,6 +43,7 @@ class OIDCClient {
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
+            availableScopes: this.#availableScopes,
             gateway_uri: this.#gatewayUri
         }
     }
@@ -55,6 +57,7 @@ class OIDCClient {
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
+        this.#availableScopes = incomingClient.spec.availableScopes
         this.#gatewayUri = process.env.ISSUER_URL
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
@@ -62,7 +65,6 @@ class OIDCClient {
     }
 
     toClientSecret() {
-        // TODO: provide available scopes etc.
         return {
             [OIDCGWClientSecretClientIdKey]: this.getClientId(),
             [OIDCGWClientSecretClientSecretKey]: this.#clientSecret,
@@ -71,7 +73,8 @@ class OIDCClient {
             [OIDCGWClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
             [OIDCGWClientSecretIdTokenSignedResponseAlgKey]: this.#idTokenSignedResponseAlg,
             [OIDCGWClientSecretRedirectUrisKey]: this.#redirectUris,
-            [OIDCGWClientSecretGatewayUriKey]: this.#gatewayUri
+            [OIDCGWClientSecretGatewayUriKey]: this.#gatewayUri,
+            [OIDCGWClientSecretAvailableScopesKey]: this.#availableScopes,
         }
     }
 
