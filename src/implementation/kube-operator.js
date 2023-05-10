@@ -25,6 +25,9 @@ export class KubeOperator extends KubeApiService {
             `/apis/${apiGroup}/${apiGroupVersion}/${OIDCGWClients}`,
             {},
             async (type, apiObj, watchObj) => {
+                if (watchObj?.status === 'Failure') {
+                    throw new Error('Error watching Kubernetes API: ' + watchObj.message)
+                }
                 const OIDCClient = new OidcClient()
                 OIDCClient.fromIncomingClient(apiObj)
                 if (type === 'ADDED') {
