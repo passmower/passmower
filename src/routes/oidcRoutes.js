@@ -11,9 +11,8 @@ import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your o
 import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
-import {randomUUID} from "crypto";
 import accessDenied from "../support/access-denied.js";
-import selfOidcClient, {responseType, scope} from "../support/self-oidc-client.js";
+import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
 
@@ -96,11 +95,7 @@ export default (provider) => {
         if (signedIn) {
             return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {
-            const url = new URL(provider.urlFor('authorization'))
-            url.searchParams.append('client_id', selfOidcClient.client_id)
-            url.searchParams.append('response_type', responseType)
-            url.searchParams.append('scope', scope)
-            url.searchParams.append('nonce', randomUUID()) // Doesn't matter
+            const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL)
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
                 url: url.href
             })

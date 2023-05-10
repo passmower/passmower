@@ -4,6 +4,8 @@ import {promisify} from "node:util";
 import helmet from "helmet";
 import {SessionService} from "./session-service.js";
 import {KubeApiService} from "./kube-api-service.js";
+import {clientId} from "../support/self-oidc-client.js";
+import {addSiteSession} from "../support/site-session.js";
 
 export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -37,6 +39,19 @@ export default async (provider) => {
             const session = ctx.oidc.entities.Session
             await accountSessionRedis.appendToSet(session.accountId, session.jti)
             await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)})
+        }
+    });
+
+    provider.use(async (ctx, next) => {
+        await next();
+        if (ctx.oidc?.route === 'resume' || ctx.oidc?.route === 'authorization') {
+            if (ctx?.oidc?.entities?.Client?.clientId === clientId) {
+                await addSiteSession(ctx, provider)
+                if (ctx.oidc?.route === 'resume') {
+                    // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard or forwardAuth origin.
+                    ctx.redirect(ctx?.oidc?.entities?.Interaction?.params?.redirect_uri)
+                }
+            }
         }
     });
 

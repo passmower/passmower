@@ -1,5 +1,4 @@
 import Account from "./account.js";
-import selfOidcClient from "./self-oidc-client.js";
 import renderError from "./render-error.js";
 import loadExistingGrant from "./load-existing-grant.js";
 import setupPolicies from "../implementation/setup-policies.js";
@@ -14,9 +13,6 @@ export default {
         },
         policy: setupPolicies()
     },
-    clients: [
-        selfOidcClient,
-    ],
     cookies: {
         keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
         names: {
@@ -25,6 +21,7 @@ export default {
             session: '_session',
             admin_session: '_admin_session',
             impersonation: '_impersonation',
+            site_session: '_site_session',
         }
     },
     claims: {
@@ -83,6 +80,7 @@ export default {
             return 14 * 24 * 60 * 60;
         },
         Session: 1209600,
+        SiteSession: 1209600,
         AdminSession: 3600,
         Impersonation: 3600,
     },

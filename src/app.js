@@ -8,6 +8,7 @@ import setupProvider from "./implementation/setup-provider.js";
 import serve from 'koa-static';
 import KubeOperator from "./implementation/kube-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -29,6 +30,7 @@ try {
     provider.use(oidcRoutes(provider).routes());
     provider.use(apiRoutes(provider).routes());
     provider.use(adminRoutes(provider).routes());
+    provider.use(forwardAuthRoutes(provider).routes());
     provider.use(serve('frontend/dist'));
     provider.use(serve('styles/dist'));
     server = provider.listen(PORT, () => {

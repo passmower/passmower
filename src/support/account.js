@@ -71,6 +71,15 @@ class Account {
         return profile
     }
 
+    getRemoteHeaders() {
+        return {
+            'Remote-User': this.accountId,
+            'Remote-Name': this.profile.name,
+            'Remote-Email': this.emails[0], // TODO: primary email?
+            'Remote-Groups': this.#mapGroups().map(g => g.displayName).join(',')
+        }
+    }
+
     #mapGroups() {
         return this.groups ? this.groups.map((g) => {
             return {
