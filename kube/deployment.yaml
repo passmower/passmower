@@ -83,7 +83,7 @@ spec:
             - name: GROUP_PREFIX
               value: 'codemowers'
             - name: ADMIN_GROUP
-              value: 'codemowers:admins'
+              value: 'github.com:codemowers:admins'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets
