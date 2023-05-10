@@ -1,0 +1,16 @@
+---
+# Forward authentication to example.com
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: test-auth
+spec:
+  forwardAuth:
+    address: http://oidc-gateway.veebkolm-gab7y.svc.cluster.local:3000/forward-auth
+    trustForwardHeader: true
+    authResponseHeaders:
+      - Remote-User
+      - Remote-Name
+      - Remote-Email
+      - Remote-Groups
+
