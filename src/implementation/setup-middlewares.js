@@ -48,8 +48,10 @@ export default async (provider) => {
             if (ctx?.oidc?.entities?.Client?.clientId === clientId) {
                 await addSiteSession(ctx, provider)
                 if (ctx.oidc?.route === 'resume') {
-                    // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard or forwardAuth origin.
-                    ctx.redirect(ctx?.oidc?.entities?.Interaction?.params?.redirect_uri)
+                    if (ctx.oidc?.entities?.Interaction?.result?.login) {
+                        // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard or forwardAuth origin.
+                        ctx.redirect(ctx?.oidc?.entities?.Interaction?.params?.redirect_uri)
+                    }
                 }
             }
         }
