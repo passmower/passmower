@@ -1,12 +1,13 @@
 import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
+import RedisAdapter from "../adapters/redis.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 
 class Account {
     #spec = null
 
-    constructor(apiResponse) {
+    fromKubernetes(apiResponse) {
         this.accountId = apiResponse.metadata.name
         this.#spec = apiResponse.spec
         this.resourceVersion = apiResponse.metadata.resourceVersion
@@ -15,6 +16,13 @@ class Account {
         this.profile = apiResponse.status?.profile ?? {}
         this.acceptedTos = apiResponse.status?.acceptedTos ?? null
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
+        return this
+    }
+
+    fromRedis(redisObject) {
+        Object.assign(this, redisObject)
+        this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
+        return this
     }
 
     /**
@@ -106,18 +114,25 @@ class Account {
             return await ctx.kubeApiService.createUser(this.getUid(), emails)
         }
         const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
-        return await ctx.kubeApiService.updateUserSpec({
+        const updatedUser = await ctx.kubeApiService.updateUserSpec({
             accountId: user.accountId,
             emails: allEmails
         });
+        const redis = new RedisAdapter('Account')
+        await redis.upsert(user.accountId, updatedUser, 60)
+        return updatedUser
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-        const account = await ctx.kubeApiService.findUser(id)
+        const redis = new RedisAdapter('Account')
+        const cachedUser = await redis.find(id)
+        const account = cachedUser ? (new Account()).fromRedis(cachedUser) : await ctx.kubeApiService.findUser(id)
+        await redis.upsert(id, account, 60)
         return account ? account : null
+
     }
 }
 

@@ -25,10 +25,9 @@ export class KubeApiService {
             this.namespace,
             OIDCGWUsers
         ).then(async (r) => {
-            // return new Account(r.body)
             return await Promise.all(
                 r.body.items.map(async (s) => {
-                    return new Account(s)
+                    return (new Account()).fromKubernetes(s)
                 })
             )
         }).catch((e) => {
@@ -47,7 +46,7 @@ export class KubeApiService {
             OIDCGWUsers,
             id
         ).then((r) => {
-            return new Account(r.body)
+            return (new Account()).fromKubernetes(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -76,7 +75,7 @@ export class KubeApiService {
         const foundUser = emailsInKube.find((element) => {
             return emails.includes(element.email)
         })
-        return foundUser ? new Account(foundUser.user) : null
+        return foundUser ? (new Account()).fromKubernetes(foundUser.user) : null
     }
 
     async createUser(id, emails) {
@@ -99,7 +98,7 @@ export class KubeApiService {
 
             }
         ).then(async (r) => {
-            return await this.#updateUserStatus(new Account(r.body))
+            return await this.#updateUserStatus((new Account()).fromKubernetes(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -127,7 +126,7 @@ export class KubeApiService {
             undefined,
             { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
         ).then(async (r) => {
-            return await this.#updateUserStatus(new Account(r.body))
+            return await this.#updateUserStatus((new Account()).fromKubernetes(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -176,7 +175,7 @@ export class KubeApiService {
                 status: account.getIntendedStatus(),
             }
         ).then((r) => {
-            return new Account(r.body)
+            return (new Account()).fromKubernetes(r.body)
         }).catch((e) => {
             console.error(e)
         })
