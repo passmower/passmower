@@ -54,7 +54,7 @@ class Account {
         }
     }
 
-    getProfileResponse(forAdmin = false) {
+    getProfileResponse(forAdmin = false, requesterAccountId = null) {
         let profile =  {
             emails: this.emails,
             name: this.profile.name,
@@ -66,6 +66,7 @@ class Account {
             profile = {
                 ...profile,
                 accountId: this.accountId,
+                impersonationEnabled: requesterAccountId !== this.accountId
             }
         }
         return profile

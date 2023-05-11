@@ -18,7 +18,7 @@
             </div>
             <div class="item-actions">
                 <Info @click="editProfile(account)" />
-                <Impersonate @click="impersonate(account)" />
+                <Impersonate v-if="account.impersonationEnabled" @click="impersonate(account)" />
             </div>
         </div>
     </div>

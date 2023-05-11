@@ -40,7 +40,7 @@ export default (provider) => {
     router.get('/admin/api/accounts', async (ctx, next) => {
         let accounts = await ctx.kubeApiService.listUsers()
         ctx.body = {
-            accounts: accounts.map((acc) => acc.getProfileResponse(true))
+            accounts: accounts.map((acc) => acc.getProfileResponse(true, ctx.adminSession.accountId))
         }
     })
 
