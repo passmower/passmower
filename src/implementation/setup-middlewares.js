@@ -63,5 +63,12 @@ export default async (provider) => {
         return next();
     });
 
+    provider.on('authorization.error', async (ctx, error) => {
+        const session = await provider.Session.get(ctx)
+        await ctx.sessionService.endOIDCSession(session.jti, {
+            redirect: () => {}
+        }, () => {})
+    })
+
     return provider
 }
