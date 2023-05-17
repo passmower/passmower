@@ -66,4 +66,4 @@ COPY --from=build /app/styles/dist/. /app/styles/dist/
 
 # we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
 ENV NODE_ENV=production
-ENTRYPOINT node --supress-warnings src/app.js
+ENTRYPOINT node --no-warnings src/app.js
