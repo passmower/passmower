@@ -14,4 +14,7 @@ export const OIDCGWClientSecretIdTokenSignedResponseAlgKey = 'OIDC_ID_TOKEN_SIGN
 export const OIDCGWClientSecretRedirectUrisKey = 'OIDC_REDIRECT_URIS'
 export const OIDCGWClientSecretGatewayUriKey = 'OIDC_GATEWAY_URI'
 export const OIDCGWClientSecretAvailableScopesKey = 'OIDC_AVAILABLE_SCOPES'
+export const OIDCGWClientSecretAuthUriKey = 'OIDC_GATEWAY_AUTH_URI'
+export const OIDCGWClientSecretTokenUriKey = 'OIDC_GATEWAY_TOKEN_URI'
+export const OIDCGWClientSecretUserInfoUriKey = 'OIDC_GATEWAY_USERINFO_URI'
 export const GitHubGroupPrefix = 'github.com'

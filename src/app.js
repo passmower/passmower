@@ -17,9 +17,6 @@ const { PORT = 3000 } = process.env;
 let server;
 
 try {
-    const kubeOperator = new KubeOperator()
-    await kubeOperator.watchClients()
-
     const provider = await setupProvider()
     render(provider.app, {
         cache: false,
@@ -36,6 +33,8 @@ try {
     server = provider.listen(PORT, () => {
         console.log(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
+    const kubeOperator = new KubeOperator(provider)
+    await kubeOperator.watchClients()
 } catch (err) {
     if (server?.listening) server.close();
     console.error(err);

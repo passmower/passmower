@@ -1,14 +1,14 @@
 import {randomUUID} from "crypto";
 import configuration from "./configuration.js";
 import {
-    OIDCGWClientId, OIDCGWClientSecretAvailableScopesKey,
+    OIDCGWClientId, OIDCGWClientSecretAuthUriKey, OIDCGWClientSecretAvailableScopesKey,
     OIDCGWClientSecretClientIdKey, OIDCGWClientSecretClientSecretKey,
     OIDCGWClientSecretGatewayUriKey, OIDCGWClientSecretGrantTypesKey,
     OIDCGWClientSecretIdTokenSignedResponseAlgKey,
     OIDCGWClientSecretName,
     OIDCGWClientSecretRedirectUrisKey,
     OIDCGWClientSecretResponseTypesKey,
-    OIDCGWClientSecretTokenEndpointAuthMethodKey
+    OIDCGWClientSecretTokenEndpointAuthMethodKey, OIDCGWClientSecretTokenUriKey, OIDCGWClientSecretUserInfoUriKey
 } from "./kube-constants.js";
 
 class OIDCClient {
@@ -64,17 +64,20 @@ class OIDCClient {
         return this
     }
 
-    toClientSecret() {
+    toClientSecret(provider) {
         return {
             [OIDCGWClientSecretClientIdKey]: this.getClientId(),
             [OIDCGWClientSecretClientSecretKey]: this.#clientSecret,
-            [OIDCGWClientSecretGrantTypesKey]: this.#grantTypes,
-            [OIDCGWClientSecretResponseTypesKey]: this.#responseTypes,
+            [OIDCGWClientSecretGrantTypesKey]: this.#grantTypes.join(','),
+            [OIDCGWClientSecretResponseTypesKey]: this.#responseTypes.join(','),
             [OIDCGWClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
             [OIDCGWClientSecretIdTokenSignedResponseAlgKey]: this.#idTokenSignedResponseAlg,
-            [OIDCGWClientSecretRedirectUrisKey]: this.#redirectUris,
+            [OIDCGWClientSecretRedirectUrisKey]: this.#redirectUris.join(','),
             [OIDCGWClientSecretGatewayUriKey]: this.#gatewayUri,
-            [OIDCGWClientSecretAvailableScopesKey]: this.#availableScopes,
+            [OIDCGWClientSecretAvailableScopesKey]: this.#availableScopes.join(','),
+            [OIDCGWClientSecretAuthUriKey]: provider.urlFor('authorization'),
+            [OIDCGWClientSecretTokenUriKey]: provider.urlFor('token'),
+            [OIDCGWClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
         }
     }
 

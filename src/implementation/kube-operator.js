@@ -12,9 +12,10 @@ import {
 import RedisAdapter from "../adapters/redis.js";
 
 export class KubeOperator extends KubeApiService {
-    constructor() {
+    constructor(provider) {
         super();
         this.redisAdapter = new RedisAdapter('Client')
+        this.provider = provider
     }
 
     async watchClients() {
@@ -216,7 +217,7 @@ export class KubeOperator extends KubeApiService {
     }
 
     async #generateSecretData (OIDCClient) {
-        const model = OIDCClient.toClientSecret()
+        const model = OIDCClient.toClientSecret(this.provider)
         const data = {}
         Object.keys(model).forEach((k) => {
             let val = model[k]
