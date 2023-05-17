@@ -57,6 +57,7 @@ class Account {
     getProfileResponse(forAdmin = false) {
         let profile =  {
             emails: this.emails,
+            email: this.emails[0],
             name: this.profile.name,
             company: this.profile.company,
             isAdmin: this.isAdmin,
