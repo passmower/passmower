@@ -23,7 +23,7 @@ export class KubeOperator extends KubeApiService {
         globalThis.OIDCClients = []
         const watch = new k8s.Watch(this.kc, new WatchRequest());
         watch.watch(
-            `/apis/${apiGroup}/${apiGroupVersion}/${OIDCGWClients}`,
+            `/apis/${apiGroup}/${apiGroupVersion}/namespaces/${this.namespace}/${OIDCGWClients}`,
             {},
             async (type, apiObj, watchObj) => {
                 if (watchObj?.status === 'Failure') {
