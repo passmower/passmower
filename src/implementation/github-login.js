@@ -72,7 +72,7 @@ export default async (ctx, provider) => {
 
     let githubGroups = []
     try {
-        githubGroups = await getUserOrganizations(token).then(organizations => {
+        githubGroups = await getUserOrganizations(token).then(organizations => organizations.filter(filterUserOrganizations)).then(organizations => {
             return Promise.all(organizations.map(organization => {
                 return getOrganizationTeams(token, organization).then(teams => {
                     return Promise.all(teams.map(team => {
@@ -107,6 +107,10 @@ export default async (ctx, provider) => {
     return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
         mergeWithLastSubmission: false,
     });
+}
+
+const filterUserOrganizations = (organization) => {
+    return process.env.GITHUB_ORGANIZATION ? (organization === process.env.GITHUB_ORGANIZATION) : true
 }
 
 const getUserOrganizations = async (token) => {
