@@ -35,6 +35,7 @@ class Account {
             claims = {
                 ...claims,
                 name: this.profile.name,
+                email: this.emails[0],
                 company: this.profile.company,
                 githubId: this.profile.githubId,
             };
