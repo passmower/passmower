@@ -34,13 +34,18 @@ export default async (ctx, provider) => {
         return accessDenied(ctx, provider,'State does not match')
     }
 
-    const token = await new Promise(resolve => {
+    const accessToken = await new Promise(resolve => {
         ghOauth.getOAuthAccessToken(callbackParams.code, {
             'redirect_uri': `${process.env.ISSUER_URL}interaction/callback/gh`,
         }, (e, access_token, refresh_token, results) => {
-            resolve(access_token)
+            resolve(results)
         });
     });
+
+    if (accessToken.error || !accessToken.access_token) {
+        return accessDenied(ctx, provider, 'User aborted login')
+    }
+    const token = accessToken.access_token
 
     const user = await fetch('https://api.github.com/user', {
         method: "GET",
