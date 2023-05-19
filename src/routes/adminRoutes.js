@@ -38,7 +38,7 @@ export default (provider) => {
     })
 
     router.get('/admin/api/accounts', async (ctx, next) => {
-        let accounts = await ctx.kubeApiService.listUsers()
+        let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))
         }
@@ -47,7 +47,7 @@ export default (provider) => {
     router.post('/admin/api/accounts/:accountId', async (ctx, next) => {
         const accountId = ctx.request.params.accountId
         const body = ctx.request.body
-        await ctx.kubeApiService.updateUserSpec({
+        await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: {
                 name: body.name,
@@ -56,7 +56,7 @@ export default (provider) => {
             customGroups: body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
                 .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
         })
-        let accounts = await ctx.kubeApiService.listUsers()
+        let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))
         }

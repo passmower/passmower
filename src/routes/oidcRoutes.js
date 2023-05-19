@@ -183,7 +183,7 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
-        await ctx.kubeApiService.updateUserSpec({
+        await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             acceptedTos: Date.now()
         })
@@ -196,7 +196,7 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
-        await ctx.kubeApiService.updateUserSpec({
+        await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: {
                 name: ctx.request.body.name

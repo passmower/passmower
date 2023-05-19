@@ -3,7 +3,7 @@ import RedisAdapter from "../adapters/redis.js";
 import {promisify} from "node:util";
 import helmet from "helmet";
 import {SessionService} from "./session-service.js";
-import {KubeApiService} from "./kube-api-service.js";
+import {KubeOIDCUserService} from "./kube-oidc-user-service.js";
 import {clientId} from "../support/self-oidc-client.js";
 import {addSiteSession} from "../support/site-session.js";
 
@@ -56,7 +56,7 @@ export default async (provider) => {
     });
 
     provider.use(async (ctx, next) => {
-        ctx.kubeApiService = new KubeApiService()
+        ctx.kubeOIDCUserService = new KubeOIDCUserService()
         ctx.sessionService = new SessionService(provider)
         return next();
     });

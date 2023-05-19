@@ -98,7 +98,7 @@ export default async (ctx, provider) => {
         console.error('Error getting groups from GitHub: ' + e)
     }
 
-    await ctx.kubeApiService.updateUserSpec({
+    await ctx.kubeOIDCUserService.updateUserSpec({
         accountId: account.accountId,
         githubProfile,
         githubGroups

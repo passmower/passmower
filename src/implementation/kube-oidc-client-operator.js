@@ -1,5 +1,5 @@
 import * as k8s from "@kubernetes/client-node";
-import {KubeApiService} from "./kube-api-service.js";
+import {KubeOIDCUserService} from "./kube-oidc-user-service.js";
 import WatchRequest from "../support/watch-request.js";
 import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
 import OidcClient from "../support/oidc-client.js";
@@ -11,7 +11,7 @@ import {
 } from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 
-export class KubeOIDCClientOperator extends KubeApiService {
+export class KubeOIDCClientOperator extends KubeOIDCUserService {
     constructor(provider) {
         super();
         this.redisAdapter = new RedisAdapter('Client')

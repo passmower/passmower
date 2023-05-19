@@ -102,12 +102,12 @@ class Account {
     }
 
     static async createOrUpdateByEmails(ctx, emails) {
-        const user = await ctx.kubeApiService.findUserByEmails(emails)
+        const user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
-            return await ctx.kubeApiService.createUser(this.getUid(), emails)
+            return await ctx.kubeOIDCUserService.createUser(this.getUid(), emails)
         }
         const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
-        return await ctx.kubeApiService.updateUserSpec({
+        return await ctx.kubeOIDCUserService.updateUserSpec({
             accountId: user.accountId,
             emails: allEmails
         });
@@ -117,7 +117,7 @@ class Account {
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-        const account = await ctx.kubeApiService.findUser(id)
+        const account = await ctx.kubeOIDCUserService.findUser(id)
         return account ? account : null
     }
 }

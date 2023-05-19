@@ -7,7 +7,7 @@ import {
     apiGroupVersion,
 } from "../support/kube-constants.js";
 
-export class KubeApiService {
+export class KubeOIDCUserService {
     constructor() {
         const kc = new k8s.KubeConfig();
         this.kc = kc
