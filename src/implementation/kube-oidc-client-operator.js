@@ -236,4 +236,4 @@ export class KubeOIDCClientOperator extends KubeOIDCUserService {
     }
 }
 
-export default KubeOidcClientOperator
+export default KubeOIDCClientOperator
