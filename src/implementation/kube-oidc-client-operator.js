@@ -11,7 +11,7 @@ import {
 } from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 
-export class KubeOperator extends KubeApiService {
+export class KubeOIDCClientOperator extends KubeApiService {
     constructor(provider) {
         super();
         this.redisAdapter = new RedisAdapter('Client')
@@ -236,4 +236,4 @@ export class KubeOperator extends KubeApiService {
     }
 }
 
-export default KubeOperator
+export default KubeOidcClientOperator
