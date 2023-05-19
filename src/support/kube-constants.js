@@ -1,5 +1,6 @@
 export const OIDCGWUser = 'OIDCGWUser';
 export const OIDCGWUsers = 'oidcgatewayusers';
+export const OIDCGWClient = 'OIDCGWClient';
 export const OIDCGWClients = 'oidcgatewayclients';
 export const apiGroup = 'codemowers.io'
 export const apiGroupVersion = 'v1alpha1'

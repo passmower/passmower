@@ -1,13 +1,13 @@
 import * as k8s from "@kubernetes/client-node";
 import {KubeApiService} from "./kube-api-service.js";
 import WatchRequest from "../support/watch-request.js";
-import {V1Secret} from "@kubernetes/client-node";
+import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
 import OidcClient from "../support/oidc-client.js";
 import {
     OIDCGWClients,
     apiGroup,
     OIDCGWUser,
-    apiGroupVersion, OIDCGWClientSecretClientIdKey
+    apiGroupVersion, OIDCGWClientSecretClientIdKey, OIDCGWClient
 } from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 
@@ -133,6 +133,9 @@ export class KubeOperator extends KubeApiService {
         let kubeSecret = new V1Secret()
         kubeSecret.metadata = {
             name: OIDCClient.getSecretName(),
+            ownerReferences: [
+                this.#getSecretOwnerReference(OIDCClient)
+            ]
         }
         kubeSecret.data = await this.#generateSecretData(OIDCClient)
         await this.coreV1Api.createNamespacedSecret(
@@ -144,6 +147,17 @@ export class KubeOperator extends KubeApiService {
             console.error(e)
             return null
         })
+    }
+
+    #getSecretOwnerReference(OIDCClient) {
+        const ref = new V1OwnerReference()
+        ref.uid = OIDCClient.getUid()
+        ref.name = OIDCClient.getClientName()
+        ref.kind = OIDCGWClient
+        ref.apiVersion = `${apiGroup}/${apiGroupVersion}`
+        ref.controller = true
+        ref.blockOwnerDeletion = false
+        return ref
     }
 
     async #deleteKubeSecret(OIDCClient) {
@@ -190,15 +204,6 @@ export class KubeOperator extends KubeApiService {
 
     async #deleteOIDCClient (OIDCClient) {
         if (OIDCClient.getGateway() === this.currentGateway) {
-            await this.coreV1Api.deleteNamespacedSecret(
-                OIDCClient.getSecretName(),
-                OIDCClient.getClientNamespace(),
-            ).catch((e) => {
-                if (e.statusCode !== 404) {
-                    console.error(e)
-                    return null
-                }
-            })
             await this.redisAdapter.destroy(OIDCClient.getClientId())
         }
     }

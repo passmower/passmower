@@ -27,6 +27,7 @@ class OIDCClient {
     #status = {
         gateway: null
     }
+    #uid = null
 
     constructor() {
     }
@@ -61,6 +62,7 @@ class OIDCClient {
         this.#gatewayUri = process.env.ISSUER_URL
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
+        this.#uid = incomingClient.metadata.uid
         return this
     }
 
@@ -97,6 +99,10 @@ class OIDCClient {
 
     getSecretName() {
         return OIDCGWClientSecretName(this.#clientName)
+    }
+
+    getUid() {
+        return this.#uid
     }
 
     getClientId() {
