@@ -99,7 +99,7 @@ export class KubeOIDCUserService {
 
             }
         ).then(async (r) => {
-            return await this.#updateUserStatus(new Account(r.body))
+            return await this.updateUserStatus(new Account(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -127,7 +127,7 @@ export class KubeOIDCUserService {
             undefined,
             { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
         ).then(async (r) => {
-            return await this.#updateUserStatus(new Account(r.body))
+            return await this.updateUserStatus(new Account(r.body))
         }).catch((e) => {
             if (e.statusCode !== 404) {
                 console.error(e)
@@ -159,7 +159,7 @@ export class KubeOIDCUserService {
         return patches
     }
 
-    async #updateUserStatus(account) {
+    async updateUserStatus(account) {
         return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
             apiGroup,
             apiGroupVersion,

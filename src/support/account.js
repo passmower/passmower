@@ -1,10 +1,12 @@
 import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
+import {conditionStatusTrue} from "./conditions/base-condition.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 
 class Account {
     #spec = null
+    #conditions = []
 
     constructor(apiResponse) {
         this.accountId = apiResponse.metadata.name
@@ -13,7 +15,7 @@ class Account {
         this.emails = apiResponse.status?.emails ?? []
         this.groups = apiResponse.status?.groups ?? []
         this.profile = apiResponse.status?.profile ?? {}
-        this.acceptedTos = apiResponse.status?.acceptedTos ?? null
+        this.#conditions = apiResponse.status?.conditions ?? []
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
     }
 
@@ -51,7 +53,7 @@ class Account {
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
                 company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
             },
-            acceptedTos: this.#spec.acceptedTos,
+            conditions: this.#conditions
         }
     }
 
@@ -80,6 +82,15 @@ class Account {
             'Remote-Email': this.emails[0], // TODO: primary email?
             'Remote-Groups': this.#mapGroups().map(g => g.displayName).join(',')
         }
+    }
+
+    addCondition(condition) {
+        this.#conditions.push(condition)
+        return this
+    }
+
+    checkCondition(condition) {
+        return this.#conditions.find(c => c.type === condition.type)?.status === conditionStatusTrue ?? false
     }
 
     #mapGroups() {

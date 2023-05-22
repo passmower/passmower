@@ -1,4 +1,5 @@
 import {interactionPolicy} from "oidc-provider";
+import {ToSv1} from "../support/conditions/tosv1.js";
 
 export default () => {
     const { Prompt, Check, base } = interactionPolicy;
@@ -8,7 +9,7 @@ export default () => {
         new Check('tos_not_accepted', 'ToS needs to be accepted', 'interaction_required', async (ctx) => {
                 const { oidc, kubeOIDCUserService } = ctx;
                 const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
-                return kubeUser.acceptedTos ? Check.NO_NEED_TO_PROMPT : Check.REQUEST_PROMPT;
+                return !kubeUser.checkCondition(new ToSv1())
             },
         ),
     )
