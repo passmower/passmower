@@ -127,13 +127,13 @@ class Account {
             return await ctx.kubeOIDCUserService.createUser(this.getUid(), emails)
         }
         const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
-        const updatedUser = await ctx.kubeOIDCUserService.updateUserSpec({
+        return await ctx.kubeOIDCUserService.updateUserSpec({
             accountId: user.accountId,
             emails: allEmails
         });
-        const redis = new RedisAdapter('Account')
-        await redis.upsert(user.accountId, updatedUser, 60)
-        return updatedUser
+        // const redis = new RedisAdapter('Account')
+        // await redis.upsert(user.accountId, updatedUser, 60)
+        // return updatedUser
     }
 
     static async findAccount(ctx, id, token) { // eslint-disable-line no-unused-vars
@@ -141,10 +141,10 @@ class Account {
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
         const account = await ctx.kubeOIDCUserService.findUser(id)
-        const redis = new RedisAdapter('Account')
-        const cachedUser = await redis.find(id)
-        const account = cachedUser ? (new Account()).fromRedis(cachedUser) : await ctx.kubeApiService.findUser(id)
-        await redis.upsert(id, account, 60)
+        // const redis = new RedisAdapter('Account')
+        // const cachedUser = await redis.find(id)
+        // const account = cachedUser ? (new Account()).fromRedis(cachedUser) : await ctx.kubeApiService.findUser(id)
+        // await redis.upsert(id, account, 60)
         return account ? account : null
     }
 }
