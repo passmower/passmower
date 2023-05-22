@@ -68,8 +68,6 @@ spec:
                       type: integer
                     login:
                       type: string
-                acceptedTos:
-                  type: integer
             status:
               type: object
               properties:
@@ -93,8 +91,6 @@ spec:
                       type: string
                     company:
                       type: string
-                acceptedTos:
-                  type: integer
                 conditions:
                   type: array
                   items:
