@@ -84,6 +84,8 @@ spec:
               value: 'codemowers'
             - name: ADMIN_GROUP
               value: 'github.com:codemowers:admins'
+            - name: GITHUB_ORGANIZATION
+              value: 'codemowers'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets

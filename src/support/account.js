@@ -1,11 +1,13 @@
 import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
+import {conditionStatusTrue} from "./conditions/base-condition.js";
 import RedisAdapter from "../adapters/redis.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 
 class Account {
     #spec = null
+    #conditions = []
 
     fromKubernetes(apiResponse) {
         this.accountId = apiResponse.metadata.name
@@ -14,7 +16,7 @@ class Account {
         this.emails = apiResponse.status?.emails ?? []
         this.groups = apiResponse.status?.groups ?? []
         this.profile = apiResponse.status?.profile ?? {}
-        this.acceptedTos = apiResponse.status?.acceptedTos ?? null
+        this.#conditions = apiResponse.status?.conditions ?? []
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
         return this
     }
@@ -43,6 +45,7 @@ class Account {
             claims = {
                 ...claims,
                 name: this.profile.name,
+                email: this.emails[0],
                 company: this.profile.company,
                 githubId: this.profile.githubId,
             };
@@ -58,13 +61,14 @@ class Account {
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
                 company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
             },
-            acceptedTos: this.#spec.acceptedTos,
+            conditions: this.#conditions
         }
     }
 
     getProfileResponse(forAdmin = false, requesterAccountId = null) {
         let profile =  {
             emails: this.emails,
+            email: this.emails[0],
             name: this.profile.name,
             company: this.profile.company,
             isAdmin: this.isAdmin,
@@ -89,6 +93,15 @@ class Account {
         }
     }
 
+    addCondition(condition) {
+        this.#conditions.push(condition)
+        return this
+    }
+
+    checkCondition(condition) {
+        return this.#conditions.find(c => c.type === condition.type)?.status === conditionStatusTrue ?? false
+    }
+
     #mapGroups() {
         return this.groups ? this.groups.map((g) => {
             return {
@@ -109,12 +122,12 @@ class Account {
     }
 
     static async createOrUpdateByEmails(ctx, emails) {
-        const user = await ctx.kubeApiService.findUserByEmails(emails)
+        const user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
-            return await ctx.kubeApiService.createUser(this.getUid(), emails)
+            return await ctx.kubeOIDCUserService.createUser(this.getUid(), emails)
         }
         const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
-        const updatedUser = await ctx.kubeApiService.updateUserSpec({
+        const updatedUser = await ctx.kubeOIDCUserService.updateUserSpec({
             accountId: user.accountId,
             emails: allEmails
         });
@@ -127,12 +140,12 @@ class Account {
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
+        const account = await ctx.kubeOIDCUserService.findUser(id)
         const redis = new RedisAdapter('Account')
         const cachedUser = await redis.find(id)
         const account = cachedUser ? (new Account()).fromRedis(cachedUser) : await ctx.kubeApiService.findUser(id)
         await redis.upsert(id, account, 60)
         return account ? account : null
-
     }
 }
 

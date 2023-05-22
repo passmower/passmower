@@ -35,6 +35,7 @@ export default {
         profile: [
             'sub',
             'groups',
+            'email',
             'emails',
             'name',
             'company',

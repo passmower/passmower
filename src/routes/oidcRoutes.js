@@ -15,6 +15,7 @@ import accessDenied from "../support/access-denied.js";
 import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
+import {ToSv1} from "../support/conditions/tosv1.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -183,10 +184,11 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'tos');
-        await ctx.kubeApiService.updateUserSpec({
-            accountId,
-            acceptedTos: Date.now()
-        })
+        let account = await Account.findAccount(ctx, accountId)
+        let condition = new ToSv1()
+        condition = condition.setStatus(true)
+        account.addCondition(condition.toKubeCondition())
+        await ctx.kubeOIDCUserService.updateUserStatus(account)
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });
@@ -196,7 +198,7 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
-        await ctx.kubeApiService.updateUserSpec({
+        await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: {
                 name: ctx.request.body.name

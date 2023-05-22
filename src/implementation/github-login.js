@@ -34,13 +34,18 @@ export default async (ctx, provider) => {
         return accessDenied(ctx, provider,'State does not match')
     }
 
-    const token = await new Promise(resolve => {
+    const accessToken = await new Promise(resolve => {
         ghOauth.getOAuthAccessToken(callbackParams.code, {
             'redirect_uri': `${process.env.ISSUER_URL}interaction/callback/gh`,
         }, (e, access_token, refresh_token, results) => {
-            resolve(access_token)
+            resolve(results)
         });
     });
+
+    if (accessToken.error || !accessToken.access_token) {
+        return accessDenied(ctx, provider, 'User aborted login')
+    }
+    const token = accessToken.access_token
 
     const user = await fetch('https://api.github.com/user', {
         method: "GET",
@@ -67,7 +72,7 @@ export default async (ctx, provider) => {
 
     let githubGroups = []
     try {
-        githubGroups = await getUserOrganizations(token).then(organizations => {
+        githubGroups = await getUserOrganizations(token).then(organizations => organizations.filter(filterUserOrganizations)).then(organizations => {
             return Promise.all(organizations.map(organization => {
                 return getOrganizationTeams(token, organization).then(teams => {
                     return Promise.all(teams.map(team => {
@@ -93,7 +98,7 @@ export default async (ctx, provider) => {
         console.error('Error getting groups from GitHub: ' + e)
     }
 
-    await ctx.kubeApiService.updateUserSpec({
+    await ctx.kubeOIDCUserService.updateUserSpec({
         accountId: account.accountId,
         githubProfile,
         githubGroups
@@ -102,6 +107,10 @@ export default async (ctx, provider) => {
     return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
         mergeWithLastSubmission: false,
     });
+}
+
+const filterUserOrganizations = (organization) => {
+    return process.env.GITHUB_ORGANIZATION ? (organization === process.env.GITHUB_ORGANIZATION) : true
 }
 
 const getUserOrganizations = async (token) => {

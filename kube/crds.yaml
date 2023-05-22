@@ -95,6 +95,12 @@ spec:
                       type: string
                 acceptedTos:
                   type: integer
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-embedded-resource: true
+                    x-kubernetes-preserve-unknown-fields: true
       additionalPrinterColumns:
         - name: Name
           type: string
