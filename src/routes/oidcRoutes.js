@@ -18,6 +18,7 @@ import Account from "../support/account.js";
 import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
+import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -110,7 +111,7 @@ export default (provider) => {
         try {
             await next();
         } catch (err) {
-            if (err instanceof SessionNotFound) {
+            if (err instanceof OIDCProviderError) {
                 ctx.status = err.status;
                 const { message: error, error_description } = err;
                 await defaults.renderError(ctx, { error, error_description }, err);

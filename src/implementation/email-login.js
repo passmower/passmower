@@ -1,29 +1,17 @@
 import Account from "../support/account.js";
-import Nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import { renderFile } from 'ejs';
 import path from "path";
 import {dirname} from "desm";
 import accessDenied from "../support/access-denied.js";
 import getLoginResult from "../support/get-login-result.js";
+import EmailAdapter from "../adapters/email.js";
+import {CustomOIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 
 export class EmailLogin {
     constructor() {
-        this.transporter = Nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: process.env.EMAIL_PORT,
-            ssl: process.env.EMAIL_SSL,
-            auth: {
-                user: process.env.EMAIL_USERNAME,
-                pass: process.env.EMAIL_PASSWORD
-            }
-        });
-        this.mailOptions = {
-            from: process.env.EMAIL_USERNAME,
-            subject: 'Login link',
-        };
+        this.adapter = new EmailAdapter()
     }
-
 
     async sendLink(ctx, provider)
     {
@@ -43,20 +31,10 @@ export class EmailLogin {
                 url
             }
         );
-        await this.transporter.sendMail(
-            {
-                ...this.mailOptions,
-                to: email,
-                text: url,
-                html: emailHtml
-            },
-            function (error, info) {
-            if (error) {
-                console.log(error);
-            } else {
-                console.log('Email sent: ' + info.response);
-            }
-        });
+        const emailSent = await this.adapter.sendMail(email, 'Login link', url, emailHtml)
+        if (!emailSent) {
+            throw new CustomOIDCProviderError('email_sending_failed', 'Failed to send login link via email. Please try again or contact support.')
+        }
         return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
     }
 
