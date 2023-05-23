@@ -9,7 +9,11 @@
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
-    <div class="login-card">
+    <% if (wide) { %>
+    <div class="card card-wide">
+    <% } else { %>
+    <div class="card">
+    <% } %>
       <h1><%= title %></h1>
       <%- body %>
       <% if (uid) { %>

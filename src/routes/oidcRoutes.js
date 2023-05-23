@@ -58,7 +58,7 @@ const sessionDetails = async (provider, ctx) => {
     }
 }
 
-const render = async (provider, ctx, template, title, extra) => {
+const render = async (provider, ctx, template, title, extra, wide = false) => {
     const {
         uid, prompt, details, params, session, client
     } = await sessionDetails(provider, ctx)
@@ -80,7 +80,8 @@ const render = async (provider, ctx, template, title, extra) => {
         params,
         title,
         dbg,
-        ...extra
+        ...extra,
+        wide
     });
 }
 
@@ -135,7 +136,7 @@ export default (provider) => {
             case 'tos': {
                 return render(provider, ctx, 'tos', 'Terms of Service', {
                     text: getText(ToSTextName)
-                })
+                }, true)
             }
             case 'approval_required': {
                 const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
@@ -144,10 +145,9 @@ export default (provider) => {
                         mergeWithLastSubmission: true,
                     });
                 }
-
                 return render(provider, ctx, 'approval_required', 'Approval required', {
                     text: getText(ApprovalTextName)
-                })
+                }, true)
             }
             case 'name': {
                 return render(provider, ctx, 'enter-name', 'Enter your name')

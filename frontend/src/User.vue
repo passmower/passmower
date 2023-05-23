@@ -4,7 +4,7 @@
   </header>
 
   <main>
-    <div class="login-card">
+    <div class="card card-wide">
       <h1>Hello, {{ account.name }}!</h1>
       <Profile />
       <Sessions />

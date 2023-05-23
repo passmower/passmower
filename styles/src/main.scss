@@ -152,10 +152,13 @@ svg {
   }
 }
 
-.login-card {
-  width: 40em;
+.card {
+  width: 25em;
   margin: auto;
   text-align: center;
+  &-wide {
+    width: 40em;
+  }
   & h1 {
     font-weight: 100;
     text-align: center;

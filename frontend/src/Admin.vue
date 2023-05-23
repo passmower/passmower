@@ -1,6 +1,6 @@
 <template>
     <main>
-        <div class="login-card">
+        <div class="card card-wide">
             <h1>oidc-gateway admin</h1>
             <Accounts />
         </div>

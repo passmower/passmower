@@ -10,7 +10,7 @@ const renderError = (ctx, out, error) => {
       <link rel="stylesheet" href="/style.css">
     </head>
     <body>
-      <div class="login-card">
+      <div class="card card-wide">
         <h2>Error encountered</h2>
         <div class="errors">
             ${Object.entries(out).map(([key, value]) => `<pre><strong>${key}</strong>: ${htmlSafe(value)}</pre>`).join('')}
