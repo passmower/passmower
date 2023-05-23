@@ -17,6 +17,7 @@ import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
 import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
+import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -131,7 +132,9 @@ export default (provider) => {
                 return render(provider, ctx, 'interaction', 'Authorize')
             }
             case 'tos': {
-                return render(provider, ctx, 'tos', 'Terms of Service')
+                return render(provider, ctx, 'tos', 'Terms of Service', {
+                    text: getText(ToSTextName)
+                })
             }
             case 'approval_required': {
                 const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
@@ -141,7 +144,9 @@ export default (provider) => {
                     });
                 }
 
-                return render(provider, ctx, 'approval_required', 'Approval required')
+                return render(provider, ctx, 'approval_required', 'Approval required', {
+                    text: getText(ApprovalTextName)
+                })
             }
             case 'name': {
                 return render(provider, ctx, 'enter-name', 'Enter your name')

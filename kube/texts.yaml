@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oidc-gateway-tos-v1
+data:
+  tos.txt: |
+    Lorem ipsum.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oidc-gateway-approval-required
+data:
+  approval.txt: |
+    You need to be approved to continue.

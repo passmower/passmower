@@ -106,3 +106,15 @@ spec:
                   value: https
             initialDelaySeconds: 5
             periodSeconds: 1
+#          volumeMounts:
+#            - mountPath: /app/tos
+#              name: tos
+#            - mountPath: /app/approval
+#              name: approval
+#      volumes:
+#        - name: tos
+#          configMap:
+#            name: oidc-gateway-tos-v1
+#        - name: approval
+#          configMap:
+#            name: oidc-gateway-approval-required
