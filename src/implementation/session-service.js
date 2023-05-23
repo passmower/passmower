@@ -59,7 +59,7 @@ export class SessionService {
         sessionToDelete = await this.sessionRedis.find(sessionToDelete)
         ctx.oidc = {
             // don't clear cookies when it's not current session
-            cookies: sessionToDelete?.jti === ctx.currentSession?.jti ? ctx.cookies : {
+            cookies: sessionToDelete?.jti === ctx.currentSession?.jti && ctx.cookies ? ctx.cookies : {
                 set: () => {}
             },
             urlFor: () => {
