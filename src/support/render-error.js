@@ -11,11 +11,12 @@ const renderError = (ctx, out, error) => {
     </head>
     <body>
       <div class="login-card">
-        <h2>OIDC provider error</h2>
-        <pre>${ error }</pre><br>
+        <h2>Error encountered</h2>
         <div class="errors">
             ${Object.entries(out).map(([key, value]) => `<pre><strong>${key}</strong>: ${htmlSafe(value)}</pre>`).join('')}
         </div>
+        <br />
+        <p>Please try again or contact support.</p>
       </div>
     </body>
     </html>`;

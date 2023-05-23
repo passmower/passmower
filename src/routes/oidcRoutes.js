@@ -7,7 +7,6 @@ import isEmpty from 'lodash/isEmpty.js';
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 
-import { defaults } from 'oidc-provider/lib/helpers/defaults.js'; // make your own, you'll need it anyway
 import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
@@ -19,6 +18,7 @@ import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
+import renderError from "../support/render-error.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -114,7 +114,7 @@ export default (provider) => {
             if (err instanceof OIDCProviderError) {
                 ctx.status = err.status;
                 const { message: error, error_description } = err;
-                await defaults.renderError(ctx, { error, error_description }, err);
+                await renderError(ctx, { error, error_description }, err);
             } else {
                 throw err;
             }
