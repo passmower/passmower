@@ -8,5 +8,5 @@ export function getText(name) {
     if (existsSync(`/app/${name}/${name}.txt`)) {
         text = readFileSync(`/app/${name}/${name}.txt`, 'utf8');
     }
-    return text
+    return text.replace(/\n/g, '<br/>')
 }
