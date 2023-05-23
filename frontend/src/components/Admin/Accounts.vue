@@ -14,9 +14,11 @@
                 <h3>{{ account.accountId }}</h3>
                 <p>Name: {{ account.name }}</p>
                 <p>Emails: {{ account.emails.join(', ') }}</p>
+                <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
                 <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
             </div>
             <div class="item-actions">
+                <Check v-if="!account.approved" @click="approve(account)" />
                 <Info @click="editProfile(account)" />
                 <Impersonate v-if="account.impersonationEnabled" @click="impersonate(account)" />
             </div>
@@ -35,10 +37,11 @@ import Notice from "@/components/Admin/Notice.vue";
 import EditProfile from "@/components/Admin/Modals/EditProfile.vue";
 import {openModal} from "jenesius-vue-modal";
 import {useAccountStore} from "@/stores/account";
+import Check from "../Icons/Check.vue";
 
 export default {
     name: "Accounts",
-    components: {Notice, Info, Impersonate},
+    components: {Check, Notice, Info, Impersonate},
     created() {
         fetch('/admin/api/account/impersonation').then((r) => r.json()).then((r) => {
             this.setImpersonation(r.impersonation)
@@ -93,6 +96,24 @@ export default {
                 console.error(e)
                 const $toast = useToast();
                 $toast.error('Ending impersonation failed', {
+                    position: 'top-right'
+                });
+            })
+        },
+        approve(account) {
+            fetch('/admin/api/account/approve', {
+                method: 'POST',
+                body: JSON.stringify(account),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+            }).then((r) => r.json()).then((r) => {
+                this.setAccounts(r.accounts)
+            }).catch((e) => {
+                console.error(e)
+                const $toast = useToast();
+                $toast.error('Approving user failed', {
                     position: 'top-right'
                 });
             })

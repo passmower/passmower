@@ -1,5 +1,6 @@
 import {interactionPolicy} from "oidc-provider";
 import {ToSv1} from "../support/conditions/tosv1.js";
+import {Approved} from "../support/conditions/approved.js";
 
 export default () => {
     const { Prompt, Check, base } = interactionPolicy;
@@ -24,8 +25,19 @@ export default () => {
         ),
     )
 
+    const approvalRequiredPolicy = new Prompt(
+        { name: 'approval_required', requestable: false },
+        new Check('approval_required', 'User needs to be approved', 'interaction_required', async (ctx) => {
+                const { oidc, kubeOIDCUserService } = ctx;
+                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
+                return kubeUser.isAdmin ? Check.NO_NEED_TO_PROMPT : !kubeUser.checkCondition(new Approved())
+            },
+        ),
+    )
+
     const basePolicy = base()
     basePolicy.add(tosPolicy)
     basePolicy.add(namePolicy)
+    basePolicy.add(approvalRequiredPolicy)
     return basePolicy
 }

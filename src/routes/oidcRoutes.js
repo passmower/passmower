@@ -16,6 +16,7 @@ import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
 import {ToSv1} from "../support/conditions/tosv1.js";
+import {Approved} from "../support/conditions/approved.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -119,7 +120,7 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
-        const { prompt, uid } = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt, session } = await provider.interactionDetails(ctx.req, ctx.res);
         switch (prompt.name) {
             case 'login': {
                 return render(provider, ctx, 'login', 'Sign-in', {
@@ -131,6 +132,16 @@ export default (provider) => {
             }
             case 'tos': {
                 return render(provider, ctx, 'tos', 'Terms of Service')
+            }
+            case 'approval_required': {
+                const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
+                if (kubeUser.checkCondition(new Approved())) {
+                    return provider.interactionFinished(ctx.req, ctx.res, {}, {
+                        mergeWithLastSubmission: true,
+                    });
+                }
+
+                return render(provider, ctx, 'approval_required', 'Approval required')
             }
             case 'name': {
                 return render(provider, ctx, 'enter-name', 'Enter your name')

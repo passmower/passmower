@@ -2,6 +2,7 @@ import Router from "koa-router";
 import {koaBody as bodyParser} from "koa-body";
 import Account from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
+import {Approved} from "../support/conditions/approved.js";
 
 export default (provider) => {
     const router = new Router();
@@ -80,6 +81,19 @@ export default (provider) => {
         await ctx.sessionService.endImpersonation(ctx)
         ctx.body = {
             impersonation: null
+        }
+    })
+
+    router.post('/admin/api/account/approve', async (ctx, next) => {
+        const accountId = ctx.request.body.accountId
+        let account = await Account.findAccount(ctx, accountId)
+        let condition = new Approved()
+        condition = condition.setStatus(true)
+        account.addCondition(condition.toKubeCondition())
+        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        let accounts = await ctx.kubeOIDCUserService.listUsers()
+        ctx.body = {
+            accounts: accounts.map((acc) => acc.getProfileResponse(true))
         }
     })
 
