@@ -19,6 +19,7 @@ import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../support/render-error.js";
 import {addGrant} from "../support/add-grants.js";
+import {signedInSession} from "../support/signed-in.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
