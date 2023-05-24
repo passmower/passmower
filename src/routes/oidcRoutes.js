@@ -14,7 +14,7 @@ import accessDenied from "../support/access-denied.js";
 import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
-import {ToSv1} from "../support/conditions/tosv1.js";
+import {confirmTos} from "../support/confirm-tos.js";
 import {Approved} from "../support/conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
@@ -199,13 +199,8 @@ export default (provider) => {
 
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
-        const { prompt: { name }, session: { accountId } } = interactionDetails;
-        assert.equal(name, 'tos');
-        let account = await Account.findAccount(ctx, accountId)
-        let condition = new ToSv1()
-        condition = condition.setStatus(true)
-        account.addCondition(condition.toKubeCondition())
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        assert.equal(interactionDetails.prompt.name, 'tos');
+        await confirmTos(ctx, interactionDetails.session.accountId)
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });
