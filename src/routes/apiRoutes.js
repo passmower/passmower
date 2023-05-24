@@ -2,15 +2,15 @@
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 import Account from '../support/account.js';
+import {signedInSession} from "../support/signed-in.js";
 
 export default (provider) => {
     const router = new Router();
 
     router.use(bodyParser({ json: true }))
     router.use(async (ctx, next) => {
-        const session = await provider.Session.get(ctx)
-        const signedIn = !!session.accountId
-        if (signedIn) {
+        const session = await signedInSession(ctx, provider)
+        if (session) {
             ctx.currentSession = session
             return next()
         }

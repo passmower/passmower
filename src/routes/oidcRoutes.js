@@ -93,9 +93,7 @@ export default (provider) => {
     const router = new Router();
 
     router.get('/', async (ctx, next) => {
-        const session = await provider.Session.get(ctx)
-        const signedIn = !!session.accountId
-        if (signedIn) {
+        if (await signedInSession(ctx, provider)) {
             return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL)
