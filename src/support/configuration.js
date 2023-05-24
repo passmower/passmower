@@ -1,12 +1,10 @@
 import Account from "./account.js";
 import renderError from "./render-error.js";
-import loadExistingGrant from "./load-existing-grant.js";
 import setupPolicies from "../implementation/setup-policies.js";
 
 export default {
     findAccount: Account.findAccount,
     renderError,
-    loadExistingGrant,
     interactions: {
         url(ctx, interaction) { // eslint-disable-line no-unused-vars
             return `/interaction/${interaction.uid}`;

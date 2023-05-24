@@ -15,7 +15,7 @@ export default () => {
             },
         ),
     )
-    basePolicy.add(approvalRequiredPolicy)
+    basePolicy.add(approvalRequiredPolicy, 1)
 
     const tosPolicy = new Prompt(
         { name: 'tos', requestable: true },
@@ -26,7 +26,7 @@ export default () => {
             },
         ),
     )
-    basePolicy.add(tosPolicy)
+    basePolicy.add(tosPolicy, 2)
 
     const namePolicy = new Prompt(
         { name: 'name', requestable: true },
@@ -37,7 +37,7 @@ export default () => {
             },
         ),
     )
-    basePolicy.add(namePolicy)
+    basePolicy.add(namePolicy, 3)
 
     return basePolicy
 }

@@ -18,6 +18,7 @@ import {Approved} from "../support/conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../support/render-error.js";
+import {addGrant} from "../support/add-grants.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -120,7 +121,7 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
-        const { prompt, session } = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt, session, params } = await provider.interactionDetails(ctx.req, ctx.res);
         switch (prompt.name) {
             case 'login': {
                 return render(provider, ctx, 'login', 'Sign-in', {
@@ -128,7 +129,14 @@ export default (provider) => {
                 })
              }
             case 'consent': {
-                return render(provider, ctx, 'interaction', 'Authorize')
+                const grant = await addGrant(provider, session.accountId, params.client_id)
+                return provider.interactionFinished(ctx.req, ctx.res, {
+                    consent: {
+                        grantId: grant.jti,
+                    }
+                }, {
+                    mergeWithLastSubmission: true,
+                });
             }
             case 'tos': {
                 return render(provider, ctx, 'tos', 'Terms of Service', {
