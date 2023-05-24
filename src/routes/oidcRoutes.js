@@ -7,7 +7,6 @@ import isEmpty from 'lodash/isEmpty.js';
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 
-import { errors } from 'oidc-provider';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
 import accessDenied from "../support/access-denied.js";
@@ -88,8 +87,6 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
 const body = bodyParser({
     text: false, json: false, patchNode: true, patchKoa: true,
 });
-
-const { SessionNotFound } = errors;
 
 export default (provider) => {
     const router = new Router();
