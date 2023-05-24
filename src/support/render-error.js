@@ -1,6 +1,7 @@
 import htmlSafe from "oidc-provider/lib/helpers/html_safe.js";
 
 const renderError = (ctx, out, error) => {
+    console.error(error)
     ctx.type = 'html';
     ctx.body = `<!DOCTYPE html>
     <head>
