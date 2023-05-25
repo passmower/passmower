@@ -5,6 +5,7 @@ import helmet from "helmet";
 import {SessionService} from "./session-service.js";
 import {KubeOIDCUserService} from "./kube-oidc-user-service.js";
 import {clientId} from "../support/self-oidc-client.js";
+import instance from "oidc-provider/lib/helpers/weak_cache.js";
 
 export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -37,7 +38,7 @@ export default async (provider) => {
         if (ctx.oidc?.route === 'resume' && ctx.oidc?.entities?.Interaction?.result?.consent) {
             const session = ctx.oidc.entities.Session
             await accountSessionRedis.appendToSet(session.accountId, session.jti)
-            await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)})
+            await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)}, instance(provider).configuration('ttl.Session'))
         }
     });
 
