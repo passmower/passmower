@@ -121,7 +121,7 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
-        const { prompt, session, params } = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt, session, params, grantId } = await provider.interactionDetails(ctx.req, ctx.res);
         switch (prompt.name) {
             case 'login': {
                 return render(provider, ctx, 'login', 'Sign-in', {
@@ -129,7 +129,7 @@ export default (provider) => {
                 })
              }
             case 'consent': {
-                const grant = await addGrant(provider, session.accountId, params.client_id)
+                const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
                 const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId)
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
