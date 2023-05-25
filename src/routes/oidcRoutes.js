@@ -20,6 +20,7 @@ import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../support/render-error.js";
 import {addGrant} from "../support/add-grants.js";
 import {signedInSession} from "../support/signed-in.js";
+import {addSiteSession} from "../support/site-session.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -129,10 +130,12 @@ export default (provider) => {
              }
             case 'consent': {
                 const grant = await addGrant(provider, session.accountId, params.client_id)
+                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId)
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,
-                    }
+                    },
+                    siteSession,
                 }, {
                     mergeWithLastSubmission: true,
                 });

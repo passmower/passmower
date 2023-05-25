@@ -1,6 +1,8 @@
 import {interactionPolicy} from "oidc-provider";
 import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
+import {clientId} from "../support/self-oidc-client.js";
+import {updateSiteSession, validateSiteSession} from "../support/site-session.js";
 
 export default () => {
     const { Prompt, Check, base } = interactionPolicy;
@@ -38,6 +40,23 @@ export default () => {
         ),
     )
     basePolicy.add(namePolicy, 3)
+
+    const siteSessionCookieCheck = new Check('site_cookie_required', 'Site cookie required', 'interaction_required', async (ctx) => {
+            const { oidc } = ctx;
+            if (oidc.entities.Client.clientId === clientId) {
+                if (!await validateSiteSession(ctx)) {
+                    return Check.REQUEST_PROMPT
+                } else if (oidc.entities?.Interaction?.result?.siteSession) {
+                    const siteSession = oidc.entities.Interaction.result.siteSession
+                    siteSession.sessionId = oidc.entities.Session.jti
+                    await updateSiteSession(siteSession)
+                }
+            }
+            return Check.NO_NEED_TO_PROMPT
+        },
+    );
+    const consentPolicy = basePolicy.get('consent')
+    consentPolicy.checks.add(siteSessionCookieCheck)
 
     return basePolicy
 }
