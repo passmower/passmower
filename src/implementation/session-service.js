@@ -100,6 +100,17 @@ export class SessionService {
         await providerEndSession['6'](ctx, next)
     }
 
+    async cleanupSessions(accountId) {
+        const sessions = await this.accountSessionRedis.getSetMembers(accountId)
+        sessions.map(async (s) => {
+            const exists = await this.sessionRedis.find(s)
+            if (!exists) {
+                await this.accountSessionRedis.removeFromSet(accountId, s)
+                await this.metadataRedis.destroy(s)
+            }
+        })
+    }
+
     async getAdminSession(ctx) {
         let adminSession = ctx.cookies.get(this.provider.cookieName('admin_session'))
         if (adminSession) {

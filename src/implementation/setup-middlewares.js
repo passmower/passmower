@@ -39,6 +39,7 @@ export default async (provider) => {
             const session = ctx.oidc.entities.Session
             await accountSessionRedis.appendToSet(session.accountId, session.jti)
             await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)}, instance(provider).configuration('ttl.Session'))
+            await ctx.sessionService.cleanupSessions(session.accountId)
         }
     });
 
