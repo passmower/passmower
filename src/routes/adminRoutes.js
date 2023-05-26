@@ -86,11 +86,25 @@ export default (provider) => {
 
     router.post('/admin/api/account/approve', async (ctx, next) => {
         const accountId = ctx.request.body.accountId
-        let account = await Account.findAccount(ctx, accountId)
-        let condition = new Approved()
-        condition = condition.setStatus(true)
-        account.addCondition(condition.toKubeCondition())
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        await Account.approve(ctx, accountId)
+        let accounts = await ctx.kubeOIDCUserService.listUsers()
+        ctx.body = {
+            accounts: accounts.map((acc) => acc.getProfileResponse(true))
+        }
+    })
+
+    router.post('/admin/api/account/invite', async (ctx, next) => {
+        const email = ctx.request.body.email
+        if (await Account.findByEmail(ctx, email)) {
+            ctx.status = 400
+            ctx.body = {
+                message: 'Account already exists'
+            }
+            return
+        }
+        const account = await Account.createOrUpdateByEmails(ctx, [email]);
+        await Account.approve(ctx, account.accountId)
+
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))

@@ -101,22 +101,22 @@ export default {
             })
         },
         approve(account) {
-            fetch('/admin/api/account/approve', {
-                method: 'POST',
-                body: JSON.stringify(account),
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-            }).then((r) => r.json()).then((r) => {
-                this.setAccounts(r.accounts)
-            }).catch((e) => {
-                console.error(e)
-                const $toast = useToast();
-                $toast.error('Approving user failed', {
-                    position: 'top-right'
-                });
-            })
+              fetch('/admin/api/account/approve', {
+                  method: 'POST',
+                  body: JSON.stringify(account),
+                  headers: {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json'
+                  },
+              }).then((r) => r.json()).then((r) => {
+                  this.setAccounts(r.accounts)
+              }).catch((e) => {
+                  console.error(e)
+                  const $toast = useToast();
+                  $toast.error('Approving user failed', {
+                      position: 'top-right'
+                  });
+              })
         }
     }
 }

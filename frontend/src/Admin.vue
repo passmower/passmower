@@ -2,6 +2,7 @@
     <main>
         <div class="card card-wide">
             <h1>oidc-gateway admin</h1>
+            <InviteUser />
             <Accounts />
         </div>
     </main>
@@ -13,9 +14,11 @@ import {container} from "jenesius-vue-modal";
 import Accounts from "@/components/Admin/Accounts.vue";
 import {mapActions} from "pinia";
 import {userAdminStore} from "./stores/admin";
+import InviteUser from "./components/Admin/InviteUser.vue";
 
 export default {
     components: {
+      InviteUser,
         Accounts,
         WidgetContainerModal: container,
     },

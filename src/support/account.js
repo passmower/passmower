@@ -150,6 +150,18 @@ class Account {
         // await redis.upsert(id, account, 60)
         return account ? account : null
     }
+
+    static async findByEmail(ctx, email) {
+        return await ctx.kubeOIDCUserService.findUserByEmails([email])
+    }
+
+    static async approve(ctx, accountId) {
+        let account = await Account.findAccount(ctx, accountId)
+        let condition = new Approved()
+        condition = condition.setStatus(true)
+        account.addCondition(condition.toKubeCondition())
+        await ctx.kubeOIDCUserService.updateUserStatus(account)
+    }
 }
 
 export default Account;
