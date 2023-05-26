@@ -19,7 +19,7 @@ export class KubeOIDCClientOperator extends KubeOIDCUserService {
     }
 
     async watchClients() {
-        console.log('Watching Kubernetes API for OIDCGWClients')
+        globalThis.logger.info('Watching Kubernetes API for OIDCGWClients')
         globalThis.OIDCClients = []
         const watch = new k8s.Watch(this.kc, new WatchRequest());
         watch.watch(
@@ -45,7 +45,7 @@ export class KubeOIDCClientOperator extends KubeOIDCUserService {
             // done callback is called if the watch terminates normally
             (err) => {
                 // tslint:disable-next-line:no-console
-                console.log('Kubernetes API watch terminated')
+                globalThis.logger.warn('Kubernetes API watch terminated')
                 if (err) {
                     console.error(err)
                 }

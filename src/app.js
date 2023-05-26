@@ -9,6 +9,7 @@ import serve from 'koa-static';
 import KubeOIDCClientOperator from "./implementation/kube-oidc-client-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
+import pino from "pino";
 
 const __dirname = dirname(import.meta.url);
 
@@ -17,6 +18,10 @@ const { PORT = 3000 } = process.env;
 let server;
 
 try {
+    globalThis.logger = pino({
+        redact: ['ctx.request.header.cookie', 'ctx.response.header["set-cookie"].*', 'interaction.session.cookie', 'interaction.result.siteSession.jti']
+    })
+
     const provider = await setupProvider()
     render(provider.app, {
         cache: false,
@@ -31,7 +36,7 @@ try {
     provider.use(serve('frontend/dist'));
     provider.use(serve('styles/dist'));
     server = provider.listen(PORT, () => {
-        console.log(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
+        globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
     const kubeOperator = new KubeOIDCClientOperator(provider)
     await kubeOperator.watchClients()
