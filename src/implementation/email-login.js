@@ -1,12 +1,10 @@
 import Account from "../support/account.js";
 import { randomUUID } from 'crypto';
-import { renderFile } from 'ejs';
-import path from "path";
-import {dirname} from "desm";
 import accessDenied from "../support/access-denied.js";
 import getLoginResult from "../support/get-login-result.js";
 import EmailAdapter from "../adapters/email.js";
 import {CustomOIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
+import {getEmailContent, getEmailSubject} from "../support/get-email-content.js";
 
 export class EmailLogin {
     constructor() {
@@ -24,14 +22,15 @@ export class EmailLogin {
             token
         })
 
-        const __dirname = dirname(import.meta.url);
-        const emailHtml = await renderFile(
-            path.join(__dirname, '..', 'views', 'emails', 'link.ejs'),
-            {
-                url
-            }
-        );
-        const emailSent = await this.adapter.sendMail(email, 'Login link', url, emailHtml)
+        const content = await getEmailContent('emails/link', {
+            url
+        })
+        const emailSent = await this.adapter.sendMail(
+            email,
+            getEmailSubject('emails/link'),
+            content.text,
+            content.html
+        )
         if (!emailSent) {
             throw new CustomOIDCProviderError('email_sending_failed', 'Failed to send login link via email. Please try again or contact support.')
         }

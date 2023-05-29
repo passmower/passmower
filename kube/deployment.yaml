@@ -111,6 +111,8 @@ spec:
 #              name: tos
 #            - mountPath: /app/approval
 #              name: approval
+#            - mountPath: /app/src/views/custom/emails
+#              name: email-templates
 #      volumes:
 #        - name: tos
 #          configMap:
@@ -118,3 +120,6 @@ spec:
 #        - name: approval
 #          configMap:
 #            name: oidc-gateway-approval-required
+#        - name: email-templates
+#          configMap:
+#            name: oidc-gateway-email-templates

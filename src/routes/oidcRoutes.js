@@ -13,7 +13,7 @@ import accessDenied from "../support/access-denied.js";
 import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
-import {confirmTos} from "../support/confirm-tos.js";
+import crypto from "node:crypto";
 import {Approved} from "../support/conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
@@ -21,6 +21,7 @@ import renderError from "../support/render-error.js";
 import {addGrant} from "../support/add-grants.js";
 import {signedInSession} from "../support/signed-in.js";
 import {addSiteSession} from "../support/site-session.js";
+import {confirmTos} from "../support/confirm-tos.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -141,9 +142,11 @@ export default (provider) => {
                 });
             }
             case 'tos': {
-                return render(provider, ctx, 'tos', 'Terms of Service', {
-                    text: getText(ToSTextName)
-                }, true)
+                const text = getText(ToSTextName)
+                await provider.interactionResult(ctx.req, ctx.res, {
+                    tosTextChecksum: crypto.createHash('sha256').update(text, 'utf8').digest('hex'),
+                })
+                return render(provider, ctx, 'tos', 'Terms of Service', {text}, true)
             }
             case 'approval_required': {
                 const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
@@ -207,7 +210,7 @@ export default (provider) => {
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(interactionDetails.prompt.name, 'tos');
-        await confirmTos(ctx, interactionDetails.session.accountId)
+        await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

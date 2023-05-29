@@ -1,0 +1,6 @@
+Hi, <%= name %>!
+
+You agreed with the Terms of Service at <%= timestamp %>
+
+Content SHA256 hash: <%= hash %>
+

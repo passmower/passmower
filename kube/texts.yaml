@@ -14,3 +14,32 @@ metadata:
 data:
   approval.txt: |
     You need to be approved to continue.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oidc-gateway-email-templates
+data:
+  tos.txt: |
+    Hi, <%= name %>!
+  
+    You agreed with the Terms of Service at <%= timestamp %>
+
+    Content SHA256 hash: <%= hash %>
+  
+    Best regards,
+    DEV
+  tos.ejs: |
+    <div>
+        <p>Hi, <%= name %>!</p>
+        <p>You agreed with the following Terms of Service at <%= timestamp %></p>
+        <p>Content SHA256 hash: <%= hash %></p>
+        <br />
+        <blockquote>
+            <%- content -%>
+        </blockquote>
+        <br />
+        <p>Best regards, <br/> DEV</p>
+    </div>
+  tos.subject: |
+    Terms of Service agreement confirmation
