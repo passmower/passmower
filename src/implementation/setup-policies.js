@@ -19,17 +19,6 @@ export default () => {
     )
     basePolicy.add(approvalRequiredPolicy, 1)
 
-    const tosPolicy = new Prompt(
-        { name: 'tos', requestable: true },
-        new Check('tos_not_accepted', 'ToS needs to be accepted', 'interaction_required', async (ctx) => {
-                const { oidc, kubeOIDCUserService } = ctx;
-                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
-                return !kubeUser.checkCondition(new ToSv1())
-            },
-        ),
-    )
-    basePolicy.add(tosPolicy, 2)
-
     const namePolicy = new Prompt(
         { name: 'name', requestable: true },
         new Check('name_required', 'User profile requires name', 'interaction_required', async (ctx) => {
@@ -39,7 +28,18 @@ export default () => {
             },
         ),
     )
-    basePolicy.add(namePolicy, 3)
+    basePolicy.add(namePolicy, 2)
+
+    const tosPolicy = new Prompt(
+        { name: 'tos', requestable: true },
+        new Check('tos_not_accepted', 'ToS needs to be accepted', 'interaction_required', async (ctx) => {
+                const { oidc, kubeOIDCUserService } = ctx;
+                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
+                return !kubeUser.checkCondition(new ToSv1())
+            },
+        ),
+    )
+    basePolicy.add(tosPolicy, 3)
 
     const siteSessionCookieCheck = new Check('site_cookie_required', 'Site cookie required', 'interaction_required', async (ctx) => {
             const { oidc } = ctx;
