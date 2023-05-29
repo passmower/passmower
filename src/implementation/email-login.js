@@ -19,7 +19,8 @@ export class EmailLogin {
         const url = `${process.env.ISSUER_URL}interaction/${uid}/verify-email/${token}`
         await provider.interactionResult(ctx.req, ctx.res, {
             email,
-            token
+            token,
+            request: ctx.request,
         })
 
         const content = await getEmailContent('emails/link', {

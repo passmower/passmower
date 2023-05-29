@@ -9,7 +9,7 @@ import serve from 'koa-static';
 import KubeOIDCClientOperator from "./implementation/kube-oidc-client-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
-import pino from "pino";
+import {setupLogger} from "./implementation/setup-logger.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -18,10 +18,7 @@ const { PORT = 3000 } = process.env;
 let server;
 
 try {
-    globalThis.logger = pino({
-        redact: ['ctx.request.header.cookie', 'ctx.response.header["set-cookie"].*', 'interaction.session.cookie', 'interaction.result.siteSession.jti']
-    })
-
+    setupLogger()
     const provider = await setupProvider()
     render(provider.app, {
         cache: false,
