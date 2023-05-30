@@ -23,6 +23,7 @@ class OIDCClient {
     #allowedGroups = null
     #availableScopes = null
     #gatewayUri = null
+    #uri = null
     #resourceVersion = null
     #status = {
         gateway: null
@@ -45,7 +46,8 @@ class OIDCClient {
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
             availableScopes: this.#availableScopes,
-            gateway_uri: this.#gatewayUri
+            gatewayUri: this.#gatewayUri,
+            uri: this.#uri,
         }
     }
 
@@ -60,6 +62,7 @@ class OIDCClient {
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#availableScopes = incomingClient.spec.availableScopes
         this.#gatewayUri = process.env.ISSUER_URL
+        this.#uri = incomingClient.spec.uri
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid

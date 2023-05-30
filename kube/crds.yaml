@@ -146,6 +146,8 @@ spec:
                 - grantTypes
                 - responseTypes
               properties:
+                uri:
+                  type: string
                 redirectUris:
                   type: array
                   items:
