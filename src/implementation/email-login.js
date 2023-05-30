@@ -47,7 +47,7 @@ export class EmailLogin {
 
         const account = await Account.createOrUpdateByEmails(
             ctx,
-            [details.result.email],
+            details.result.email
         );
 
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {

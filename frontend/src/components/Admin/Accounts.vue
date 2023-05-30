@@ -13,7 +13,7 @@
             <div class="item-details">
                 <h3>{{ account.accountId }}</h3>
                 <p>Name: {{ account.name }}</p>
-                <p>Emails: {{ account.emails.join(', ') }}</p>
+                <p>Primary email: {{ account.email }}</p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
                 <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
             </div>

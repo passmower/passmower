@@ -19,7 +19,7 @@ export const confirmTos = async (ctx, accountId, contentHash) => {
     })
     const adapter = new EmailAdapter()
     await adapter.sendMail(
-        account.emails[0],
+        account.primaryEmail,
         getEmailSubject('emails/tos'),
         content.text,
         content.html

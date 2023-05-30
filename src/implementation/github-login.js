@@ -59,9 +59,9 @@ export default async (ctx, provider) => {
         headers: {
             'Authorization': `Bearer ${token}`
         },
-    }).then((r) => r.json()).then((r) => r.map((r) => r.email));
+    }).then((r) => r.json()).then((r) => r.filter((r) => r.verified));
 
-    const account = await Account.createOrUpdateByEmails(ctx, emails);
+    const account = await Account.createOrUpdateByEmails(ctx, undefined, emails);
 
     const githubProfile = {
         name: user.name,

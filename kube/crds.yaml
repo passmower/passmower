@@ -23,14 +23,10 @@ spec:
           type: object
           properties:
             spec:
-              required:
-                - emails
               type: object
               properties:
-                emails:
-                  type: array
-                  items:
-                    type: string
+                email:
+                  type: string
                 customGroups:
                   type: array
                   items:
@@ -47,6 +43,16 @@ spec:
                       type: string
                     company:
                       type: string
+                githubEmails:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      email:
+                        type: string
+                      primary:
+                        type: boolean
+                        default: false
                 githubGroups:
                   type: array
                   items:
@@ -71,6 +77,8 @@ spec:
             status:
               type: object
               properties:
+                primaryEmail:
+                  type: string
                 emails:
                   type: array
                   items:

@@ -10,7 +10,14 @@
         <input name="name" type="text" v-model="account.company"/>
         <p><strong>Emails: </strong></p>
         <ul>
-            <li v-for="email in account.emails">{{ email }}</li>
+            <li v-for="email in account.emails">
+              <span v-if="account.email === email">
+                {{ email }}
+              </span>
+              <i v-else>
+                {{ email }}
+              </i>
+            </li>
         </ul>
         <div style="display: flex">
             <label for="groups">Groups: </label>

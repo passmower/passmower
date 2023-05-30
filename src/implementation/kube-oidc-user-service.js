@@ -64,7 +64,7 @@ export class KubeOIDCUserService {
             OIDCGWUsers
         ).then((r) => {
             r.body.items.map((f) => {
-                f.spec.emails.map((e) => {
+                f.status.emails.map((e) => {
                     emailsInKube.push({
                         email: e,
                         user: f
@@ -78,7 +78,7 @@ export class KubeOIDCUserService {
         return foundUser ? (new Account()).fromKubernetes(foundUser.user) : null
     }
 
-    async createUser(id, emails) {
+    async createUser(id, email, githubEmails) {
         return await this.customObjectsApi.createNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -91,7 +91,8 @@ export class KubeOIDCUserService {
                     'name': id,
                 },
                 'spec': {
-                    'emails': emails,
+                    email,
+                    githubEmails,
                     'githubProfile': {},
                     'customProfile': {},
                 }
@@ -107,7 +108,7 @@ export class KubeOIDCUserService {
         })
     }
 
-    async updateUserSpec({accountId, emails, customGroups, customProfile, githubGroups, githubProfile, acceptedTos} = {}) {
+    async updateUserSpec({accountId, email, customGroups, customProfile, githubEmails, githubGroups, githubProfile, acceptedTos} = {}) {
         const account = await this.findUser(accountId)
         let patches = []
         for (let [key, value] of Object.entries(arguments[0])) {

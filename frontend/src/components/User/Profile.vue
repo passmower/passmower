@@ -6,6 +6,7 @@
         </div>
         <p><strong>Name: </strong> {{ account.name }}</p>
         <p v-if="account.company"><strong>Company: </strong> {{ account.company }}</p>
+        <p><strong>Primary email: </strong> {{ account.email }}</p>
         <p><strong>Emails: </strong></p>
         <ul>
             <li v-for="email in account.emails">{{ email }}</li>

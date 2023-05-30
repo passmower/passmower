@@ -14,6 +14,7 @@ class Account {
         this.accountId = apiResponse.metadata.name
         this.#spec = apiResponse.spec
         this.resourceVersion = apiResponse.metadata.resourceVersion
+        this.primaryEmail = apiResponse.status?.primaryEmail
         this.emails = apiResponse.status?.emails ?? []
         this.groups = apiResponse.status?.groups ?? []
         this.profile = apiResponse.status?.profile ?? {}
@@ -40,13 +41,13 @@ class Account {
         let claims = {
             sub: this.accountId, // it is essential to always return a sub claim
             groups: this.groups,
-            emails: this.emails,
+            email: this.primaryEmail,
         };
         if (this.profile) {
             claims = {
                 ...claims,
                 name: this.profile.name,
-                email: this.emails[0],
+                emails: this.emails,
                 company: this.profile.company,
                 githubId: this.profile.githubId,
             };
@@ -55,8 +56,14 @@ class Account {
     }
 
     getIntendedStatus() {
+        const emails = [
+            this.#spec.email,
+            ...(this.#spec.githubEmails ?? []).map(ghEmail => ghEmail.email)
+        ].filter(e => e)
+        const primaryEmail = this.#spec.email || this.#spec.githubEmails.find(ghEmail => ghEmail.primary)?.email
         return {
-            emails: this.#spec.emails,
+            primaryEmail,
+            emails,
             groups: [...(this.#spec.customGroups ?? []), ...(this.#spec.githubGroups ?? [])],
             profile: {
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
@@ -69,7 +76,7 @@ class Account {
     getProfileResponse(forAdmin = false, requesterAccountId = null) {
         let profile =  {
             emails: this.emails,
-            email: this.emails[0],
+            email: this.primaryEmail,
             name: this.profile.name,
             company: this.profile.company,
             isAdmin: this.isAdmin,
@@ -91,7 +98,7 @@ class Account {
         return {
             'Remote-User': this.accountId,
             'Remote-Name': this.profile.name,
-            'Remote-Email': this.emails[0], // TODO: primary email?
+            'Remote-Email': this.primaryEmail,
             'Remote-Groups': this.#mapGroups().map(g => g.displayName).join(',')
         }
     }
@@ -124,15 +131,18 @@ class Account {
         return 'u' + uid.stamp(10);
     }
 
-    static async createOrUpdateByEmails(ctx, emails) {
+    static async createOrUpdateByEmails(ctx, email, githubEmails) {
+        const emails = [
+            email,
+            ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
+        ].filter(e => e)
         const user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
-            return await ctx.kubeOIDCUserService.createUser(this.getUid(), emails)
+            return await ctx.kubeOIDCUserService.createUser(this.getUid(), email, githubEmails)
         }
-        const allEmails = emails.concat(user.emails.filter((item) => emails.indexOf(item) < 0))
         return await ctx.kubeOIDCUserService.updateUserSpec({
             accountId: user.accountId,
-            emails: allEmails
+            githubEmails
         });
         // const redis = new RedisAdapter('Account')
         // await redis.upsert(user.accountId, updatedUser, 60)
