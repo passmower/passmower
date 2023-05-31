@@ -2,6 +2,12 @@ export const OIDCGWUser = 'OIDCGWUser';
 export const OIDCGWUsers = 'oidcgatewayusers';
 export const OIDCGWClient = 'OIDCGWClient';
 export const OIDCGWClients = 'oidcgatewayclients';
+
+export const plulars = {
+    OIDCGWUser: OIDCGWUsers,
+    OIDCGWClient: OIDCGWClients,
+}
+
 export const apiGroup = 'codemowers.io'
 export const apiGroupVersion = 'v1alpha1'
 export const OIDCGWClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`

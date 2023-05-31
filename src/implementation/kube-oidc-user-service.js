@@ -1,184 +1,84 @@
-import * as k8s from "@kubernetes/client-node";
 import Account from "../support/account.js";
-import {
-    OIDCGWUser,
-    OIDCGWUsers,
-    apiGroup,
-    apiGroupVersion,
-} from "../support/kube-constants.js";
+import {KubernetesAdapter} from "../adapters/kubernetes.js";
+import {OIDCGWUser} from "../support/kube-constants.js";
 
 export class KubeOIDCUserService {
     constructor() {
-        const kc = new k8s.KubeConfig();
-        this.kc = kc
-        kc.loadFromCluster()
-        this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
-        this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
-        this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
-        this.currentGateway = this.namespace + '-' + process.env.DEPLOYMENT_NAME
+        this.adapter = new KubernetesAdapter()
     }
 
     async listUsers() {
-        return await this.customObjectsApi.listNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers
-        ).then(async (r) => {
-            return await Promise.all(
-                r.body.items.map(async (s) => {
-                    return (new Account()).fromKubernetes(s)
-                })
-            )
-        }).catch((e) => {
-            if (e.statusCode !== 404) {
-                console.error(e)
-                return null
-            }
-        })
+        return await this.adapter.listNamespacedCustomObject(
+            OIDCGWUser,
+            this.adapter.namespace,
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
     }
 
     async findUser(id) {
-        return await this.customObjectsApi.getNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers,
-            id
-        ).then((r) => {
-            return (new Account()).fromKubernetes(r.body)
-        }).catch((e) => {
-            if (e.statusCode !== 404) {
-                console.error(e)
-                return null
-            }
-        })
+        return await this.adapter.getNamespacedCustomObject(
+            OIDCGWUser,
+            this.adapter.namespace,
+            id,
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
     }
 
     async findUserByEmails(emails) {
         const emailsInKube = []
-        await this.customObjectsApi.listNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers
-        ).then((r) => {
-            r.body.items.map((f) => {
-                f.status.emails.map((e) => {
-                    emailsInKube.push({
-                        email: e,
-                        user: f
-                    })
+        const allUsers = await this.listUsers()
+        allUsers.map(user => {
+            user.emails.map((email) => {
+                emailsInKube.push({
+                    email: email,
+                    user: user
                 })
             })
         })
         const foundUser = emailsInKube.find((element) => {
             return emails.includes(element.email)
         })
-        return foundUser ? (new Account()).fromKubernetes(foundUser.user) : null
+        return foundUser?.user
     }
 
     async createUser(id, email, githubEmails) {
-        return await this.customObjectsApi.createNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers,
-            {
-                'apiVersion': apiGroup + '/' + apiGroupVersion,
-                'kind': OIDCGWUser,
-                'metadata': {
-                    'name': id,
-                },
-                'spec': {
-                    email,
-                    githubEmails,
-                    'githubProfile': {},
-                    'customProfile': {},
-                }
-
-            }
-        ).then(async (r) => {
-            return await this.updateUserStatus((new Account()).fromKubernetes(r.body))
-        }).catch((e) => {
-            if (e.statusCode !== 404) {
-                console.error(e)
-                return null
-            }
-        })
+        const spec = {
+            email,
+            githubEmails,
+            githubProfile: {},
+            customProfile: {},
+        }
+        const user = await this.adapter.createNamespacedCustomObject(
+            OIDCGWUser,
+            this.adapter.namespace,
+            id,
+            spec,
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
+        return await this.updateUserStatus(user)
     }
 
     async updateUserSpec({accountId, email, customGroups, customProfile, githubEmails, githubGroups, githubProfile, acceptedTos} = {}) {
         const account = await this.findUser(accountId)
-        let patches = []
-        for (let [key, value] of Object.entries(arguments[0])) {
-            patches = [...patches, ...this.#getPatches(key, value, account.spec)]
-        }
-
-        return await this.customObjectsApi.patchNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers,
+        const updatedUser = await this.adapter.patchNamespacedCustomObject(
+            OIDCGWUser,
+            this.adapter.namespace,
             accountId,
-            patches,
-            undefined,
-            undefined,
-            undefined,
-            { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
-        ).then(async (r) => {
-            return await this.updateUserStatus((new Account()).fromKubernetes(r.body))
-        }).catch((e) => {
-            if (e.statusCode !== 404) {
-                console.error(e)
-                return null
-            }
-        })
-    }
-
-    #getPatches (name, values, existingSpec) {
-        let patches = []
-        if (typeof values !== 'undefined') {
-            const op = existingSpec?.[name] ? 'replace' : 'add'
-            if (typeof values === 'object' && !Array.isArray(values)) {
-                for (let [key, value] of Object.entries(values)) {
-                    patches.push({
-                        op,
-                        "path": "/spec/" + name + '/' + key,
-                        "value": value
-                    })
-                }
-            } else {
-                patches.push({
-                    op,
-                    "path":"/spec/" + name,
-                    "value": values
-                })
-            }
-        }
-        return patches
+            arguments[0],
+            account.spec,
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
+        return await this.updateUserStatus(updatedUser)
     }
 
     async updateUserStatus(account) {
-        return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
-            apiGroup,
-            apiGroupVersion,
-            this.namespace,
-            OIDCGWUsers,
+        return await this.adapter.replaceNamespacedCustomObjectStatus(
+            OIDCGWUser,
+            this.adapter.namespace,
             account.accountId,
-            {
-                apiVersion: apiGroup + '/' + apiGroupVersion,
-                kind: OIDCGWUser,
-                metadata: {
-                    name: account.accountId,
-                    resourceVersion: account.resourceVersion
-                },
-                status: account.getIntendedStatus(),
-            }
-        ).then((r) => {
-            return (new Account()).fromKubernetes(r.body)
-        }).catch((e) => {
-            console.error(e)
-        })
+            account.resourceVersion,
+            account.getIntendedStatus(),
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
     }
 }

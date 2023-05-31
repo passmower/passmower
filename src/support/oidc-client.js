@@ -1,6 +1,7 @@
 import {randomUUID} from "crypto";
 import configuration from "./configuration.js";
 import {
+    OIDCGWClient,
     OIDCGWClientId, OIDCGWClientSecretAuthUriKey, OIDCGWClientSecretAvailableScopesKey,
     OIDCGWClientSecretClientIdKey, OIDCGWClientSecretClientSecretKey,
     OIDCGWClientSecretGatewayUriKey, OIDCGWClientSecretGrantTypesKey,
@@ -10,6 +11,7 @@ import {
     OIDCGWClientSecretResponseTypesKey,
     OIDCGWClientSecretTokenEndpointAuthMethodKey, OIDCGWClientSecretTokenUriKey, OIDCGWClientSecretUserInfoUriKey
 } from "./kube-constants.js";
+import {KubeOwnerMetadata} from "./kube-owner-metadata.js";
 
 class OIDCClient {
     #clientName = null
@@ -104,10 +106,6 @@ class OIDCClient {
         return OIDCGWClientSecretName(this.#clientName)
     }
 
-    getUid() {
-        return this.#uid
-    }
-
     getClientId() {
         return OIDCGWClientId(this.#clientNamespace, this.#clientName)
     }
@@ -126,6 +124,14 @@ class OIDCClient {
 
     getResourceVersion() {
         return this.#resourceVersion
+    }
+
+    getMetadata() {
+        return new KubeOwnerMetadata(
+            OIDCGWClient,
+            this.#clientName,
+            this.#uid
+        )
     }
 }
 
