@@ -8,7 +8,7 @@ import OidcMiddlewareClient from "../support/oidc-middleware-client.js";
 
 export class KubeOIDCMiddlewareClientOperator {
     constructor(provider) {
-        this.redisAdapter = new RedisAdapter('MiddlewareClient')
+        this.redisAdapter = new RedisAdapter('Client')
         this.provider = provider
         this.adapter = new KubernetesAdapter()
         this.currentGateway = this.adapter.currentGateway

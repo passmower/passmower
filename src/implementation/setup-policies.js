@@ -1,8 +1,8 @@
 import {interactionPolicy} from "oidc-provider";
 import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
-import {clientId} from "../support/self-oidc-client.js";
 import {updateSiteSession, validateSiteSession} from "../support/site-session.js";
+import {OIDCGWMiddlewareClient} from "../support/kube-constants.js";
 
 export default () => {
     const { Prompt, Check, base } = interactionPolicy;
@@ -43,7 +43,7 @@ export default () => {
 
     const siteSessionCookieCheck = new Check('site_cookie_required', 'Site cookie required', 'interaction_required', async (ctx) => {
             const { oidc } = ctx;
-            if (oidc.entities.Client.clientId === clientId) {
+            if (oidc.entities.Client?.kind === OIDCGWMiddlewareClient) {
                 if (!await validateSiteSession(ctx)) {
                     return Check.REQUEST_PROMPT
                 } else if (oidc.entities?.Interaction?.result?.siteSession) {

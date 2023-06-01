@@ -6,6 +6,7 @@ import {SessionService} from "./session-service.js";
 import {KubeOIDCUserService} from "./kube-oidc-user-service.js";
 import {clientId} from "../support/self-oidc-client.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
+import {OIDCGWMiddlewareClient} from "../support/kube-constants.js";
 
 export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -46,7 +47,7 @@ export default async (provider) => {
     provider.use(async (ctx, next) => {
         await next();
         if (ctx.oidc?.route === 'resume') {
-            if (ctx?.oidc?.entities?.Client?.clientId === clientId) {
+            if (ctx?.oidc?.entities?.Client?.clientId === clientId || ctx?.oidc?.entities?.Client?.kind === OIDCGWMiddlewareClient) {
                 if (ctx.oidc?.entities?.Interaction?.result?.consent) {
                     // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard or forwardAuth origin.
                     ctx.redirect(ctx?.oidc?.entities?.Interaction?.params?.redirect_uri)

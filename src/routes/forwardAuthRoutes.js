@@ -1,15 +1,30 @@
 import Router from "koa-router";
-import {enableAndGetRedirectUri} from "../support/self-oidc-client.js";
 import originalUrl from 'original-url';
 import {validateSiteSession} from "../support/site-session.js";
 import Account from "../support/account.js";
 import {isHostInProviderBaseDomain} from "../support/base-domain.js";
+import RedisAdapter from "../adapters/redis.js";
+import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
+import {responseType, scope} from "../support/oidc-middleware-client.js";
 
 export default (provider) => {
     const router = new Router();
 
     router.get('/forward-auth', async (ctx) => {
         ctx.status = 401
+        const clientId = ctx.query.client
+        if (!clientId) {
+            ctx.body = 'client parameter in authentication url is missing'
+            return
+        }
+
+        const redisAdapter = new RedisAdapter('Client')
+        const client = await redisAdapter.find(clientId)
+        if (!client) {
+            ctx.body = 'unknown client'
+            return
+        }
+
         const host = ctx.req.headers['x-forwarded-host']
         if (!host) {
             ctx.body = 'x-forwarded-host header not set'
@@ -31,13 +46,15 @@ export default (provider) => {
         if (cookie) {
             const account = await Account.findAccount(ctx, cookie.accountId)
             if (account) {
-                Object.keys(account.getRemoteHeaders()).map(k => {
-                    ctx.set(k, account.getRemoteHeaders()[k])
+                const remoteHeaders = account.getRemoteHeaders(client.headerMapping)
+                Object.keys(remoteHeaders).map(k => {
+                    ctx.set(k, remoteHeaders[k])
                 })
                 ctx.status = 200
             }
         } else {
-            const url = await enableAndGetRedirectUri(provider, originalUri.full.replace(originalUri.pathname, ''))
+            const uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '')
+            const url = await enableAndGetRedirectUri(provider, uri, clientId, responseType, scope, client)
             return ctx.redirect(url)
         }
     });

@@ -37,6 +37,9 @@ export const validateSiteSession = async (ctx) => {
     const siteSessionRedis = new RedisAdapter('SiteSession')
     let siteSession = ctx.cookies.get(configuration.cookies.names['site_session'])
     siteSession = await siteSessionRedis.find(siteSession)
-    const baseSession = siteSession?.sessionId ? await sessionRedis.find(siteSession?.sessionId) : true // Handle situation when siteSession does not yet have sessionId
+    let baseSession = siteSession?.sessionId ? await sessionRedis.find(siteSession?.sessionId) : true // Handle situation when siteSession does not yet have sessionId
+    if (baseSession?.authorizations) {
+        baseSession = baseSession?.authorizations?.[ctx.query.client]
+    }
     return (baseSession && siteSession?.domain === providerBaseDomain) ? siteSession : undefined
 }

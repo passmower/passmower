@@ -100,6 +100,7 @@ export default {
         properties: [
             'allowedGroups',
             'availableScopes',
+            'kind'
         ]
     },
 };

@@ -4,6 +4,11 @@ import {
     OIDCGWMiddlewareClientId,
     TraefikMiddlewareForwardAuthAddress
 } from "./kube-constants.js";
+import {randomUUID} from "crypto";
+
+export const grantType = 'implicit'
+export const responseType = 'id_token'
+export const scope = 'openid'
 
 export default class OIDCMiddlewareClient {
     #clientName = null
@@ -34,16 +39,21 @@ export default class OIDCMiddlewareClient {
             client_id: this.getClientId(),
             client_name: this.#clientName,
             client_namespace: this.#clientNamespace,
+            client_secret: randomUUID(),
+            grant_types: [ grantType ],
+            response_types: [ responseType ],
+            availableScopes: [ scope ],
             allowedGroups: this.#allowedGroups,
             headerMapping: this.#headerMapping,
             uri: this.#uri,
+            kind: OIDCGWMiddlewareClient
         }
     }
 
     toMiddlewareSpec(deployment, namespace) {
         return {
             forwardAuth: {
-                address: TraefikMiddlewareForwardAuthAddress(deployment, namespace),
+                address: TraefikMiddlewareForwardAuthAddress(deployment, namespace, this.getClientId()),
                 trustForwardHeader: true,
                 authResponseHeaders: Object.values(this.#headerMapping)
             }

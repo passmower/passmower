@@ -8,7 +8,7 @@ export const defaultApiGroup = 'codemowers.io'
 export const defaultApiGroupVersion = 'v1alpha1'
 export const OIDCGWClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`
 export const OIDCGWClientId = (namespace, clientName) => `${namespace}-${clientName}`
-export const OIDCGWMiddlewareClientId = (namespace, clientName) => `${namespace}-${clientName}`
+export const OIDCGWMiddlewareClientId = (namespace, clientName) => `middleware-${namespace}-${clientName}`
 export const OIDCGWClientSecretClientIdKey = 'OIDC_CLIENT_ID'
 export const OIDCGWClientSecretClientSecretKey = 'OIDC_CLIENT_SECRET'
 export const OIDCGWClientSecretGrantTypesKey = 'OIDC_GRANT_TYPES'
@@ -26,7 +26,7 @@ export const TraefikMiddleware = 'Middleware'
 export const TraefikMiddlewares = 'middlewares'
 export const TraefikMiddlewareApiGroup = 'traefik.containo.us'
 export const TraefikMiddlewareApiGroupVersion = 'v1alpha1'
-export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace) => `http://${deployment}.${namespace}.svc.cluster.local:3000/forward-auth`
+export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clientId) => `http://${deployment}.${namespace}.svc.cluster.local:3000/forward-auth?client=${clientId}`
 
 export const plulars = {
     [OIDCGWUser]: OIDCGWUsers,

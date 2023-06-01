@@ -10,7 +10,6 @@ import Router from 'koa-router';
 import GithubLogin from "../implementation/github-login.js";
 import {EmailLogin} from "../implementation/email-login.js";
 import accessDenied from "../support/access-denied.js";
-import { enableAndGetRedirectUri } from "../support/self-oidc-client.js";
 import getLoginResult from "../support/get-login-result.js";
 import Account from "../support/account.js";
 import crypto from "node:crypto";
@@ -22,6 +21,9 @@ import {addGrant} from "../support/add-grants.js";
 import {signedInSession} from "../support/signed-in.js";
 import {addSiteSession} from "../support/site-session.js";
 import {confirmTos} from "../support/confirm-tos.js";
+import {checkAccountGroups} from "../support/check-account-groups.js";
+import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
+import {clientId, responseType, scope} from "../support/self-oidc-client.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -100,7 +102,7 @@ export default (provider) => {
         if (await signedInSession(ctx, provider)) {
             return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {
-            const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL)
+            const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
                 url: url.href
             })
@@ -131,6 +133,11 @@ export default (provider) => {
                 })
              }
             case 'consent': {
+                const client = await provider.Client.find(params.client_id);
+                const account = await Account.findAccount(ctx, session.accountId);
+                if (!checkAccountGroups(client, account)) {
+                    return accessDenied(ctx, provider, 'Insufficient groups')
+                }
                 const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
                 const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId)
                 return provider.interactionFinished(ctx.req, ctx.res, {

@@ -94,12 +94,12 @@ class Account {
         return profile
     }
 
-    getRemoteHeaders() {
+    getRemoteHeaders(headerMapping) {
         return {
-            'Remote-User': this.accountId,
-            'Remote-Name': this.profile.name,
-            'Remote-Email': this.primaryEmail,
-            'Remote-Groups': this.#mapGroups().map(g => g.displayName).join(',')
+            [headerMapping['user']]: this.accountId,
+            [headerMapping['name']]: this.profile.name,
+            [headerMapping['email']]: this.primaryEmail,
+            [headerMapping['groups']]: this.#mapGroups().map(g => g.displayName).join(',')
         }
     }
 
