@@ -84,7 +84,8 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
         title,
         dbg,
         ...extra,
-        wide
+        wide,
+        nonce: ctx.res.locals.cspNonce,
     });
 }
 
