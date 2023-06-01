@@ -42,7 +42,7 @@ export default (provider) => {
             return
         }
 
-        const cookie = await validateSiteSession(ctx, provider)
+        const cookie = await validateSiteSession(ctx, clientId)
         if (cookie) {
             const account = await Account.findAccount(ctx, cookie.accountId)
             if (account) {

@@ -4,12 +4,16 @@ import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import {providerBaseDomain} from "./base-domain.js";
 import configuration from "./configuration.js";
 
-export const addSiteSession = async (ctx, provider, sessionId, accountId) => {
+const getFullSiteSessionCookieName = (clientId) => {
+    return configuration.cookies.names['site_session'] + '.' + clientId
+}
+
+export const addSiteSession = async (ctx, provider, sessionId, accountId, clientId) => {
     const redis = new RedisAdapter('SiteSession')
     let siteWideCookie = nanoid()
     const domain = providerBaseDomain
     ctx.cookies.set(
-        provider.cookieName('site_session'),
+        getFullSiteSessionCookieName(clientId),
         siteWideCookie,
         {
             ...instance(provider).configuration('cookies.long'),
@@ -32,10 +36,10 @@ export const updateSiteSession = async (siteSession) => {
     await siteSessionRedis.upsert(siteSession.jti, siteSession, configuration.ttl.SiteSession)
 }
 
-export const validateSiteSession = async (ctx) => {
+export const validateSiteSession = async (ctx, clientId) => {
     const sessionRedis = new RedisAdapter('Session')
     const siteSessionRedis = new RedisAdapter('SiteSession')
-    let siteSession = ctx.cookies.get(configuration.cookies.names['site_session'])
+    let siteSession = ctx.cookies.get(getFullSiteSessionCookieName(clientId))
     siteSession = await siteSessionRedis.find(siteSession)
     let baseSession = siteSession?.sessionId ? await sessionRedis.find(siteSession?.sessionId) : true // Handle situation when siteSession does not yet have sessionId
     if (baseSession?.authorizations) {

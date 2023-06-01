@@ -44,7 +44,7 @@ export default () => {
     const siteSessionCookieCheck = new Check('site_cookie_required', 'Site cookie required', 'interaction_required', async (ctx) => {
             const { oidc } = ctx;
             if (oidc.entities.Client?.kind === OIDCGWMiddlewareClient) {
-                if (!await validateSiteSession(ctx)) {
+                if (!await validateSiteSession(ctx, oidc.entities.Client.clientId)) {
                     return Check.REQUEST_PROMPT
                 } else if (oidc.entities?.Interaction?.result?.siteSession) {
                     const siteSession = oidc.entities.Interaction.result.siteSession

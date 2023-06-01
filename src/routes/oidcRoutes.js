@@ -139,7 +139,7 @@ export default (provider) => {
                     return accessDenied(ctx, provider, 'Insufficient groups')
                 }
                 const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
-                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId)
+                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id)
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,
