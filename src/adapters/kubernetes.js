@@ -67,9 +67,9 @@ export class KubernetesAdapter {
                 kind,
                 metadata: {
                     name,
-                    ownerReferences: [
-                        owner ? this.#getOwnerReference(owner) : undefined
-                    ]
+                    ownerReferences: owner ? [
+                        this.#getOwnerReference(owner)
+                    ] : undefined
                 },
                 spec
             }
