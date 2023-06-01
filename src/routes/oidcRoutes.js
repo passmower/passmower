@@ -135,11 +135,12 @@ export default (provider) => {
             case 'consent': {
                 const client = await provider.Client.find(params.client_id);
                 const account = await Account.findAccount(ctx, session.accountId);
+                let result = {}
                 if (!checkAccountGroups(client, account)) {
-                    return accessDenied(ctx, provider, 'Insufficient groups')
+                    result.error = 'Insufficient groups'
                 }
                 const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
-                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id)
+                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id, result)
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,

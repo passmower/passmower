@@ -44,13 +44,17 @@ export default (provider) => {
 
         const cookie = await validateSiteSession(ctx, clientId)
         if (cookie) {
-            const account = await Account.findAccount(ctx, cookie.accountId)
-            if (account) {
-                const remoteHeaders = account.getRemoteHeaders(client.headerMapping)
-                Object.keys(remoteHeaders).map(k => {
-                    ctx.set(k, remoteHeaders[k])
-                })
-                ctx.status = 200
+            if (cookie?.result?.error) {
+                ctx.body = cookie.result.error
+            } else {
+                const account = await Account.findAccount(ctx, cookie.accountId)
+                if (account) {
+                    const remoteHeaders = account.getRemoteHeaders(client.headerMapping)
+                    Object.keys(remoteHeaders).map(k => {
+                        ctx.set(k, remoteHeaders[k])
+                    })
+                    ctx.status = 200
+                }
             }
         } else {
             const uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '')
