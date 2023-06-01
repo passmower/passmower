@@ -1,5 +1,5 @@
 import OidcClient from "../support/oidc-client.js";
-import {OIDCGWClientSecretClientIdKey, OIDCGWClient, OIDCGWClients} from "../support/kube-constants.js";
+import {OIDCGWClientSecretClientIdKey, OIDCGWClient} from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 
@@ -13,7 +13,7 @@ export class KubeOIDCClientOperator {
 
     async watchClients() {
         await this.adapter.watchObjects(
-            OIDCGWClients,
+            OIDCGWClient,
             (OIDCClient) => (new OidcClient()).fromIncomingClient(OIDCClient),
             (OIDCClient) => this.#createOIDCClient(OIDCClient),
             (OIDCClient) => this.#updateOIDCClient(OIDCClient),

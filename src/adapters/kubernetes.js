@@ -1,5 +1,9 @@
 import * as k8s from "@kubernetes/client-node";
-import {apiGroup, apiGroupVersion, plulars} from "../support/kube-constants.js";
+import {
+    defaultApiGroup,
+    defaultApiGroupVersion,
+    plulars
+} from "../support/kube-constants.js";
 import WatchRequest from "../support/watch-request.js";
 import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
 
@@ -11,10 +15,11 @@ export class KubernetesAdapter {
         this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
         this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
-        this.currentGateway = this.namespace + '-' + process.env.DEPLOYMENT_NAME
+        this.deployment = process.env.DEPLOYMENT_NAME
+        this.currentGateway = this.namespace + '-' + this.deployment
     }
 
-    async listNamespacedCustomObject(kind, namespace, mapperFunction) {
+    async listNamespacedCustomObject(kind, namespace, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.listNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -34,7 +39,7 @@ export class KubernetesAdapter {
         })
     }
 
-    async getNamespacedCustomObject(kind, namespace, id, mapperFunction) {
+    async getNamespacedCustomObject(kind, namespace, id, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.getNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -51,7 +56,7 @@ export class KubernetesAdapter {
         })
     }
 
-    async createNamespacedCustomObject(kind, namespace, name, spec, mapperFunction) {
+    async createNamespacedCustomObject(kind, namespace, name, spec, mapperFunction, owner, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.createNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -62,6 +67,9 @@ export class KubernetesAdapter {
                 kind,
                 metadata: {
                     name,
+                    ownerReferences: [
+                        owner ? this.#getOwnerReference(owner) : undefined
+                    ]
                 },
                 spec
             }
@@ -75,7 +83,7 @@ export class KubernetesAdapter {
         })
     }
 
-    async patchNamespacedCustomObject(kind, namespace, id, spec, existingSpec, mapperFunction) {
+    async patchNamespacedCustomObject(kind, namespace, id, spec, existingSpec, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         let patches = []
         for (let [key, value] of Object.entries(spec)) {
             patches = [...patches, ...this.#getPatches(key, value, existingSpec)]
@@ -101,7 +109,7 @@ export class KubernetesAdapter {
         })
     }
 
-    async replaceNamespacedCustomObjectStatus(kind, namespace, id, resourceVersion, status, mapperFunction) {
+    async replaceNamespacedCustomObjectStatus(kind, namespace, id, resourceVersion, status, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
             apiGroup,
             apiGroupVersion,
@@ -144,7 +152,7 @@ export class KubernetesAdapter {
         kubeSecret.metadata = {
             name: id,
             ownerReferences: [
-                this.#getSecretOwnerReference(ownerMetadata)
+                this.#getOwnerReference(ownerMetadata)
             ]
         }
         kubeSecret.data = await this.#generateSecretData(data)
@@ -200,7 +208,8 @@ export class KubernetesAdapter {
         })
     }
 
-    async watchObjects(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace) {
+    async watchObjects(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        kind = plulars[kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc, new WatchRequest());
         let path = namespace ? `/apis/${apiGroup}/${apiGroupVersion}/namespaces/${namespace}` : `/apis/${apiGroup}/${apiGroupVersion}`
@@ -231,7 +240,7 @@ export class KubernetesAdapter {
                 if (err) {
                     console.error(err)
                 }
-                setTimeout(() => { this.watchObjects(); }, 10 * 1000);
+                setTimeout(() => { this.watchObjects(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup, apiGroupVersion); }, 10 * 1000);
             }).then((req) => {
             // watch returns a request object which you can use to abort the watch.
             // setTimeout(() => { req.abort(); }, 10);
@@ -261,10 +270,9 @@ export class KubernetesAdapter {
         return patches
     }
 
-    #getSecretOwnerReference(ownerMetadata) {
+    #getOwnerReference(ownerMetadata) {
         const ref = new V1OwnerReference()
         Object.assign(ref, ownerMetadata)
-        ref.apiVersion = `${apiGroup}/${apiGroupVersion}`
         ref.controller = true
         ref.blockOwnerDeletion = false
         return ref

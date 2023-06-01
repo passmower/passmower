@@ -2,16 +2,13 @@ export const OIDCGWUser = 'OIDCGWUser';
 export const OIDCGWUsers = 'oidcgatewayusers';
 export const OIDCGWClient = 'OIDCGWClient';
 export const OIDCGWClients = 'oidcgatewayclients';
-
-export const plulars = {
-    OIDCGWUser: OIDCGWUsers,
-    OIDCGWClient: OIDCGWClients,
-}
-
-export const apiGroup = 'codemowers.io'
-export const apiGroupVersion = 'v1alpha1'
+export const OIDCGWMiddlewareClient = 'OIDCGWMiddlewareClient';
+export const OIDCGWMiddlewareClients = 'oidcgatewaymiddlewareclients';
+export const defaultApiGroup = 'codemowers.io'
+export const defaultApiGroupVersion = 'v1alpha1'
 export const OIDCGWClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`
 export const OIDCGWClientId = (namespace, clientName) => `${namespace}-${clientName}`
+export const OIDCGWMiddlewareClientId = (namespace, clientName) => `${namespace}-${clientName}`
 export const OIDCGWClientSecretClientIdKey = 'OIDC_CLIENT_ID'
 export const OIDCGWClientSecretClientSecretKey = 'OIDC_CLIENT_SECRET'
 export const OIDCGWClientSecretGrantTypesKey = 'OIDC_GRANT_TYPES'
@@ -25,3 +22,15 @@ export const OIDCGWClientSecretAuthUriKey = 'OIDC_GATEWAY_AUTH_URI'
 export const OIDCGWClientSecretTokenUriKey = 'OIDC_GATEWAY_TOKEN_URI'
 export const OIDCGWClientSecretUserInfoUriKey = 'OIDC_GATEWAY_USERINFO_URI'
 export const GitHubGroupPrefix = 'github.com'
+export const TraefikMiddleware = 'Middleware'
+export const TraefikMiddlewares = 'middlewares'
+export const TraefikMiddlewareApiGroup = 'traefik.containo.us'
+export const TraefikMiddlewareApiGroupVersion = 'v1alpha1'
+export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace) => `http://${deployment}.${namespace}.svc.cluster.local:3000/forward-auth`
+
+export const plulars = {
+    [OIDCGWUser]: OIDCGWUsers,
+    [OIDCGWClient]: OIDCGWClients,
+    [OIDCGWMiddlewareClient]: OIDCGWMiddlewareClients,
+    [TraefikMiddleware]: TraefikMiddlewares,
+}

@@ -196,3 +196,70 @@ spec:
           type: string
           description: 'Groups allowed to this client'
           jsonPath: .spec.allowedGroups
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oidcgatewaymiddlewareclients.codemowers.io
+spec:
+  group: codemowers.io
+  names:
+    plural: oidcgatewaymiddlewareclients
+    singular: oidcgatewaymiddlewareclient
+    kind: OIDCGWMiddlewareClient
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      schema:
+        openAPIV3Schema:
+          required:
+            - spec
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                uri:
+                  type: string
+                allowedGroups:
+                  type: array
+                  items:
+                    type: string
+                headerMapping:
+                  type: object
+                  default:
+                    user: 'Remote-User'
+                    name: 'Remote-Name'
+                    email: 'Remote-Email'
+                    groups: 'Remote-Groups'
+                  properties:
+                    user:
+                      type: string
+                    name:
+                      type: string
+                    email:
+                      type: string
+                    groups:
+                      type: string
+            status:
+              type: object
+              properties:
+                gateway:
+                  type: string
+      additionalPrinterColumns:
+        - name: Gateway
+          type: string
+          description: 'OIDC gateway deployment which manages this client'
+          jsonPath: .status.gateway
+        - name: Uri
+          type: string
+          description: 'URL configured for this client'
+          jsonPath: .spec.uri
+        - name: Allowed groups
+          type: string
+          description: 'Groups allowed to this client'
+          jsonPath: .spec.allowedGroups

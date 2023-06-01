@@ -11,6 +11,8 @@ rules:
       - oidcgatewayusers/status
       - oidcgatewayclients
       - oidcgatewayclients/status
+      - oidcgatewaymiddlewareclients
+      - oidcgatewaymiddlewareclients/status
     verbs:
       - get
       - list
@@ -25,6 +27,16 @@ rules:
     verbs:
       - get
       - create
+      - patch
+      - delete
+  - apiGroups:
+      - traefik.containo.us
+    resources:
+      - middlewares
+    verbs:
+      - get
+      - create
+      - update
       - patch
       - delete
 ---
