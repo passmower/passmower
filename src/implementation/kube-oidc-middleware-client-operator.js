@@ -15,7 +15,7 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async watchClients() {
-        await this.adapter.watchObjects(
+        this.adapter.setWatchParameters(
             OIDCGWMiddlewareClient,
             (OIDCMiddlewareClient) => (new OidcMiddlewareClient()).fromIncomingClient(OIDCMiddlewareClient),
             (OIDCMiddlewareClient) => this.#createOIDCClient(OIDCMiddlewareClient),
@@ -23,6 +23,7 @@ export class KubeOIDCMiddlewareClientOperator {
             (OIDCMiddlewareClient) => this.#deleteOIDCClient(OIDCMiddlewareClient),
             this.adapter.namespace
         )
+        await this.adapter.watchObjects()
     }
 
     async #createOIDCClient (OIDCMiddlewareClient) {

@@ -12,7 +12,7 @@ export class KubeOIDCClientOperator {
     }
 
     async watchClients() {
-        await this.adapter.watchObjects(
+        this.adapter.setWatchParameters(
             OIDCGWClient,
             (OIDCClient) => (new OidcClient()).fromIncomingClient(OIDCClient),
             (OIDCClient) => this.#createOIDCClient(OIDCClient),
@@ -20,6 +20,7 @@ export class KubeOIDCClientOperator {
             (OIDCClient) => this.#deleteOIDCClient(OIDCClient),
             this.adapter.namespace
         )
+        await this.adapter.watchObjects()
     }
 
     async #createOIDCClient (OIDCClient) {

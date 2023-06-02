@@ -208,11 +208,26 @@ export class KubernetesAdapter {
         })
     }
 
-    async watchObjects(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        kind = plulars[kind]
+    setWatchParameters (kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        this.watchParameters = {
+            kind,
+            mapperFunction,
+            addedCallback,
+            modifiedCallback,
+            deletedCallback,
+            namespace,
+            apiGroup,
+            apiGroupVersion
+        }
+    }
+
+    async watchObjects() {
+        const kind = plulars[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc, new WatchRequest());
-        let path = namespace ? `/apis/${apiGroup}/${apiGroupVersion}/namespaces/${namespace}` : `/apis/${apiGroup}/${apiGroupVersion}`
+        let path = this.watchParameters.namespace ?
+            `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespace}` :
+            `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}`
         path = path + '/' + kind
         watch.watch(
             path,
@@ -221,13 +236,13 @@ export class KubernetesAdapter {
                 if (watchObj?.status === 'Failure') {
                     throw new Error('Error watching Kubernetes API: ' + watchObj.message)
                 }
-                const obj = mapperFunction(apiObj)
+                const obj = this.watchParameters.mapperFunction(apiObj)
                 if (type === 'ADDED') {
-                    await addedCallback(obj)
+                    await this.watchParameters.addedCallback(obj)
                 } else if (type === 'MODIFIED') {
-                    await modifiedCallback(obj)
+                    await this.watchParameters.modifiedCallback(obj)
                 } else if (type === 'DELETED') {
-                    await deletedCallback(obj)
+                    await this.watchParameters.deletedCallback(obj)
                 } else {
                     // TODO: proper logging
                     // console.warn(watchObj)
@@ -240,7 +255,7 @@ export class KubernetesAdapter {
                 if (err) {
                     console.error(err)
                 }
-                setTimeout(() => { this.watchObjects(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup, apiGroupVersion); }, 10 * 1000);
+                setTimeout(() => { this.watchObjects(); }, 10 * 1000);
             }).then((req) => {
             // watch returns a request object which you can use to abort the watch.
             // setTimeout(() => { req.abort(); }, 10);
