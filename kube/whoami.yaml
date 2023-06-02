@@ -45,7 +45,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     external-dns.alpha.kubernetes.io/target: traefik.codemowers.ee
-    traefik.ingress.kubernetes.io/router.middlewares: veebkolm-gab7y-test-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: veebkolm-gab7y-whoami@kubernetescrd
 spec:
   rules:
     - host: "whoami-gab7y.codemowers.ee"
