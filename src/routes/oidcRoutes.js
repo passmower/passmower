@@ -216,7 +216,9 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid/email-sent', async (ctx) => {
-        return render(provider, ctx, 'email-sent', 'Email sent')
+        return render(provider, ctx, 'message', 'Email sent', {
+            message: 'Please check your inbox'
+        })
     });
 
     router.get('/interaction/:uid/verify-email/:token', (ctx) => {
