@@ -8,7 +8,7 @@ const getFullSiteSessionCookieName = (clientId) => {
     return configuration.cookies.names['site_session'] + '.' + clientId
 }
 
-export const addSiteSession = async (ctx, provider, sessionId, accountId, clientId, result) => {
+export const addSiteSession = async (ctx, provider, sessionId, accountId, clientId) => {
     const redis = new RedisAdapter('SiteSession')
     let siteWideCookie = nanoid()
     const domain = providerBaseDomain
@@ -26,7 +26,6 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         sessionId,
         accountId,
         domain,
-        result
     }
     await redis.upsert(siteWideCookie.jti, siteWideCookie, instance(provider).configuration('ttl.SiteSession'));
     return siteWideCookie

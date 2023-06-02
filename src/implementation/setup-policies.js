@@ -3,6 +3,7 @@ import {ToSv1} from "../support/conditions/tosv1.js";
 import {Approved} from "../support/conditions/approved.js";
 import {updateSiteSession, validateSiteSession} from "../support/site-session.js";
 import {OIDCGWMiddlewareClient} from "../support/kube-constants.js";
+import {checkAccountGroups} from "../support/check-account-groups.js";
 
 export default () => {
     const { Prompt, Check, base } = interactionPolicy;
@@ -40,6 +41,16 @@ export default () => {
         ),
     )
     basePolicy.add(tosPolicy, 3)
+
+    const allowedGroupsPolicy = new Prompt(
+        { name: 'groups_required', requestable: true },
+        new Check('allowed_groups_required', 'Allowed groups required', 'interaction_required', async (ctx) => {
+                const { oidc, kubeOIDCUserService } = ctx;
+                return !checkAccountGroups(oidc?.entities?.Client, oidc?.entities?.Account)
+            },
+        ),
+    )
+    basePolicy.add(allowedGroupsPolicy, 4)
 
     const siteSessionCookieCheck = new Check('site_cookie_required', 'Site cookie required', 'interaction_required', async (ctx) => {
             const { oidc } = ctx;

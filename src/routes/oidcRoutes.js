@@ -133,14 +133,8 @@ export default (provider) => {
                 })
              }
             case 'consent': {
-                const client = await provider.Client.find(params.client_id);
-                const account = await Account.findAccount(ctx, session.accountId);
-                let result = {}
-                if (!checkAccountGroups(client, account)) {
-                    result.error = 'Insufficient groups'
-                }
                 const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
-                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id, result)
+                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id)
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,
@@ -158,6 +152,7 @@ export default (provider) => {
                 return render(provider, ctx, 'tos', 'Terms of Service', {text}, true)
             }
             case 'approval_required': {
+                // Check again so when user gets approved and refreshes the interaction page, flow can continue.
                 const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
                 if (kubeUser.checkCondition(new Approved())) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
@@ -166,6 +161,19 @@ export default (provider) => {
                 }
                 return render(provider, ctx, 'approval_required', 'Approval required', {
                     text: getText(ApprovalTextName)
+                }, true)
+            }
+            case 'groups_required': {
+                // Check again so when user gets assigned into a required group and refreshes the interaction page, flow can continue.
+                const client = await provider.Client.find(params.client_id);
+                const account = await Account.findAccount(ctx, session.accountId);
+                if (checkAccountGroups(client, account)) {
+                    return provider.interactionFinished(ctx.req, ctx.res, {}, {
+                        mergeWithLastSubmission: true,
+                    });
+                }
+                return render(provider, ctx, 'message', 'Access denied', {
+                    message: 'You need to be a member of an allowed group to access this resource'
                 }, true)
             }
             case 'name': {
