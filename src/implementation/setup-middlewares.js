@@ -71,7 +71,8 @@ export default async (provider) => {
     })
 
     provider.use(async (ctx, next) => {
-        ctx.currentSession = await provider.Session.get(ctx)
+        const session = await provider.Session.get(ctx)
+        ctx.currentSession = session.accountId ? session : undefined
         if (ctx.currentSession?.accountId) {
             ctx.currentAccount = await Account.findAccount(ctx, ctx.currentSession.accountId)
             if (!ctx.currentAccount) {

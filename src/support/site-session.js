@@ -43,7 +43,7 @@ export const validateSiteSession = async (ctx, clientId) => {
     siteSession = await siteSessionRedis.find(siteSession)
     let baseSession = siteSession?.sessionId ? await sessionRedis.find(siteSession?.sessionId) : true // Handle situation when siteSession does not yet have sessionId
     if (baseSession?.authorizations) {
-        baseSession = baseSession?.authorizations?.[ctx.query.client]
+        baseSession = baseSession?.authorizations?.[clientId]
     }
     return (baseSession && siteSession?.domain === providerBaseDomain) ? siteSession : undefined
 }
