@@ -98,7 +98,7 @@ const body = bodyParser({
 export default (provider) => {
     const router = new Router();
 
-    router.get('/', async (ctx, next) => {
+    router.get(['/', '/profile'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
             return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {

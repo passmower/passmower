@@ -112,6 +112,12 @@ input:disabled {
   line-height: 44px;
 }
 
+header {
+  a {
+    margin: 0 10px;
+  }
+}
+
 .modal-container {
   align-items: flex-start;
   background: #000000c7;

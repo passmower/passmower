@@ -1,35 +1,26 @@
 <template>
   <header>
+      <a href="/profile">Profile</a>
       <a v-if="account.isAdmin" href="/admin">Admin panel</a>
   </header>
 
   <main>
     <div class="card card-wide">
       <h1>Hello, {{ account.name }}!</h1>
-      <Profile />
-      <Sessions />
+      <Apps />
     </div>
   </main>
-  <widget-container-modal />
 </template>
 
 <script>
 import {mapActions, mapState, mapStores} from "pinia";
-import {useAccountStore} from "@/stores/account";
-import Profile from "@/components/User/Profile.vue";
-import Sessions from "@/components/User/Sessions.vue";
-import {container} from "jenesius-vue-modal";
+import Apps from "@/components/User/Apps.vue";
+import {useAppsStore} from "./stores/apps";
+import {useAccountStore} from "./stores/account";
 
 export default {
   components: {
-    Profile,
-    Sessions,
-    WidgetContainerModal: container,
-  },
-  data() {
-    return {
-      examineLogContent: null,
-    }
+    Apps,
   },
   computed: {
     ...mapStores(useAccountStore),
@@ -39,11 +30,12 @@ export default {
     fetch('/api/me').then((r) => r.json()).then((r) => {
       this.setAccount(r)
     })
-    fetch('/api/sessions').then((r) => r.json()).then((r) => {
-      this.setSessions(r.sessions)
+    fetch('/api/apps').then((r) => r.json()).then((r) => {
+      this.setApps(r.apps)
     })
   },
   methods: {
+    ...mapActions(useAppsStore, ['setApps']),
     ...mapActions(useAccountStore, ['setAccount', 'setSessions']),
   }
 }
