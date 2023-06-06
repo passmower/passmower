@@ -79,7 +79,7 @@ export default {
             return 14 * 24 * 60 * 60;
         },
         Session: 1209600,
-        SiteSession: 1209600,
+        SiteSession: 3600,
         AdminSession: 3600,
         Impersonation: 3600,
     },
