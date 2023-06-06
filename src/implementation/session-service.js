@@ -28,7 +28,6 @@ export class SessionService {
         if (sessionToDelete !== undefined) {
             await this.endOIDCSession(sessionToDelete, ctx, next)
             await this.metadataRedis.destroy(sessionToDelete)
-            await this.accountSessionRedis.removeFromSet(ctx.currentSession.accountId, sessionToDelete)
         }
         sessions = await this.accountSessionRedis.getSetMembers(ctx.currentSession.accountId)
         return await this.mapResponse(sessions, ctx.currentSession)
@@ -105,7 +104,6 @@ export class SessionService {
         sessions.map(async (s) => {
             const exists = await this.sessionRedis.find(s)
             if (!exists) {
-                await this.accountSessionRedis.removeFromSet(accountId, s)
                 await this.metadataRedis.destroy(s)
             }
         })

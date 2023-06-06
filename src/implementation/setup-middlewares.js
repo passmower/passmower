@@ -39,7 +39,6 @@ export default async (provider) => {
         await next();
         if (ctx.oidc?.route === 'resume' && ctx.oidc?.entities?.Interaction?.result?.consent) {
             const session = ctx.oidc.entities.Session
-            await accountSessionRedis.appendToSet(session.accountId, session.jti)
             await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)}, instance(provider).configuration('ttl.Session'))
             await ctx.sessionService.cleanupSessions(session.accountId)
         }

@@ -19,6 +19,17 @@ const consumable = new Set([
     'BackchannelAuthenticationRequest',
 ]);
 
+const referencable = {
+    Session: {
+        listName: 'AccountSession',
+        ownerKey: 'accountId'
+    },
+    Client: {
+        listName: 'Clients'
+    }
+}
+
+
 function grantKeyFor(id) {
     return `grant:${id}`;
 }
@@ -72,6 +83,12 @@ class RedisAdapter {
         }
 
         await multi.exec();
+
+        if (referencable[this.name]) {
+            const owner = payload[referencable[this.name]?.ownerKey] ?? 1
+            const key = `${referencable[this.name].listName}:${owner}`;
+            await client.sadd(key, id);
+        }
     }
 
     async appendToSet(id, item) {
@@ -117,7 +134,15 @@ class RedisAdapter {
 
     async destroy(id) {
         const key = this.key(id);
+        const payload = this.find(id)
+
         await client.del(key);
+
+        if (referencable[this.name]) {
+            const owner = payload[referencable[this.name]?.ownerKey] ?? 1
+            const key = `${referencable[this.name].listName}:${owner}`;
+            await client.srem(key, id);
+        }
     }
 
     async revokeByGrantId(grantId) { // eslint-disable-line class-methods-use-this
