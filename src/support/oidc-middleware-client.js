@@ -16,6 +16,7 @@ export default class OIDCMiddlewareClient {
     #allowedGroups = null
     #headerMapping = null
     #uri = null
+    #displayName = null
     #resourceVersion = null
     #status = {
         gateway: null
@@ -28,6 +29,7 @@ export default class OIDCMiddlewareClient {
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#headerMapping = incomingClient.spec.headerMapping || []
         this.#uri = incomingClient.spec.uri
+        this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
@@ -46,6 +48,7 @@ export default class OIDCMiddlewareClient {
             allowedGroups: this.#allowedGroups,
             headerMapping: this.#headerMapping,
             uri: this.#uri,
+            displayName: this.#displayName,
             kind: OIDCGWMiddlewareClient
         }
     }

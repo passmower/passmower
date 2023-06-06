@@ -148,6 +148,8 @@ spec:
               properties:
                 uri:
                   type: string
+                displayName:
+                  type: string
                 redirectUris:
                   type: array
                   items:
@@ -224,6 +226,8 @@ spec:
               type: object
               properties:
                 uri:
+                  type: string
+                displayName:
                   type: string
                 allowedGroups:
                   type: array

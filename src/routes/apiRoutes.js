@@ -59,7 +59,7 @@ export default (provider) => {
         )
             .map(c => {
                 return {
-                    name: c.client_name,
+                    name: c.displayName ?? c.client_name,
                     url: c.uri
                 }
         })

@@ -26,6 +26,7 @@ class OIDCClient {
     #availableScopes = null
     #gatewayUri = null
     #uri = null
+    #displayName = null
     #resourceVersion = null
     #status = {
         gateway: null
@@ -50,6 +51,7 @@ class OIDCClient {
             availableScopes: this.#availableScopes,
             gatewayUri: this.#gatewayUri,
             uri: this.#uri,
+            displayName: this.#displayName,
         }
     }
 
@@ -65,6 +67,7 @@ class OIDCClient {
         this.#availableScopes = incomingClient.spec.availableScopes
         this.#gatewayUri = process.env.ISSUER_URL
         this.#uri = incomingClient.spec.uri
+        this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
