@@ -1,15 +1,14 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
-import Account from '../support/account.js';
-import {signedInSession} from "../support/signed-in.js";
+import {signedInToSelf} from "../support/signed-in.js";
 
 export default (provider) => {
     const router = new Router();
 
     router.use(bodyParser({ json: true }))
     router.use(async (ctx, next) => {
-        const session = await signedInSession(ctx, provider)
+        const session = await signedInToSelf(ctx, provider)
         if (session) {
             return next()
         }

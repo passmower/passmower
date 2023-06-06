@@ -18,7 +18,7 @@ import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../support/render-error.js";
 import {addGrant} from "../support/add-grants.js";
-import {signedInSession} from "../support/signed-in.js";
+import {signedInToSelf} from "../support/signed-in.js";
 import {addSiteSession} from "../support/site-session.js";
 import {confirmTos} from "../support/confirm-tos.js";
 import {checkAccountGroups} from "../support/check-account-groups.js";
@@ -99,7 +99,7 @@ export default (provider) => {
     const router = new Router();
 
     router.get('/', async (ctx, next) => {
-        if (await signedInSession(ctx, provider)) {
+        if (await signedInToSelf(ctx, provider)) {
             return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)

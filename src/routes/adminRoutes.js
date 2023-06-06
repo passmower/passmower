@@ -2,8 +2,7 @@ import Router from "koa-router";
 import {koaBody as bodyParser} from "koa-body";
 import Account from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
-import {Approved} from "../support/conditions/approved.js";
-import {signedInSession} from "../support/signed-in.js";
+import {signedInToSelf} from "../support/signed-in.js";
 
 export default (provider) => {
     const router = new Router();
@@ -15,7 +14,7 @@ export default (provider) => {
             ctx.adminSession = session
             return next()
         } else {
-            const session = await signedInSession(ctx, provider)
+            const session = await signedInToSelf(ctx, provider)
             if (session) {
                 if (ctx.currentAccount.isAdmin) {
                     ctx.adminSession = session
