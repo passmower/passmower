@@ -3,6 +3,7 @@ import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 import {signedInToSelf} from "../support/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
+import {checkAccountGroups} from "../support/check-account-groups.js";
 
 export default (provider) => {
     const router = new Router();
@@ -52,11 +53,15 @@ export default (provider) => {
         let apps = await clientsRedis.getSetMembers(1)
         apps = (await Promise.all(apps.map(app => {
             return clientRedis.find(app)
-        })).then(r => r.filter(c => c.uri))).map(c => {
-            return {
-                name: c.client_name,
-                url: c.uri
-            }
+        }))
+            .then(r => r.filter(c => c.uri))
+            .then(r => r.filter(c => checkAccountGroups(c, ctx.currentAccount)))
+        )
+            .map(c => {
+                return {
+                    name: c.client_name,
+                    url: c.uri
+                }
         })
         ctx.body = {
             apps
