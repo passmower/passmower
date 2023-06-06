@@ -27,7 +27,11 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #createOIDCClient (OIDCMiddlewareClient) {
-        if (!OIDCMiddlewareClient.getGateway()) {
+        if (OIDCMiddlewareClient.getGateway() === this.currentGateway) {
+            if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
+                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+            }
+        } else if (!OIDCMiddlewareClient.getGateway()) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
             if (claimedClient?.getGateway() === this.currentGateway) {
