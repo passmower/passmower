@@ -13,8 +13,11 @@ export default () => {
         { name: 'approval_required', requestable: false },
         new Check('approval_required', 'User needs to be approved', 'interaction_required', async (ctx) => {
                 const { oidc, kubeOIDCUserService } = ctx;
-                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
-                return kubeUser.isAdmin ? Check.NO_NEED_TO_PROMPT : !kubeUser.checkCondition(new Approved())
+                if (!ctx.currentAccount) {
+                    // ctx.currentAccount is not properly available for new users.
+                    ctx.currentAccount = await kubeOIDCUserService.findUser(oidc.session.accountId)
+                }
+                return ctx.currentAccount?.isAdmin ? Check.NO_NEED_TO_PROMPT : !ctx.currentAccount?.checkCondition(new Approved())
             },
         ),
     )
@@ -23,9 +26,7 @@ export default () => {
     const namePolicy = new Prompt(
         { name: 'name', requestable: true },
         new Check('name_required', 'User profile requires name', 'interaction_required', async (ctx) => {
-                const { oidc, kubeOIDCUserService } = ctx;
-                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
-                return kubeUser.profile.name ? Check.NO_NEED_TO_PROMPT : Check.REQUEST_PROMPT;
+                return ctx.currentAccount?.profile?.name ? Check.NO_NEED_TO_PROMPT : Check.REQUEST_PROMPT;
             },
         ),
     )
@@ -34,9 +35,7 @@ export default () => {
     const tosPolicy = new Prompt(
         { name: 'tos', requestable: true },
         new Check('tos_not_accepted', 'ToS needs to be accepted', 'interaction_required', async (ctx) => {
-                const { oidc, kubeOIDCUserService } = ctx;
-                const kubeUser = await kubeOIDCUserService.findUser(oidc.session.accountId)
-                return !kubeUser.checkCondition(new ToSv1())
+                return !ctx.currentAccount?.checkCondition(new ToSv1())
             },
         ),
     )
@@ -45,8 +44,8 @@ export default () => {
     const allowedGroupsPolicy = new Prompt(
         { name: 'groups_required', requestable: true },
         new Check('allowed_groups_required', 'Allowed groups required', 'interaction_required', async (ctx) => {
-                const { oidc, kubeOIDCUserService } = ctx;
-                return !checkAccountGroups(oidc?.entities?.Client, oidc?.entities?.Account)
+                const { oidc } = ctx;
+                return !checkAccountGroups(oidc?.entities?.Client, ctx.currentAccount)
             },
         ),
     )

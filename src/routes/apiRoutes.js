@@ -11,13 +11,12 @@ export default (provider) => {
     router.use(async (ctx, next) => {
         const session = await signedInSession(ctx, provider)
         if (session) {
-            ctx.currentSession = session
             return next()
         }
     })
 
     router.get('/api/me', async (ctx, next) => {
-        const account = await Account.findAccount(ctx, ctx.currentSession.accountId)
+        const account = ctx.currentAccount
         ctx.body = account.getProfileResponse()
     })
 

@@ -17,9 +17,7 @@ export default (provider) => {
         } else {
             const session = await signedInSession(ctx, provider)
             if (session) {
-                ctx.currentSession = session
-                const account = await Account.findAccount(ctx, session.accountId)
-                if (account.isAdmin) {
+                if (ctx.currentAccount.isAdmin) {
                     ctx.adminSession = session
                     await ctx.sessionService.setAdminSession(ctx, session)
                     return next()

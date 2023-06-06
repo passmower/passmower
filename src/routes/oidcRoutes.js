@@ -153,8 +153,7 @@ export default (provider) => {
             }
             case 'approval_required': {
                 // Check again so when user gets approved and refreshes the interaction page, flow can continue.
-                const kubeUser = await ctx.kubeOIDCUserService.findUser(session.accountId)
-                if (kubeUser.checkCondition(new Approved())) {
+                if (ctx.currentAccount?.checkCondition(new Approved())) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
                         mergeWithLastSubmission: true,
                     });
@@ -166,8 +165,7 @@ export default (provider) => {
             case 'groups_required': {
                 // Check again so when user gets assigned into a required group and refreshes the interaction page, flow can continue.
                 const client = await provider.Client.find(params.client_id);
-                const account = await Account.findAccount(ctx, session.accountId);
-                if (checkAccountGroups(client, account)) {
+                if (checkAccountGroups(client, ctx.currentAccount)) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
                         mergeWithLastSubmission: true,
                     });

@@ -7,6 +7,7 @@ import {KubeOIDCUserService} from "./kube-oidc-user-service.js";
 import {clientId} from "../support/self-oidc-client.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {OIDCGWMiddlewareClient} from "../support/kube-constants.js";
+import Account from "../support/account.js";
 
 export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -68,6 +69,19 @@ export default async (provider) => {
             redirect: () => {}
         }, () => {})
     })
+
+    provider.use(async (ctx, next) => {
+        ctx.currentSession = await provider.Session.get(ctx)
+        if (ctx.currentSession?.accountId) {
+            ctx.currentAccount = await Account.findAccount(ctx, ctx.currentSession.accountId)
+            if (!ctx.currentAccount) {
+                await ctx.sessionService.endOIDCSession(ctx.currentSession.jti, {
+                    redirect: () => {}
+                }, () => {})
+            }
+        }
+        return next();
+    });
 
     return provider
 }
