@@ -10,5 +10,6 @@ spec:
     - 'implicit'
   responseTypes:
     - 'id_token'
+  uri: 'https://client-gab7y.codemowers.ee/'
 #  tokenEndpointAuthMethod: 'client_secret_basic'
 #  idTokenSignedResponseAlg: 'RS256'
