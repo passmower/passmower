@@ -131,13 +131,16 @@ class Account {
         return 'u' + uid.stamp(10);
     }
 
-    static async createOrUpdateByEmails(ctx, email, githubEmails) {
+    static async createOrUpdateByEmails(ctx, email, githubEmails, ignoreConditions) {
         const emails = [
             email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
         const user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
+            if (!ignoreConditions && process.env.ENROLL_USERS === 'false') {
+                return undefined
+            }
             return await ctx.kubeOIDCUserService.createUser(this.getUid(), email, githubEmails)
         }
         return await ctx.kubeOIDCUserService.updateUserSpec({

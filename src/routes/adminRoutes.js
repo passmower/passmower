@@ -99,7 +99,7 @@ export default (provider) => {
             }
             return
         }
-        const account = await Account.createOrUpdateByEmails(ctx, email);
+        const account = await Account.createOrUpdateByEmails(ctx, email, undefined, true);
         await Account.approve(ctx, account.accountId)
 
         let accounts = await ctx.kubeOIDCUserService.listUsers()

@@ -47,13 +47,6 @@ export default async (ctx, provider) => {
     }
     const token = accessToken.access_token
 
-    const user = await fetch('https://api.github.com/user', {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
-    }).then((r) => r.json());
-
     const emails = await fetch('https://api.github.com/user/emails', {
         method: "GET",
         headers: {
@@ -63,46 +56,55 @@ export default async (ctx, provider) => {
 
     const account = await Account.createOrUpdateByEmails(ctx, undefined, emails);
 
-    const githubProfile = {
-        name: user.name,
-        company: user.company,
-        id: user.id,
-        login: user.login,
-    }
+    if (account) {
+        const user = await fetch('https://api.github.com/user', {
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        }).then((r) => r.json());
 
-    let githubGroups = []
-    try {
-        githubGroups = await getUserOrganizations(token).then(organizations => organizations.filter(filterUserOrganizations)).then(organizations => {
-            return Promise.all(organizations.map(organization => {
-                return getOrganizationTeams(token, organization).then(teams => {
-                    return Promise.all(teams.map(team => {
-                        return getUserOrganizationTeamMembership(token, team, user.login)
-                    }))
+        const githubProfile = {
+            name: user.name,
+            company: user.company,
+            id: user.id,
+            login: user.login,
+        }
+
+        let githubGroups = []
+        try {
+            githubGroups = await getUserOrganizations(token).then(organizations => organizations.filter(filterUserOrganizations)).then(organizations => {
+                return Promise.all(organizations.map(organization => {
+                    return getOrganizationTeams(token, organization).then(teams => {
+                        return Promise.all(teams.map(team => {
+                            return getUserOrganizationTeamMembership(token, team, user.login)
+                        }))
+                    })
+                })).then(g => {
+                    g = g.flat(2).filter(r => !!r)
+                    g = [
+                        ...g,
+                        ...organizations
+                    ]
+                    return g
                 })
-            })).then(g => {
-                g = g.flat(2).filter(r => !!r)
-                g = [
-                    ...g,
-                    ...organizations
-                ]
-                return g
             })
-        })
-        githubGroups = githubGroups.map(g => {
-            return {
-                prefix: GitHubGroupPrefix,
-                name: g,
-            }
-        })
-    } catch (e) {
-        console.error('Error getting groups from GitHub: ' + e)
-    }
+            githubGroups = githubGroups.map(g => {
+                return {
+                    prefix: GitHubGroupPrefix,
+                    name: g,
+                }
+            })
+        } catch (e) {
+            console.error('Error getting groups from GitHub: ' + e)
+        }
 
-    await ctx.kubeOIDCUserService.updateUserSpec({
-        accountId: account.accountId,
-        githubProfile,
-        githubGroups
-    })
+        await ctx.kubeOIDCUserService.updateUserSpec({
+            accountId: account.accountId,
+            githubProfile,
+            githubGroups
+        })
+    }
 
     return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
         mergeWithLastSubmission: false,

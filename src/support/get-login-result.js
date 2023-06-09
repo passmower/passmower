@@ -1,7 +1,14 @@
 export default async (ctx, provider, account) => {
-    return {
-        login: {
-            accountId: account.accountId,
-        },
+    if (!account) {
+        return {
+            error: 'access_denied',
+            error_description: 'Account doesn\'t exist',
+        };
+    } else {
+        return {
+            login: {
+                accountId: account.accountId,
+            },
+        };
     }
 }
