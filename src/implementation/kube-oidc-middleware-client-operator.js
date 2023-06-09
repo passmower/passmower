@@ -5,6 +5,7 @@ import {
     TraefikMiddleware, TraefikMiddlewareApiGroup, TraefikMiddlewareApiGroupVersion,
 } from "../support/kube-constants.js";
 import OidcMiddlewareClient from "../support/oidc-middleware-client.js";
+import {NamespaceFilter} from "../support/namespace-filter.js";
 
 export class KubeOIDCMiddlewareClientOperator {
     constructor(provider) {
@@ -21,7 +22,7 @@ export class KubeOIDCMiddlewareClientOperator {
             (OIDCMiddlewareClient) => this.#createOIDCClient(OIDCMiddlewareClient),
             (OIDCMiddlewareClient) => this.#updateOIDCClient(OIDCMiddlewareClient),
             (OIDCMiddlewareClient) => this.#deleteOIDCClient(OIDCMiddlewareClient),
-            this.adapter.namespace
+            new NamespaceFilter(this.adapter.namespace)
         )
         await this.adapter.watchObjects()
     }

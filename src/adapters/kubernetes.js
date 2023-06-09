@@ -208,14 +208,14 @@ export class KubernetesAdapter {
         })
     }
 
-    setWatchParameters (kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespace, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+    setWatchParameters (kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespaceFilter, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         this.watchParameters = {
             kind,
             mapperFunction,
             addedCallback,
             modifiedCallback,
             deletedCallback,
-            namespace,
+            namespaceFilter,
             apiGroup,
             apiGroupVersion
         }
@@ -225,8 +225,8 @@ export class KubernetesAdapter {
         const kind = plulars[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc, new WatchRequest());
-        let path = this.watchParameters.namespace ?
-            `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespace}` :
+        let path = this.watchParameters.namespaceFilter?.namespace ?
+            `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespaceFilter.namespace}` :
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}`
         path = path + '/' + kind
         watch.watch(
@@ -235,6 +235,9 @@ export class KubernetesAdapter {
             async (type, apiObj, watchObj) => {
                 if (watchObj?.status === 'Failure') {
                     throw new Error('Error watching Kubernetes API: ' + watchObj.message)
+                }
+                if (!this.watchParameters.namespaceFilter.filter(watchObj.object.metadata.namespace)) {
+                    return
                 }
                 const obj = this.watchParameters.mapperFunction(apiObj)
                 if (type === 'ADDED') {

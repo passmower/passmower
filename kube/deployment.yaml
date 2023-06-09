@@ -88,6 +88,8 @@ spec:
               value: 'codemowers'
             - name: ENROLL_USERS
               value: 'false'
+            - name: NAMESPACE_SELECTOR
+              value: 'veebkolm-*'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets

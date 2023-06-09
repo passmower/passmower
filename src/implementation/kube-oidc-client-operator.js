@@ -2,6 +2,7 @@ import OidcClient from "../support/oidc-client.js";
 import {OIDCGWClientSecretClientIdKey, OIDCGWClient} from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
+import {NamespaceFilter} from "../support/namespace-filter.js";
 
 export class KubeOIDCClientOperator {
     constructor(provider) {
@@ -18,7 +19,7 @@ export class KubeOIDCClientOperator {
             (OIDCClient) => this.#createOIDCClient(OIDCClient),
             (OIDCClient) => this.#updateOIDCClient(OIDCClient),
             (OIDCClient) => this.#deleteOIDCClient(OIDCClient),
-            this.adapter.namespace
+            new NamespaceFilter(this.adapter.namespace)
         )
         await this.adapter.watchObjects()
     }
