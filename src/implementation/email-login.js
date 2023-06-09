@@ -15,6 +15,9 @@ export class EmailLogin {
     {
         const {uid} = await provider.interactionDetails(ctx.req, ctx.res);
         const email = ctx.request.body.email
+        if (process.env.ENROLL_USERS === 'false' && !await Account.findByEmail(ctx, email)) {
+            return accessDenied(ctx, provider, 'Account doesn\'t exist')
+        }
         const token = randomUUID()
         const url = `${process.env.ISSUER_URL}interaction/${uid}/verify-email/${token}`
         await provider.interactionResult(ctx.req, ctx.res, {
