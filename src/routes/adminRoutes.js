@@ -1,6 +1,6 @@
 import Router from "koa-router";
 import {koaBody as bodyParser} from "koa-body";
-import Account from "../support/account.js";
+import Account, {GroupPrefix} from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
 import {signedInToSelf} from "../support/signed-in.js";
 
@@ -31,7 +31,7 @@ export default (provider) => {
 
     router.get('/admin/api/metadata', async (ctx, next) => {
         ctx.body = {
-            groupPrefix: process.env.GROUP_PREFIX
+            groupPrefix: GroupPrefix,
         }
     })
 

@@ -8,7 +8,7 @@ export const confirmTos = async (ctx, accountId, contentHash) => {
     let account = await Account.findAccount(ctx, accountId)
     let condition = new ToSv1()
     condition = condition.setStatus(true)
-    account.addCondition(condition.toKubeCondition())
+    account.addCondition(condition)
     await ctx.kubeOIDCUserService.updateUserStatus(account)
 
     const content = await getEmailContent('emails/tos', {

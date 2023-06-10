@@ -84,10 +84,12 @@ spec:
               value: 'codemowers'
             - name: ADMIN_GROUP
               value: 'github.com:codemowers:admins'
+            - name: REQUIRED_GROUP
+              value: 'codemowers:users'
             - name: GITHUB_ORGANIZATION
               value: 'codemowers'
             - name: ENROLL_USERS
-              value: 'false'
+              value: 'true'
             - name: NAMESPACE_SELECTOR
               value: 'veebkolm-*'
           envFrom:

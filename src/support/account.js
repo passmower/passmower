@@ -3,6 +3,7 @@ import {GitHubGroupPrefix} from "./kube-constants.js";
 import {Approved} from "./conditions/approved.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
+export const GroupPrefix = process.env.GROUP_PREFIX;
 
 class Account {
     #spec = null
@@ -102,12 +103,28 @@ class Account {
     }
 
     addCondition(condition) {
-        this.#conditions.push(condition)
-        return this
+        return condition.add(this)
     }
 
     getConditions() {
         return this.#conditions
+    }
+
+    pushCondition(condition) {
+        this.#conditions.push(condition)
+        return this
+    }
+
+    pushCustomGroup(name) {
+        const group = {
+            prefix: GroupPrefix,
+            name
+        }
+        if (!this.#spec.customGroups) {
+            this.#spec.customGroups = []
+        }
+        this.#spec.customGroups.push(group)
+        return this
     }
 
     #mapGroups() {
@@ -170,7 +187,7 @@ class Account {
         let account = await Account.findAccount(ctx, accountId)
         let condition = new Approved()
         condition = condition.setStatus(true)
-        account.addCondition(condition.toKubeCondition())
+        account.addCondition(condition)
         await ctx.kubeOIDCUserService.updateUserStatus(account)
     }
 }
