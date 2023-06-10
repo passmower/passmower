@@ -13,15 +13,7 @@ export class BaseCondition {
         return this
     }
 
-    check(account) {
-        return account?.getConditions()?.find(c => c.type === this.type)?.status === conditionStatusTrue ?? false
-    }
-
-    add(account) {
-        return account.addCondition(this.#toKubeCondition())
-    }
-
-    #toKubeCondition() {
+    toKubeCondition() {
         const condition = new V1Condition()
         condition.apiVersion = defaultApiGroupVersion
         condition.kind = 'Condition'
@@ -29,5 +21,9 @@ export class BaseCondition {
         condition.status = this.status ? conditionStatusTrue : conditionStatusFalse
         condition.type = this.type
         return condition
+    }
+
+    check(account) {
+        return account?.getConditions()?.find(c => c.type === this.type)?.status === conditionStatusTrue ?? false
     }
 }
