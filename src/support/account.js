@@ -170,7 +170,7 @@ class Account {
         let account = await Account.findAccount(ctx, accountId)
         let condition = new Approved()
         condition = condition.setStatus(true)
-        account.addCondition(condition.toKubeCondition())
+        account = condition.add(account)
         await ctx.kubeOIDCUserService.updateUserStatus(account)
     }
 }
