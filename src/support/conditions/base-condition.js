@@ -22,4 +22,8 @@ export class BaseCondition {
         condition.type = this.type
         return condition
     }
+
+    check(account) {
+        return account?.getConditions()?.find(c => c.type === this.type)?.status === conditionStatusTrue ?? false
+    }
 }

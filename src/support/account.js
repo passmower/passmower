@@ -1,7 +1,5 @@
 import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
-import {conditionStatusTrue} from "./conditions/base-condition.js";
-import RedisAdapter from "../adapters/redis.js";
 import {Approved} from "./conditions/approved.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
@@ -87,7 +85,7 @@ class Account {
                 ...profile,
                 accountId: this.accountId,
                 impersonationEnabled: requesterAccountId !== this.accountId,
-                approved: this.isAdmin || this.checkCondition(new Approved()),
+                approved: this.isAdmin || (new Approved()).check(this),
                 conditions: this.#conditions
             }
         }
@@ -108,8 +106,8 @@ class Account {
         return this
     }
 
-    checkCondition(condition) {
-        return this.#conditions.find(c => c.type === condition.type)?.status === conditionStatusTrue ?? false
+    getConditions() {
+        return this.#conditions
     }
 
     #mapGroups() {

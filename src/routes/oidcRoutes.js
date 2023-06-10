@@ -153,7 +153,7 @@ export default (provider) => {
             }
             case 'approval_required': {
                 // Check again so when user gets approved and refreshes the interaction page, flow can continue.
-                if (ctx.currentAccount?.checkCondition(new Approved())) {
+                if ((new Approved()).check(ctx.currentAccount)) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
                         mergeWithLastSubmission: true,
                     });
