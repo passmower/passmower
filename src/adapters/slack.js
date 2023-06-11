@@ -7,7 +7,6 @@ export class SlackAdapter {
             this.client = new WebClient(token);
         }
     }
-
     async getUserId(email) {
         return await this.client.users.lookupByEmail({
             email
@@ -19,6 +18,13 @@ export class SlackAdapter {
                     error
                 }, 'getting user by email from Slack failed')
             }
+        })
+    }
+
+    async sendMessage(userId, text) {
+        return await this.client.chat.postMessage({
+            channel: userId,
+            text
         })
     }
 }

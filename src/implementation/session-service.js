@@ -1,9 +1,9 @@
 import RedisAdapter from "../adapters/redis.js";
-import {UAParser} from "ua-parser-js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import Account from "../support/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
+import {parseRequestMetadata} from "../support/parse-request-headers.js";
 
 export class SessionService {
     constructor(provider) {
@@ -38,16 +38,7 @@ export class SessionService {
             sessions.map(async (s) => {
                 const metadata = await this.metadataRedis.find(s)
                 if (metadata !== undefined) {
-                    const ua = UAParser(metadata).withClientHints()
-                    return {
-                        id: s,
-                        ua,
-                        ip: metadata['x-forwarded-for'],
-                        browser: ua.browser.name,
-                        os: ua.os.name + (ua.os.version !== undefined ? (' ' + ua.os.version) : ''),
-                        current: s === currentSession.id,
-                        created_at: new Date(metadata.iat * 1000),
-                    }
+                    return parseRequestMetadata(metadata, s, currentSession)
                 }
             })
         )

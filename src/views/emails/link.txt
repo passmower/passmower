@@ -1,1 +1,7 @@
+<%= gateway %> received request to log in as <%= email %> for <%= client %> on <%= client_url %>
+
 Open the following link to log in: <%= url %>
+
+The request was made on <%= browser %> from <%= ip %>
+
+If you didn't make this request, please ignore it. If it becomes frequent, please contact support.
