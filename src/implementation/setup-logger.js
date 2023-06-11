@@ -2,6 +2,7 @@ import pino from "pino";
 
 export const setupLogger = () => {
     globalThis.logger = pino({
+        level: process.env.NODE_ENV === 'production' ? 'info' : 'trace',
         redact: [
             'ctx.request.header.cookie',
             'ctx.response.header["set-cookie"].*',
