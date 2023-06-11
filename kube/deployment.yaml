@@ -101,6 +101,8 @@ spec:
                 name: email-credentials
             - secretRef:
                 name: github-client
+            - secretRef:
+                name: slack-client
           readinessProbe:
             httpGet:
               path: /.well-known/openid-configuration

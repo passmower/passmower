@@ -74,6 +74,8 @@ spec:
                       type: integer
                     login:
                       type: string
+                slackId:
+                  type: string
             status:
               type: object
               properties:
@@ -99,6 +101,8 @@ spec:
                       type: string
                     company:
                       type: string
+                slackId:
+                  type: string
                 conditions:
                   type: array
                   items:

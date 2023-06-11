@@ -58,7 +58,7 @@ export class KubeOIDCUserService {
         return await this.updateUserStatus(user)
     }
 
-    async updateUserSpec({accountId, email, customGroups, customProfile, githubEmails, githubGroups, githubProfile, acceptedTos} = {}) {
+    async updateUserSpec({accountId, email, customGroups, customProfile, githubEmails, githubGroups, githubProfile, slackId} = {}) {
         const account = await this.findUser(accountId)
         const updatedUser = await this.adapter.patchNamespacedCustomObject(
             OIDCGWUser,

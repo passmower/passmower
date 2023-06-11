@@ -1,6 +1,7 @@
 import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
 import {Approved} from "./conditions/approved.js";
+import {getSlackId} from "./get-slack-id.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -17,6 +18,7 @@ class Account {
         this.emails = apiResponse.status?.emails ?? []
         this.groups = apiResponse.status?.groups ?? []
         this.profile = apiResponse.status?.profile ?? {}
+        this.slackId = apiResponse.status?.slackId ?? null
         this.#conditions = apiResponse.status?.conditions ?? []
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
         return this
@@ -68,6 +70,7 @@ class Account {
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
                 company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
             },
+            slackId: this.#spec?.slackId ?? null,
             conditions: this.#conditions
         }
     }
@@ -151,15 +154,17 @@ class Account {
             email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
-        const user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
+        let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
             if (!ignoreConditions && process.env.ENROLL_USERS === 'false') {
                 return undefined
             }
-            return await ctx.kubeOIDCUserService.createUser(this.getUid(), email, githubEmails)
+            user = await ctx.kubeOIDCUserService.createUser(this.getUid(), email, githubEmails)
         }
+        const slackId = await getSlackId(user)
         return await ctx.kubeOIDCUserService.updateUserSpec({
             accountId: user.accountId,
+            slackId,
             githubEmails
         });
         // const redis = new RedisAdapter('Account')
