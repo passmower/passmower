@@ -182,7 +182,7 @@ spec:
                   type: array
                   items:
                     type: string
-                    enum: [ 'openid', 'profile' ]
+                    enum: [ 'openid', 'profile', 'offline_access' ]
                   default: [ 'openid' ]
             status:
               type: object

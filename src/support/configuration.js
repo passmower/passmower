@@ -105,4 +105,27 @@ export default {
             'displayName'
         ]
     },
+    async expiresWithSession(ctx, code) {
+        return true // always end whole session, also clients using refresh token with offline_access
+    },
+    async issueRefreshToken(ctx, client, code) {
+        return true
+        // TODO: figure out why offline_access is stripped from scopes.
+        // return client.grantTypeAllowed('refresh_token') && code.scopes.has('offline_access');
+    },
+    rotateRefreshToken(ctx) {
+        // TODO: figure out how to prompt for changed conditions
+        const { RefreshToken: refreshToken, Client: client } = ctx.oidc.entities;
+        // cap the maximum amount of time a refresh token can be
+        // rotated for up to 1 year, afterwards its TTL is final
+        if (refreshToken.totalLifetime() >= 365.25 * 24 * 60 * 60) {
+            return false;
+        }
+        // rotate non sender-constrained public client refresh tokens
+        if (client.clientAuthMethod === 'none' && !refreshToken.isSenderConstrained()) {
+            return true;
+        }
+        // rotate if the token is nearing expiration (it's beyond 70% of its lifetime)
+        return refreshToken.ttlPercentagePassed() >= 70;
+    }
 };

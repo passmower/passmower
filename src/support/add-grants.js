@@ -14,7 +14,11 @@ export const addGrant = async (provider, prompt, grantId, accountId, clientId) =
     }
 
     if (prompt.details.missingOIDCScope) {
-        // grant.addOIDCScope(client.availableScopes)
+        const client = await provider.Client.find(clientId);
+        if (client.availableScopes.includes('offline_access')) {
+            // TODO: figure out why offline_access is stripped from missingOIDCScope.
+            grant.addOIDCScope('offline_access')
+        }
         grant.addOIDCScope(prompt.details.missingOIDCScope.join(' '));
     }
     if (prompt.details.missingOIDCClaims) {

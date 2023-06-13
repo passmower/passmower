@@ -18,5 +18,6 @@ spec:
   availableScopes:
     - 'openid'
     - 'profile'
-#  tokenEndpointAuthMethod: 'client_secret_basic'
+    - 'offline_access'
+  tokenEndpointAuthMethod: 'client_secret_basic'
 #  idTokenSignedResponseAlg: 'RS256'
