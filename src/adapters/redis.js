@@ -24,6 +24,10 @@ const referencable = {
         listName: 'AccountSession',
         ownerKey: 'accountId'
     },
+    SiteSession: {
+        listName: 'AccountSiteSession',
+        ownerKey: 'accountId'
+    },
     Client: {
         listName: 'Clients'
     }

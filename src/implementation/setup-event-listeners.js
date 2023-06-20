@@ -1,3 +1,6 @@
+import {updateSessionReference} from "../support/site-session.js";
+import {SessionService} from "./session-service.js";
+
 export default (provider) => {
     // https://github.com/panva/node-oidc-provider/blob/v8.x/docs/events.md
 
@@ -208,12 +211,19 @@ export default (provider) => {
         logger.debug({ctx, error}, 'server_error')
     })
 
-    provider.on('session.destroyed', (session) => {
+    provider.on('session.destroyed', async (session) => {
         logger.debug({}, 'session.destroyed')
+        if (session.accountId) {
+            const sessionService = new SessionService(provider)
+            await sessionService.cleanupSessions(session.accountId)
+        }
     })
 
-    provider.on('session.saved', (session) => {
-        logger.debug({}, 'session.saved')
+    provider.on('session.saved', async (session) => {
+        logger.debug({session}, 'session.saved')
+        if (session.oldId && session.accountId) {
+            await updateSessionReference(session.jti, session.oldId, session.accountId)
+        }
     })
 
     provider.on('userinfo.error', (ctx, error) => {

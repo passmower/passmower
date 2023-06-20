@@ -47,3 +47,21 @@ export const validateSiteSession = async (ctx, clientId) => {
     }
     return (baseSession && siteSession?.domain === providerBaseDomain) ? siteSession : undefined
 }
+
+export const updateSessionReference = async (sessionId, oldSessionId, accountId) => {
+    const siteSessionRedis = new RedisAdapter('SiteSession')
+    const accountSiteSessionRedis = new RedisAdapter('AccountSiteSession')
+    const accountSiteSessions = await accountSiteSessionRedis.getSetMembers(accountId)
+    if (!accountSiteSessions) {
+        return
+    }
+    await Promise.all(accountSiteSessions.map(async s => {
+        const siteSession = await siteSessionRedis.find(s)
+        if (siteSession?.sessionId === oldSessionId) {
+            await siteSessionRedis.upsert(s, {
+                ...siteSession,
+                sessionId
+            })
+        }
+    }))
+}
