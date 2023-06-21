@@ -33,7 +33,7 @@ const referencable = {
     },
     SessionMetadata: {
         listName: 'UidSessions',
-        ownerKey: 'uid',
+        ownerKey: 'userId',
         expireKey: 'exp'
     },
 }

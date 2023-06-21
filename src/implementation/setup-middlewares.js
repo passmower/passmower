@@ -11,7 +11,6 @@ import Account from "../support/account.js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 
 export default async (provider) => {
-    const accountSessionRedis = new RedisAdapter('AccountSession')
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
 
     const directives = helmet.contentSecurityPolicy.getDefaultDirectives();
@@ -45,7 +44,7 @@ export default async (provider) => {
             await sessionMetadataRedis.upsert(nanoid(), {
                 ...headers,
                 sessionId: session.jti,
-                uid: session?.uid,
+                userId: session?.uid, // Must not be named uid because RedisAdapter's upsert has mechanism which breaks stuff if random uid is encountered.
                 client: ctx.oidc.entities.Client,
                 iat: session.iat ?? (Math.floor(Date.now() / 1000)),
                 exp: session?.exp,
