@@ -184,6 +184,9 @@ spec:
                     type: string
                     enum: [ 'openid', 'profile', 'offline_access' ]
                   default: [ 'openid' ]
+                pkce:
+                  type: boolean
+                  default: true
             status:
               type: object
               properties:

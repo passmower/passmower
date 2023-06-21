@@ -102,8 +102,15 @@ export default {
             'availableScopes',
             'kind',
             'uri',
-            'displayName'
+            'displayName',
+            'pkce'
         ]
+    },
+    pkce: {
+      required: function pkceRequired(ctx, client) {
+          console.log(client, client.pkce)
+          return Boolean(client.pkce)
+      }
     },
     async expiresWithSession(ctx, code) {
         return true // always end whole session, also clients using refresh token with offline_access

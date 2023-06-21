@@ -32,6 +32,7 @@ class OIDCClient {
         gateway: null
     }
     #uid = null
+    #pkce = true
 
     constructor() {
     }
@@ -52,6 +53,7 @@ class OIDCClient {
             gatewayUri: this.#gatewayUri,
             uri: this.#uri,
             displayName: this.#displayName,
+            pkce: this.#pkce,
         }
     }
 
@@ -71,6 +73,7 @@ class OIDCClient {
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
+        this.#pkce = incomingClient.spec.pkce ?? true
         return this
     }
 

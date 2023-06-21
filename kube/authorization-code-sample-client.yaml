@@ -20,4 +20,5 @@ spec:
     - 'profile'
     - 'offline_access'
   tokenEndpointAuthMethod: 'client_secret_basic'
+  pkce: true
 #  idTokenSignedResponseAlg: 'RS256'
