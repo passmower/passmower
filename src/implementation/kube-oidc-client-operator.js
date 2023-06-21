@@ -1,5 +1,8 @@
 import OidcClient from "../support/oidc-client.js";
-import {OIDCGWClientSecretClientIdKey, OIDCGWClient} from "../support/kube-constants.js";
+import {
+    OIDCGWClient,
+    OIDCGWClientSecretClientSecretKey
+} from "../support/kube-constants.js";
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../support/namespace-filter.js";
@@ -67,7 +70,7 @@ export class KubeOIDCClientOperator {
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName()
         )
-        secret ? OIDCClient.setSecret(secret[OIDCGWClientSecretClientIdKey]) : OIDCClient.generateSecret()
+        secret ? OIDCClient.setSecret(secret[OIDCGWClientSecretClientSecretKey]) : OIDCClient.generateSecret()
         await this.#patchKubeSecret(OIDCClient)
         await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
     }
