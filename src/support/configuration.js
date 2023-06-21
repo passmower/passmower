@@ -108,7 +108,6 @@ export default {
     },
     pkce: {
       required: function pkceRequired(ctx, client) {
-          console.log(client, client.pkce)
           return Boolean(client.pkce)
       }
     },
