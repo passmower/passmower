@@ -30,7 +30,12 @@ const referencable = {
     },
     Client: {
         listName: 'Clients'
-    }
+    },
+    SessionMetadata: {
+        listName: 'UidSessions',
+        ownerKey: 'uid',
+        expireKey: 'exp'
+    },
 }
 
 
@@ -92,6 +97,10 @@ class RedisAdapter {
             const owner = payload[referencable[this.name]?.ownerKey] ?? 1
             const key = `${referencable[this.name].listName}:${owner}`;
             await client.sadd(key, id);
+            if (payload[referencable[this.name]?.expireKey]) {
+                const ttl = Math.floor(payload[referencable[this.name]?.expireKey] - Date.now() / 1000)
+                await client.expire(key, ttl)
+            }
         }
     }
 

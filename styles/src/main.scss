@@ -266,6 +266,9 @@ svg {
     &-details {
       width: 75%;
       overflow-wrap: anywhere;
+      &> * {
+        margin-bottom: 1em;
+      }
     }
     &-actions {
       flex-grow: 1;

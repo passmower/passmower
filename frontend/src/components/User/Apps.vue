@@ -7,6 +7,7 @@
          <div class="item-details">
           <h3>{{ app.name }}</h3>
           <a :href="app.url" rel="noreferrer noopener" target="_blank">{{ app.url }}</a>
+          <p v-if="app.metadata">Last authorized at {{ app.metadata.ts }} on {{ app.metadata.browser }} ({{ app.metadata.os }}) from {{ app.metadata.ip }}</p>
          </div>
        </div>
     </div>

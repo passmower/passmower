@@ -51,18 +51,17 @@ export default (provider) => {
         const clientsRedis = new RedisAdapter('Clients')
         const clientRedis = new RedisAdapter('Client')
         let apps = await clientsRedis.getSetMembers(1)
-        apps = (await Promise.all(apps.map(app => {
+        apps = await Promise.all(apps.map(app => {
             return clientRedis.find(app)
-        }))
-            .then(r => r.filter(c => c.uri))
+        })).then(r => r.filter(c => c.uri))
             .then(r => r.filter(c => checkAccountGroups(c, ctx.currentAccount)))
-        )
-            .map(c => {
-                return {
-                    name: c.displayName ?? c.client_name,
-                    url: c.uri
-                }
-        })
+        apps = await Promise.all(apps.map(async c => {
+            return {
+                name: c.displayName ?? c.client_name,
+                url: c.uri,
+                metadata: await ctx.sessionService.getLastSessionInfoPerClient(ctx.currentSession.accountId, c.client_id)
+            }
+        }))
         ctx.body = {
             apps
         }

@@ -12,6 +12,7 @@ export class SessionService {
         this.adminSessionRedis = new RedisAdapter('AdminSession')
         this.impersonationRedis = new RedisAdapter('Impersonation')
         this.accountSessionRedis = new RedisAdapter('AccountSession')
+        this.uidSessionsRedis = new RedisAdapter('UidSessions')
         this.metadataRedis = new RedisAdapter('SessionMetadata')
     }
 
@@ -27,7 +28,7 @@ export class SessionService {
         })
         if (sessionToDelete !== undefined) {
             await this.endOIDCSession(sessionToDelete, ctx, next)
-            await this.metadataRedis.destroy(sessionToDelete)
+            // TODO: clean from UidSessions and SessionMetadata
         }
         sessions = await this.accountSessionRedis.getSetMembers(ctx.currentSession.accountId)
         return await this.mapResponse(sessions, ctx.currentSession)
@@ -36,13 +37,37 @@ export class SessionService {
     async mapResponse(sessions, currentSession) {
         sessions = await Promise.all(
             sessions.map(async (s) => {
-                const metadata = await this.metadataRedis.find(s)
-                if (metadata !== undefined) {
-                    return parseRequestMetadata(metadata, s, currentSession)
+                let session = await this.sessionRedis.find(s)
+                if (session) {
+                    const metadatas = await this.uidSessionsRedis.getSetMembers(session.uid)
+                    // TODO: sorting
+                    if (metadatas && metadatas[0]) {
+                        const metadata = await this.metadataRedis.find(metadatas[0])
+                        if (metadata) {
+                            return parseRequestMetadata(metadata, s, currentSession)
+                        }
+                    }
                 }
             })
         )
         return sessions.filter(item => item);
+    }
+
+    async getLastSessionInfoPerClient(accountId, clientId) {
+        let accountSessions = await this.accountSessionRedis.getSetMembers(accountId)
+        accountSessions = await Promise.all(accountSessions.map(async s => {
+            let session = await this.sessionRedis.find(s)
+            if (!session) return
+            let uidSessions = await this.uidSessionsRedis.getSetMembers(session.uid)
+            uidSessions = await Promise.all(uidSessions.map(async s => {
+                return await this.metadataRedis.find(s)
+            }))
+            uidSessions = uidSessions.filter(m => m?.client?.clientId === clientId).sort((a, b) => b.ts - a.ts)
+            return uidSessions ? uidSessions[0] : undefined
+        }))
+        accountSessions = accountSessions.flat().filter(a => a)
+        accountSessions = accountSessions.sort((a, b) => b.ts - a.ts)
+        return accountSessions[0] ? parseRequestMetadata(accountSessions[0], accountSessions[0].sessionId, undefined)  : undefined
     }
 
     async endOIDCSession(sessionToDelete, ctx, next) {
@@ -96,6 +121,7 @@ export class SessionService {
             const exists = await this.sessionRedis.find(s)
             if (!exists) {
                 await this.metadataRedis.destroy(s)
+                await this.accountSessionRedis.removeFromSet(accountId, s)
             }
         })
     }

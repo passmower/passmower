@@ -8,6 +8,7 @@ import {clientId} from "../support/self-oidc-client.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {OIDCGWMiddlewareClient} from "../support/kube-constants.js";
 import Account from "../support/account.js";
+import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 
 export default async (provider) => {
     const accountSessionRedis = new RedisAdapter('AccountSession')
@@ -39,7 +40,17 @@ export default async (provider) => {
         await next();
         if (ctx.oidc?.route === 'resume' && ctx.oidc?.entities?.Interaction?.result?.consent) {
             const session = ctx.oidc.entities.Session
-            await sessionMetadataRedis.upsert(session.jti, {...ctx.request.headers, iat: session.iat ?? (Date.now() / 1000)}, instance(provider).configuration('ttl.Session'))
+            const headers = { ...ctx.request.headers }
+            delete headers.cookies
+            await sessionMetadataRedis.upsert(nanoid(), {
+                ...headers,
+                sessionId: session.jti,
+                uid: session?.uid,
+                client: ctx.oidc.entities.Client,
+                iat: session.iat ?? (Math.floor(Date.now() / 1000)),
+                exp: session?.exp,
+                ts: Math.floor(Date.now() / 1000),
+            }, (session.exp ? (session.exp - Math.floor(Date.now() / 1000)) : undefined) ?? instance(provider).configuration('ttl.Session'))
             await ctx.sessionService.cleanupSessions(session.accountId)
         }
     });
