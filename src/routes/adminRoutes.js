@@ -3,6 +3,7 @@ import {koaBody as bodyParser} from "koa-body";
 import Account, {GroupPrefix} from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
 import {signedInToSelf} from "../support/signed-in.js";
+import {auditLog} from "../support/audit-log.js";
 
 export default (provider) => {
     const router = new Router();
@@ -19,6 +20,7 @@ export default (provider) => {
                 if (ctx.currentAccount.isAdmin) {
                     ctx.adminSession = session
                     await ctx.sessionService.setAdminSession(ctx, session)
+                    auditLog(ctx, {}, 'Admin session granted')
                     return next()
                 }
             }
@@ -54,6 +56,7 @@ export default (provider) => {
             customGroups: body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
                 .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
         })
+        auditLog(ctx, {accountId, body}, 'Admin updated user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))
@@ -69,6 +72,7 @@ export default (provider) => {
     router.post('/admin/api/account/impersonation', async (ctx, next) => {
         const accountId = ctx.request.body.accountId
         const impersonation = await ctx.sessionService.impersonate(ctx, accountId)
+        auditLog(ctx, {accountId}, 'Admin enabled impersonation')
         ctx.body = {
             impersonation
         }
@@ -76,6 +80,7 @@ export default (provider) => {
 
     router.post('/admin/api/account/impersonation/end', async (ctx, next) => {
         await ctx.sessionService.endImpersonation(ctx)
+        auditLog(ctx, {}, 'Admin ended impersonation')
         ctx.body = {
             impersonation: null
         }
@@ -84,6 +89,7 @@ export default (provider) => {
     router.post('/admin/api/account/approve', async (ctx, next) => {
         const accountId = ctx.request.body.accountId
         await Account.approve(ctx, accountId)
+        auditLog(ctx, {accountId}, 'Admin approved user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))
@@ -101,7 +107,7 @@ export default (provider) => {
         }
         const account = await Account.createOrUpdateByEmails(ctx, email, undefined, true);
         await Account.approve(ctx, account.accountId)
-
+        auditLog(ctx, {email}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))

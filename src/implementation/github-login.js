@@ -106,7 +106,7 @@ export default async (ctx, provider) => {
         })
     }
 
-    return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
+    return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'GitHub'), {
         mergeWithLastSubmission: false,
     });
 }

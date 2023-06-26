@@ -4,6 +4,7 @@ import Router from 'koa-router';
 import {signedInToSelf} from "../support/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../support/check-account-groups.js";
+import {auditLog} from "../support/audit-log.js";
 
 export default (provider) => {
     const router = new Router();
@@ -22,10 +23,13 @@ export default (provider) => {
     })
 
     router.post('/api/me', async (ctx, next) => {
+        const accountId = ctx.currentSession.accountId
+        const body = ctx.request.body
         const account = await ctx.kubeOIDCUserService.updateUserSpec({
-            accountId: ctx.currentSession.accountId,
-            customProfile: ctx.request.body
+            accountId,
+            customProfile: body
         })
+        auditLog(ctx, {accountId, body}, 'User updated profile')
         ctx.body = account.getProfileResponse()
     })
 
@@ -39,6 +43,7 @@ export default (provider) => {
     router.post('/api/session/end', async (ctx, next) => {
         const sessionToDelete = ctx.request.body.id
         const sessions = await ctx.sessionService.endSession(sessionToDelete, ctx, next, provider)
+        auditLog(ctx, {sessionToDelete}, 'User ended session')
         ctx.body = {
             sessions
         }

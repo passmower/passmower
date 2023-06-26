@@ -20,7 +20,7 @@ export default (provider) => {
     })
 
     provider.on('authorization_code.consumed', (code) => {
-        logger.debug({}, 'authorization_code.consumed')
+        logger.info({code}, 'Client consumed authorization code')
     })
 
     provider.on('authorization_code.destroyed', (code) => {
@@ -156,7 +156,7 @@ export default (provider) => {
     })
 
     provider.on('refresh_token.consumed', (token) => {
-        logger.debug({}, 'refresh_token.consumed')
+        logger.info({token}, 'Client consumed refresh token')
     })
 
     provider.on('refresh_token.destroyed', (token) => {

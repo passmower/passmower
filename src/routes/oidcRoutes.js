@@ -24,6 +24,7 @@ import {confirmTos} from "../support/confirm-tos.js";
 import {checkAccountGroups} from "../support/check-account-groups.js";
 import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
 import {clientId, responseType, scope} from "../support/self-oidc-client.js";
+import {auditLog} from "../support/audit-log.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -125,7 +126,8 @@ export default (provider) => {
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
-        const { prompt, session, params, grantId } = await provider.interactionDetails(ctx.req, ctx.res);
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt, session, params, grantId } = interactionDetails
         switch (prompt.name) {
             case 'login': {
                 return render(provider, ctx, 'login', 'Sign-in', {
@@ -139,6 +141,7 @@ export default (provider) => {
                 if (client.kind) {
                     siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, client)
                 }
+                auditLog(ctx, {interactionDetails, grant, siteSession}, 'Client authorized')
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,
@@ -162,6 +165,7 @@ export default (provider) => {
                         mergeWithLastSubmission: true,
                     });
                 }
+                auditLog(ctx, {interactionDetails}, 'User is not authorized')
                 return render(provider, ctx, 'approval_required', 'Approval required', {
                     text: getText(ApprovalTextName)
                 }, true)
@@ -174,6 +178,7 @@ export default (provider) => {
                         mergeWithLastSubmission: true,
                     });
                 }
+                auditLog(ctx, {interactionDetails}, 'User does not have required groups')
                 return render(provider, ctx, 'message', 'Access denied', {
                     message: 'You need to be a member of an allowed group to access this resource'
                 }, true)
@@ -192,6 +197,7 @@ export default (provider) => {
 
         switch (ctx.request.body.upstream) {
             case 'gh': {
+                auditLog(ctx, {}, ctx.request.body.code ? 'GitHub login callback received' : 'GitHub login initiated')
                 return await GithubLogin(ctx, provider)
             }
             default:
@@ -206,13 +212,15 @@ export default (provider) => {
 
     router.post('/interaction/:uid/email', body, async (ctx) => {
         const emailLogin = new EmailLogin()
+        auditLog(ctx, {email: ctx.request.body.email}, 'Email login initiated')
         return emailLogin.sendLink(ctx, provider)
     });
 
     router.post('/interaction/:uid/impersonate', body, async (ctx) => {
         const impersonation = await ctx.sessionService.getImpersonation(ctx)
         const account = await Account.findAccount(ctx, impersonation.accountId)
-        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
+        auditLog(ctx, {impersonation, account}, 'Impersonation used to log in')
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'Impersonation'), {
             mergeWithLastSubmission: true,
         });
     });
@@ -225,13 +233,16 @@ export default (provider) => {
 
     router.get('/interaction/:uid/verify-email/:token', (ctx) => {
         const emailLogin = new EmailLogin()
-        return emailLogin.verifyLink(ctx, provider)
+        const result = emailLogin.verifyLink(ctx, provider)
+        auditLog(ctx, {params: ctx.request.params, result}, 'Login link used')
+        return result
     });
 
     router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(interactionDetails.prompt.name, 'tos');
         await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
+        auditLog(ctx, {interactionDetails}, 'ToS approved')
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });
@@ -241,6 +252,7 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
+        auditLog(ctx, {interactionDetails, name: ctx.request.body.name}, 'User name updated')
         await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: {

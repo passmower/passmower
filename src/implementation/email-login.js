@@ -67,7 +67,7 @@ export class EmailLogin {
             details.result.email
         );
 
-        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account), {
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'LoginLink'), {
             mergeWithLastSubmission: true,
         });
     }
