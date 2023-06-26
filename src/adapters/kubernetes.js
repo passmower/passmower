@@ -33,7 +33,7 @@ export class KubernetesAdapter {
             )
         }).catch((e) => {
             if (e.statusCode !== 404) {
-                console.error(e)
+                globalThis.logger.error(e)
                 return null
             }
         })
@@ -50,7 +50,7 @@ export class KubernetesAdapter {
             return mapperFunction(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
-                console.error(e)
+                globalThis.logger.error(e)
                 return null
             }
         })
@@ -77,7 +77,7 @@ export class KubernetesAdapter {
             return mapperFunction(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
-                console.error(e)
+                globalThis.logger.error(e)
                 return null
             }
         })
@@ -103,7 +103,7 @@ export class KubernetesAdapter {
             return mapperFunction(r.body)
         }).catch((e) => {
             if (e.statusCode !== 404) {
-                console.error(e)
+                globalThis.logger.error(e)
                 return null
             }
         })
@@ -128,7 +128,7 @@ export class KubernetesAdapter {
         ).then((r) => {
             return mapperFunction(r.body)
         }).catch((e) => {
-            console.error(e)
+            globalThis.logger.error(e)
         })
     }
 
@@ -142,7 +142,7 @@ export class KubernetesAdapter {
             if (e.statusCode === 404) {
                 return null
             } else {
-                console.error(e)
+                globalThis.logger.error(e)
             }
         })
     }
@@ -162,7 +162,7 @@ export class KubernetesAdapter {
         ).then(async (r) => {
             return this.#parseSecretData(r.body.data)
         }).catch((e) => {
-            console.error(e)
+            globalThis.logger.error(e)
             return null
         })
     }
@@ -189,7 +189,7 @@ export class KubernetesAdapter {
         ).then((r) => {
             return this.#parseSecretData(r.body.data)
         }).catch((e) => {
-            console.error(e)
+            globalThis.logger.error(e)
             return null
         })
     }
@@ -202,7 +202,7 @@ export class KubernetesAdapter {
             return r.body.status
         }).catch((e) => {
             if (e.statusCode !== 404) {
-                console.error(e)
+                globalThis.logger.error(e)
                 return null
             }
         })
@@ -256,7 +256,7 @@ export class KubernetesAdapter {
                 // tslint:disable-next-line:no-console
                 globalThis.logger.warn('Kubernetes API watch terminated')
                 if (err) {
-                    console.error(err)
+                    globalThis.logger.error(err)
                 }
                 setTimeout(() => { this.watchObjects(); }, 10 * 1000);
             }).then((req) => {
