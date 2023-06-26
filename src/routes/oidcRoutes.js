@@ -133,8 +133,12 @@ export default (provider) => {
                 })
              }
             case 'consent': {
-                const grant = await addGrant(provider, prompt, grantId, session.accountId, params.client_id)
-                const siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, params.client_id)
+                const client = await provider.Client.find( params.client_id);
+                const grant = await addGrant(provider, prompt, grantId, session.accountId, client)
+                let siteSession;
+                if (client.kind) {
+                    siteSession = await addSiteSession(ctx, provider, session.jti, session.accountId, client)
+                }
                 return provider.interactionFinished(ctx.req, ctx.res, {
                     consent: {
                         grantId: grant.jti,

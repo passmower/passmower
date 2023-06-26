@@ -1,4 +1,4 @@
-export const addGrant = async (provider, prompt, grantId, accountId, clientId) => {
+export const addGrant = async (provider, prompt, grantId, accountId, client) => {
     // https://github.com/panva/node-oidc-provider/blob/main/example/routes/koa.js
     let grant;
 
@@ -9,12 +9,11 @@ export const addGrant = async (provider, prompt, grantId, accountId, clientId) =
         // we're establishing a new grant
         grant = new provider.Grant({
             accountId,
-            clientId: clientId,
+            clientId: client.clientId,
         });
     }
 
     if (prompt.details.missingOIDCScope) {
-        const client = await provider.Client.find(clientId);
         if (client.availableScopes.includes('offline_access')) {
             // TODO: figure out why offline_access is stripped from missingOIDCScope.
             grant.addOIDCScope('offline_access')

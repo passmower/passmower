@@ -8,12 +8,12 @@ const getFullSiteSessionCookieName = (clientId) => {
     return configuration.cookies.names['site_session'] + '.' + clientId
 }
 
-export const addSiteSession = async (ctx, provider, sessionId, accountId, clientId) => {
+export const addSiteSession = async (ctx, provider, sessionId, accountId, client) => {
     const redis = new RedisAdapter('SiteSession')
     let siteWideCookie = nanoid()
     const domain = providerBaseDomain
     ctx.cookies.set(
-        getFullSiteSessionCookieName(clientId),
+        getFullSiteSessionCookieName(client.clientId),
         siteWideCookie,
         {
             ...instance(provider).configuration('cookies.long'),

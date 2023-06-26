@@ -12,6 +12,7 @@ const baseClient = {
     grant_types: [ 'implicit' ],
     response_types: [ responseType ],
     availableScopes: [ scope ],
+    kind: 'SelfOIDCClient'
 }
 
 export const initializeSelfOidcClient = async () => {
