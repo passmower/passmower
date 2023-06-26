@@ -92,6 +92,8 @@ spec:
               value: 'true'
             - name: NAMESPACE_SELECTOR
               value: 'veebkolm-*'
+            - name: PREFERRED_EMAIL_DOMAIN
+              value: 'veebkolm.ee'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets

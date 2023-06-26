@@ -61,7 +61,21 @@ class Account {
             this.#spec.email,
             ...(this.#spec.githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
-        const primaryEmail = this.#spec.email || this.#spec.githubEmails.find(ghEmail => ghEmail.primary)?.email
+        let primaryEmail
+        const preferredDomain = process.env.PREFERRED_EMAIL_DOMAIN
+        if (preferredDomain) {
+            const emailsWithDomains = emails.map(e => {
+                return {
+                    email: e,
+                    domain: e.split('@')[1]
+                }
+            })
+            primaryEmail = emailsWithDomains.find(e => e.domain === preferredDomain)
+            primaryEmail = primaryEmail?.email
+        }
+        if (!primaryEmail) {
+            primaryEmail = this.#spec.email || this.#spec.githubEmails.find(ghEmail => ghEmail.primary)?.email
+        }
         return {
             primaryEmail,
             emails,
