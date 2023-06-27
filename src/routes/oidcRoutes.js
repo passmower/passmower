@@ -25,6 +25,8 @@ import {checkAccountGroups} from "../support/check-account-groups.js";
 import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
 import {clientId, responseType, scope} from "../support/self-oidc-client.js";
 import {auditLog} from "../support/audit-log.js";
+import koaValidator from "koa-async-validator";
+import usernameBlacklist from "../support/username-blacklist.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -92,12 +94,22 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
     });
 }
 
-const body = bodyParser({
-    text: false, json: false, patchNode: true, patchKoa: true,
-});
-
 export default (provider) => {
     const router = new Router();
+    router.use(bodyParser({
+        text: false, json: false, patchNode: true, patchKoa: true,
+    }))
+    router.use(koaValidator({
+        customValidators: {
+            startsWithLetter: (value) => (new RegExp('^[a-z].*')).test(value),
+            isBlackListed: (value) => usernameBlacklist(value),
+            usernameExists: (value, ctx) => new Promise((resolve, reject) => {
+                Account.findAccount(ctx, value).then(user => {
+                    resolve(!user)
+                }).catch(reject);
+            })
+        }
+    }))
 
     router.get(['/', '/profile'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
@@ -131,10 +143,11 @@ export default (provider) => {
         switch (prompt.name) {
             case 'login': {
                 if (interactionDetails?.lastSubmission?.requireCustomUsername) {
-                    return render(provider, ctx, 'enter-username', 'Enter username', {message: undefined}, true)
+                    return render(provider, ctx, 'enter-username', 'Enter username', {errors: undefined}, true)
                 }
                 return render(provider, ctx, 'login', 'Sign-in', {
-                    impersonation: await ctx.sessionService.getImpersonation(ctx)
+                    impersonation: await ctx.sessionService.getImpersonation(ctx),
+                    message: undefined
                 })
              }
             case 'consent': {
@@ -194,7 +207,7 @@ export default (provider) => {
         }
     });
 
-    router.post('/interaction/:uid/federated', body, async (ctx) => {
+    router.post('/interaction/:uid/federated', async (ctx) => {
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
 
@@ -213,13 +226,20 @@ export default (provider) => {
         return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
     });
 
-    router.post('/interaction/:uid/email', body, async (ctx) => {
-        const emailLogin = new EmailLogin()
+    router.post('/interaction/:uid/email', async (ctx) => {
+        ctx.checkBody('email', 'Invalid email').notEmpty().isEmail();
+        if (await ctx.validationErrors()) {
+            return render(provider, ctx, 'login', 'Sign-in', {
+                impersonation: undefined,
+                message: 'Invalid email'
+            })
+        }
         auditLog(ctx, {email: ctx.request.body.email}, 'Email login initiated')
+        const emailLogin = new EmailLogin()
         return emailLogin.sendLink(ctx, provider)
     });
 
-    router.post('/interaction/:uid/impersonate', body, async (ctx) => {
+    router.post('/interaction/:uid/impersonate', async (ctx) => {
         const impersonation = await ctx.sessionService.getImpersonation(ctx)
         const account = await Account.findAccount(ctx, impersonation.accountId)
         auditLog(ctx, {impersonation, account}, 'Impersonation used to log in')
@@ -241,7 +261,7 @@ export default (provider) => {
         return result
     });
 
-    router.post('/interaction/:uid/confirm-tos', body, async (ctx) => {
+    router.post('/interaction/:uid/confirm-tos', async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(interactionDetails.prompt.name, 'tos');
         await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
@@ -251,7 +271,7 @@ export default (provider) => {
         });
     });
 
-    router.post('/interaction/:uid/update-name', body, async (ctx) => {
+    router.post('/interaction/:uid/update-name', async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
@@ -267,18 +287,26 @@ export default (provider) => {
         });
     });
 
-    router.post('/interaction/:uid/enter-username', body, async (ctx) => {
+    router.post('/interaction/:uid/enter-username', async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name } } = interactionDetails;
         assert.equal(name, 'login');
-        const username = ctx.request.body.username
-        const exists = await Account.findAccount(ctx, username)
-        if (exists) {
+
+        ctx.checkBody('username', 'Username must be 2-15 characters').isLength({min: 2, max: 15})
+        ctx.checkBody('username', 'Username must be alphanumeric').isAlphanumeric()
+        ctx.checkBody('username', 'Prohibited username').isBlackListed()
+        ctx.checkBody('username', 'Username must start with a letter').startsWithLetter()
+        ctx.checkBody('username', 'Username is taken').usernameExists()
+        ctx.checkBody('username', 'Username must be lowercase').isLowercase()
+
+        let errors = await ctx.validationErrors()
+        if (errors) {
             return render(provider, ctx, 'enter-username', 'Enter username', {
-                message: 'Username is already taken'
+                errors
             }, true)
         }
 
+        const username = ctx.request.body.username
         const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
 
         if (interactionDetails?.lastSubmission?.oauth?.provider) {
