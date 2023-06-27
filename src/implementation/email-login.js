@@ -64,6 +64,7 @@ export class EmailLogin {
 
         const account = await Account.createOrUpdateByEmails(
             ctx,
+            provider,
             details.result.email
         );
 

@@ -130,6 +130,9 @@ export default (provider) => {
         const { prompt, session, params, grantId } = interactionDetails
         switch (prompt.name) {
             case 'login': {
+                if (interactionDetails?.lastSubmission?.requireCustomUsername) {
+                    return render(provider, ctx, 'enter-username', 'Enter username', {message: undefined}, true)
+                }
                 return render(provider, ctx, 'login', 'Sign-in', {
                     impersonation: await ctx.sessionService.getImpersonation(ctx)
                 })
@@ -263,6 +266,40 @@ export default (provider) => {
             mergeWithLastSubmission: true,
         });
     });
+
+    router.post('/interaction/:uid/enter-username', body, async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt: { name } } = interactionDetails;
+        assert.equal(name, 'login');
+        const username = ctx.request.body.username
+        const exists = await Account.findAccount(ctx, username)
+        if (exists) {
+            return render(provider, ctx, 'enter-username', 'Enter username', {
+                message: 'Username is already taken'
+            }, true)
+        }
+
+        const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+
+        if (interactionDetails?.lastSubmission?.oauth?.provider) {
+            switch (interactionDetails.lastSubmission.oauth.provider) {
+                case "GitHub":
+                    await GithubLogin(ctx, provider)
+                    break
+                default:
+                    throw new Error('not implemented')
+            }
+        }
+
+        return provider.interactionFinished(ctx.req, ctx.res, {
+            login: {
+                accountId: account.accountId,
+            }
+        }, {
+            mergeWithLastSubmission: true,
+        });
+    });
+
 
     router.get('/interaction/:uid/abort', async (ctx) => {
         return accessDenied(ctx, provider,  'End-User aborted interaction')

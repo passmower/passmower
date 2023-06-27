@@ -94,6 +94,8 @@ spec:
               value: 'veebkolm-*'
             - name: PREFERRED_EMAIL_DOMAIN
               value: 'veebkolm.ee'
+            - name: REQUIRE_CUSTOM_USERNAME
+              value: 'true'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets

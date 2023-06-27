@@ -3,6 +3,9 @@ import {auditLog} from "./audit-log.js";
 export default async (ctx, provider, account, method) => {
     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
     if (!account) {
+        if (interactionDetails?.result?.requireCustomUsername) {
+            return interactionDetails.result
+        }
         auditLog(ctx, {interactionDetails, method}, 'Failed to log in user')
         return {
             error: 'access_denied',

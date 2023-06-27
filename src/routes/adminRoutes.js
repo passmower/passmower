@@ -105,7 +105,7 @@ export default (provider) => {
             }
             return
         }
-        const account = await Account.createOrUpdateByEmails(ctx, email, undefined, true);
+        const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, true);
         await Account.approve(ctx, account.accountId)
         auditLog(ctx, {email}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()

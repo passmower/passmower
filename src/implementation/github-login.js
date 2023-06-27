@@ -16,7 +16,10 @@ export default async (ctx, provider) => {
     const callbackParams = ctx.request.body
     delete callbackParams['upstream']
 
-    if (!Object.keys(callbackParams).length) {
+    const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+    let token = interactionDetails?.lastSubmission?.oauth?.token
+
+    if (!token && !Object.keys(callbackParams).length) {
         const state = `${ctx.params.uid}|${crypto.randomBytes(32).toString('hex')}`;
         await provider.interactionResult(ctx.req, ctx.res, {
             state,
@@ -29,23 +32,32 @@ export default async (ctx, provider) => {
         }));
     }
 
-    const details = await provider.interactionDetails(ctx.req, ctx.res)
-    if (!details.result || details.result.state !== callbackParams.state) {
-        return accessDenied(ctx, provider,'State does not match')
-    }
 
-    const accessToken = await new Promise(resolve => {
-        ghOauth.getOAuthAccessToken(callbackParams.code, {
-            'redirect_uri': `${process.env.ISSUER_URL}interaction/callback/gh`,
-        }, (e, access_token, refresh_token, results) => {
-            resolve(results)
+    if (!token) {
+        if (!interactionDetails.result || interactionDetails.result.state !== callbackParams.state) {
+            return accessDenied(ctx, provider,'State does not match')
+        }
+
+        const accessToken = await new Promise(resolve => {
+            ghOauth.getOAuthAccessToken(callbackParams.code, {
+                'redirect_uri': `${process.env.ISSUER_URL}interaction/callback/gh`,
+            }, (e, access_token, refresh_token, results) => {
+                resolve(results)
+            });
         });
-    });
 
-    if (accessToken.error || !accessToken.access_token) {
-        return accessDenied(ctx, provider, 'User aborted login')
+        if (accessToken.error || !accessToken.access_token) {
+            return accessDenied(ctx, provider, 'User aborted login')
+        }
+
+        token = accessToken.access_token
+        await provider.interactionResult(ctx.req, ctx.res, {
+            oauth: {
+                provider: 'GitHub',
+                token
+            }
+        })
     }
-    const token = accessToken.access_token
 
     const emails = await fetch('https://api.github.com/user/emails', {
         method: "GET",
@@ -54,7 +66,7 @@ export default async (ctx, provider) => {
         },
     }).then((r) => r.json()).then((r) => r.filter((r) => r.verified));
 
-    const account = await Account.createOrUpdateByEmails(ctx, undefined, emails);
+    const account = await Account.createOrUpdateByEmails(ctx, provider, undefined, emails);
 
     if (account) {
         const user = await fetch('https://api.github.com/user', {
