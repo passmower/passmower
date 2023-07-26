@@ -17,6 +17,11 @@ export class KubernetesAdapter {
         this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
         this.deployment = process.env.DEPLOYMENT_NAME
         this.currentGateway = this.namespace + '-' + this.deployment
+        const interceptor = (reqOptions) => {
+            reqOptions.headers['User-Agent'] = this.currentGateway
+        }
+        this.customObjectsApi.addInterceptor(interceptor)
+        this.customObjectsApi.addInterceptor(interceptor)
     }
 
     async listNamespacedCustomObject(kind, namespace, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {

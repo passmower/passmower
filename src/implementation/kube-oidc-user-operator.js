@@ -38,7 +38,9 @@ export class KubeOIDCUserOperator {
     }
 
     async #updateOIDCUser(OIDCUser) {
-        await this.userService.updateUserStatus(OIDCUser)
+        if (OIDCUser.getMetadata()?.managedFields.pop()?.manager !== this.currentGateway) {
+            await this.userService.updateUserStatus(OIDCUser)
+        }
     }
 }
 

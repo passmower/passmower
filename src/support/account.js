@@ -150,6 +150,10 @@ class Account {
         return this
     }
 
+    getMetadata() {
+        return this.#metadata
+    }
+
     pushCustomGroup(name) {
         const group = {
             prefix: GroupPrefix,
