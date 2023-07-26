@@ -12,6 +12,8 @@ export const setupLogger = () => {
             'interaction.result.request.header.cookie',
             'interaction.result.request.url',
             '*.cookie',
+            'err.response.headers',
+            'err.response.request.headers',
         ]
     })
 }
