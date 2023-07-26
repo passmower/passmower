@@ -148,7 +148,7 @@ spec:
             spec:
               type: object
               required:
-                - redirectUris # TODO: add validation
+                - redirectUris
                 - grantTypes
                 - responseTypes
               properties:
@@ -160,6 +160,7 @@ spec:
                   type: array
                   items:
                     type: string
+                    pattern: '^(https:\/\/.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$'
                 grantTypes:
                   type: array
                   items:
