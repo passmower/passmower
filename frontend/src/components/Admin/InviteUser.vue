@@ -1,8 +1,13 @@
 <template>
   <div class="profile-section">
-    <div class="profile-section-header">
+    <div class="profile-section-header no-flex">
       <h2>Invite new user</h2>
+      <p>You can also create users by creating OIDCGWUser CRDs</p>
     </div>
+    <template v-if="requireUsername">
+      <label for="username">Username: </label>
+      <input name="username" type="text" v-model="username" placeholder="oidc-gateway is configured to require custom username" />
+    </template>
     <label for="email">Email: </label>
     <input name="email" type="email" v-model="email" required />
     <button type="submit" @click="inviteUser">Invite</button>
@@ -11,15 +16,20 @@
 
 <script>
 import {useToast} from "vue-toast-notification";
-import {mapActions} from "pinia";
+import {mapActions, mapState} from "pinia";
 import {useAccountsStore} from "../../stores/accounts";
+import {userAdminStore} from "../../stores/admin";
 
 export default {
   name: "InviteUser",
   data() {
     return {
       email: null,
+      username: null,
     }
+  },
+  computed: {
+    ...mapState(userAdminStore, ['requireUsername']),
   },
   methods: {
     ...mapActions(useAccountsStore, ['setAccounts']),
@@ -27,7 +37,8 @@ export default {
       fetch('/admin/api/account/invite', {
         method: 'POST',
         body: JSON.stringify({
-          email: this.email
+          email: this.email,
+          username: this.username
         }),
         headers: {
           'Accept': 'application/json',
@@ -39,6 +50,14 @@ export default {
           try {
             message = await response.json()
           } catch (e) {}
+          if (message?.errors) {
+            message.errors.forEach(e => {
+              const $toast = useToast();
+              $toast.error(e.msg, {
+                position: 'top-right'
+              });
+            })
+          }
           message = message?.message ?? 'Inviting user failed'
           throw new Error(message)
         }

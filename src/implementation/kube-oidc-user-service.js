@@ -107,7 +107,6 @@ export class KubeOIDCUserService {
 
     async #prefixValues(values, prefix) {
         const newValues = {}
-        console.log(values)
         await Promise.all(
             Object.keys(values).map(async (key) => {
                 newValues['/' + prefix + '/' + key] = values[key]

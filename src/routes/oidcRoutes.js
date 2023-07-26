@@ -25,9 +25,8 @@ import {checkAccountGroups} from "../support/check-account-groups.js";
 import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
 import {clientId, responseType, scope} from "../support/self-oidc-client.js";
 import {auditLog} from "../support/audit-log.js";
-import koaValidator from "koa-async-validator";
-import usernameBlacklist from "../support/username-blacklist.js";
 import {UsernameCommitted} from "../support/conditions/username-committed.js";
+import validator, {checkUsername} from "../support/validator.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -100,17 +99,7 @@ export default (provider) => {
     router.use(bodyParser({
         text: false, json: false, patchNode: true, patchKoa: true,
     }))
-    router.use(koaValidator({
-        customValidators: {
-            startsWithLetter: (value) => (new RegExp('^[a-z].*')).test(value),
-            isBlackListed: (value) => usernameBlacklist(value),
-            usernameExists: (value, ctx) => new Promise((resolve, reject) => {
-                Account.findAccount(ctx, value).then(user => {
-                    resolve(!user)
-                }).catch(reject);
-            })
-        }
-    }))
+    router.use(validator)
 
     router.get(['/', '/profile'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
@@ -293,13 +282,7 @@ export default (provider) => {
         const { prompt: { name } } = interactionDetails;
         assert.equal(name, 'login');
 
-        ctx.checkBody('username', 'Username must be 2-15 characters').isLength({min: 2, max: 15})
-        ctx.checkBody('username', 'Username must be alphanumeric').isAlphanumeric()
-        ctx.checkBody('username', 'Prohibited username').isBlackListed()
-        ctx.checkBody('username', 'Username must start with a letter').startsWithLetter()
-        ctx.checkBody('username', 'Username is taken').usernameExists()
-        ctx.checkBody('username', 'Username must be lowercase').isLowercase()
-
+        checkUsername(ctx)
         let errors = await ctx.validationErrors()
         if (errors) {
             return render(provider, ctx, 'enter-username', 'Enter username', {

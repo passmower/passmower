@@ -181,16 +181,16 @@ class Account {
         return 'u' + uid.stamp(10);
     }
 
-    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, ignoreConditions) {
+    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username) {
         const emails = [
             email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
         let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
-            if (!ignoreConditions && process.env.ENROLL_USERS === 'false') {
+            if (!username && process.env.ENROLL_USERS === 'false') {
                 return undefined
-            } else if (!ignoreConditions && process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
+            } else if (!username && process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
                 const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
                 await provider.interactionResult(ctx.req, ctx.res, {
                     requireCustomUsername: true,
@@ -202,7 +202,7 @@ class Account {
                 })
                 return undefined
             }
-            user = await ctx.kubeOIDCUserService.createUser(this.getUid(), email, githubEmails)
+            user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
         }
         const slackId = await getSlackId(user)
         return await ctx.kubeOIDCUserService.updateUserSpec({
@@ -234,9 +234,11 @@ class Account {
     static async approve(ctx, accountId) {
         let account = await Account.findAccount(ctx, accountId)
         let condition = new Approved()
-        condition = condition.setStatus(true)
-        account.addCondition(condition)
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        condition.add(account)
+        await ctx.kubeOIDCUserService.updateUserSpec({
+            ...account.getSpec(),
+            accountId: account.accountId
+        })
     }
 }
 

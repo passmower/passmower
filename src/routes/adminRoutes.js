@@ -4,11 +4,13 @@ import Account, {GroupPrefix} from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
 import {signedInToSelf} from "../support/signed-in.js";
 import {auditLog} from "../support/audit-log.js";
+import validator, {checkEmail, checkUsername} from "../support/validator.js";
+import {UsernameCommitted} from "../support/conditions/username-committed.js";
 
 export default (provider) => {
     const router = new Router();
-
     router.use(bodyParser({ json: true }))
+    router.use(validator)
     router.use(async (ctx, next) => {
         let session = await ctx.sessionService.getAdminSession(ctx)
         if (session) {
@@ -34,6 +36,7 @@ export default (provider) => {
     router.get('/admin/api/metadata', async (ctx, next) => {
         ctx.body = {
             groupPrefix: GroupPrefix,
+            requireUsername: process.env.REQUIRE_CUSTOM_USERNAME === 'true',
         }
     })
 
@@ -98,14 +101,34 @@ export default (provider) => {
 
     router.post('/admin/api/account/invite', async (ctx, next) => {
         const email = ctx.request.body.email
-        if (await Account.findByEmail(ctx, email)) {
+        let username = ctx.request.body.username
+
+        if (process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
+            checkUsername(ctx)
+        }
+        checkEmail(ctx)
+        let errors = await ctx.validationErrors()
+        if (errors) {
+            ctx.status = 400
+            ctx.body = {
+                errors
+            }
+            return
+        }
+        if (await Account.findByEmail(ctx, email) || (username && await Account.findAccount(ctx, username))) {
             ctx.status = 400
             ctx.body = {
                 message: 'Account already exists'
             }
             return
         }
-        const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, true);
+        if (!username) {
+            username = Account.getUid()
+        }
+        const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, username);
+        let condition = new UsernameCommitted()
+        condition = condition.setStatus(true)
+        account.addCondition(condition)
         await Account.approve(ctx, account.accountId)
         auditLog(ctx, {email}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()

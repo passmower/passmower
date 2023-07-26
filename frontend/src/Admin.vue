@@ -29,10 +29,11 @@ export default {
     created() {
         fetch('/admin/api/metadata').then((r) => r.json()).then((r) => {
             this.setGroupPrefix(r.groupPrefix)
+            this.setRequireUsername(r.requireUsername)
         })
     },
     methods: {
-        ...mapActions(userAdminStore, ['setGroupPrefix']),
+        ...mapActions(userAdminStore, ['setGroupPrefix', 'setRequireUsername']),
     }
 }
 
