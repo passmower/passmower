@@ -66,7 +66,7 @@ export default (provider) => {
                 url: c.uri,
                 metadata: await ctx.sessionService.getLastSessionInfoPerClient(ctx.currentSession.accountId, c.client_id)
             }
-        }))
+        })).then(apps => apps.sort((a, b) => a.name.localeCompare(b.name)))
         ctx.body = {
             apps
         }
