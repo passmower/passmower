@@ -129,6 +129,7 @@ export default (provider) => {
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
         account.addCondition(condition)
+        await ctx.kubeOIDCUserService.updateUserStatus(account)
         await Account.approve(ctx, account.accountId)
         auditLog(ctx, {email}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
