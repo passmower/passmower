@@ -244,6 +244,12 @@ export default (provider) => {
         })
     });
 
+    router.get('/interaction/:uid/slack-sent', async (ctx) => {
+        return render(provider, ctx, 'message', 'Message sent', {
+            message: 'Please check your Slack or email inbox'
+        })
+    });
+
     router.get('/interaction/:uid/verify-email/:token', (ctx) => {
         const emailLogin = new EmailLogin()
         const result = emailLogin.verifyLink(ctx, provider)

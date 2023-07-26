@@ -46,11 +46,11 @@ export class EmailLogin {
             content.text,
             content.html
         )
-        if (!emailSent) {
-            throw new CustomOIDCProviderError('email_sending_failed', 'Failed to send login link via email. Please try again or contact support.')
-        }
         if (this.slackAdapter.client && account?.slackId) {
             await this.slackAdapter.sendMessage(account.slackId, content.text)
+            return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
+        } else if (!emailSent) {
+            throw new CustomOIDCProviderError('email_sending_failed', 'Failed to send login link via email. Please try again or contact support.')
         }
         return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
     }

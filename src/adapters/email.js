@@ -11,7 +11,7 @@ const transporter = Nodemailer.createTransport({
 });
 
 const mailOptions = {
-    from: `${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME} <${process.env.EMAIL_USERNAME}>`,
+    from: `${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME}`,
 };
 
 class EmailAdapter {
