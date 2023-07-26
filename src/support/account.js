@@ -59,6 +59,7 @@ class Account {
     getIntendedStatus() {
         const emails = [
             this.#spec.email,
+            this.#spec.companyEmail,
             ...(this.#spec.githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
         let primaryEmail

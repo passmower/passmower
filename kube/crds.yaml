@@ -27,6 +27,8 @@ spec:
               properties:
                 email:
                   type: string
+                companyEmail:
+                  type: string
                 customGroups:
                   type: array
                   items:
