@@ -27,6 +27,7 @@ import {clientId, responseType, scope} from "../support/self-oidc-client.js";
 import {auditLog} from "../support/audit-log.js";
 import koaValidator from "koa-async-validator";
 import usernameBlacklist from "../support/username-blacklist.js";
+import {UsernameCommitted} from "../support/conditions/username-committed.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -308,6 +309,10 @@ export default (provider) => {
 
         const username = ctx.request.body.username
         const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        let condition = new UsernameCommitted()
+        condition = condition.setStatus(true)
+        account.addCondition(condition)
+        await ctx.kubeOIDCUserService.updateUserStatus(account)
 
         if (interactionDetails?.lastSubmission?.oauth?.provider) {
             switch (interactionDetails.lastSubmission.oauth.provider) {
