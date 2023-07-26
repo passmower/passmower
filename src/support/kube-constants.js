@@ -1,3 +1,5 @@
+export const metadata = 'metadata';
+export const spec = 'spec';
 export const OIDCGWUser = 'OIDCGWUser';
 export const OIDCGWUsers = 'oidcgatewayusers';
 export const OIDCGWClient = 'OIDCGWClient';

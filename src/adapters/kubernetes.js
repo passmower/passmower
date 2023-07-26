@@ -56,7 +56,7 @@ export class KubernetesAdapter {
         })
     }
 
-    async createNamespacedCustomObject(kind, namespace, name, spec, mapperFunction, owner, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+    async createNamespacedCustomObject(kind, namespace, name, spec, mapperFunction, owner, labels = {}, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.createNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -67,6 +67,7 @@ export class KubernetesAdapter {
                 kind,
                 metadata: {
                     name,
+                    labels,
                     ownerReferences: owner ? [
                         this.#getOwnerReference(owner)
                     ] : undefined
@@ -83,10 +84,10 @@ export class KubernetesAdapter {
         })
     }
 
-    async patchNamespacedCustomObject(kind, namespace, id, spec, existingSpec, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+    async patchNamespacedCustomObject(kind, namespace, id, values, existingValues, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         let patches = []
-        for (let [key, value] of Object.entries(spec)) {
-            patches = [...patches, ...this.#getPatches(key, value, existingSpec)]
+        for (let [key, value] of Object.entries(values)) {
+            patches = [...patches, ...this.#getPatches(key, value, existingValues)]
         }
         return await this.customObjectsApi.patchNamespacedCustomObject(
             apiGroup,
@@ -265,22 +266,22 @@ export class KubernetesAdapter {
         });
     }
 
-    #getPatches (name, values, existingSpec) {
+    #getPatches (name, values, existingValues) {
         let patches = []
         if (typeof values !== 'undefined') {
-            const op = existingSpec?.[name] ? 'replace' : 'add'
+            const op = existingValues?.[name] ? 'replace' : 'add'
             if (typeof values === 'object' && !Array.isArray(values)) {
                 for (let [key, value] of Object.entries(values)) {
                     patches.push({
                         op,
-                        "path": "/spec/" + name + '/' + key,
+                        "path": name + '/' + key,
                         "value": value
                     })
                 }
             } else {
                 patches.push({
                     op,
-                    "path":"/spec/" + name,
+                    "path": name,
                     "value": values
                 })
             }

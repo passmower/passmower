@@ -9,6 +9,8 @@ export const GroupPrefix = process.env.GROUP_PREFIX;
 class Account {
     #spec = null
     #conditions = []
+    #labels = {}
+    #metadata = {}
 
     fromKubernetes(apiResponse) {
         this.accountId = apiResponse.metadata.name
@@ -20,6 +22,8 @@ class Account {
         this.profile = apiResponse.status?.profile ?? {}
         this.slackId = apiResponse.status?.slackId ?? null
         this.#conditions = apiResponse.status?.conditions ?? []
+        this.#labels = apiResponse.metadata?.labels ?? {}
+        this.#metadata = apiResponse.metadata
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
         return this
     }
@@ -120,6 +124,10 @@ class Account {
         }
     }
 
+    getSpec() {
+        return this.#spec
+    }
+
     addCondition(condition) {
         return condition.add(this)
     }
@@ -130,6 +138,15 @@ class Account {
 
     pushCondition(condition) {
         this.#conditions.push(condition)
+        return this
+    }
+
+    getLabels() {
+        return this.#labels
+    }
+
+    setLabels(labels) {
+        this.#labels = labels
         return this
     }
 

@@ -71,6 +71,7 @@ export class KubeOIDCMiddlewareClientOperator {
                 OIDCMiddlewareClient.toMiddlewareSpec(this.adapter.deployment, this.adapter.namespace),
                 (r) => (r),
                 OIDCMiddlewareClient.getMetadata(),
+                {},
                 TraefikMiddlewareApiGroup,
                 TraefikMiddlewareApiGroupVersion
             )

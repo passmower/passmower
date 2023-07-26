@@ -1,6 +1,7 @@
 import Account from "../support/account.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
-import {OIDCGWUser} from "../support/kube-constants.js";
+import {OIDCGWUser, spec} from "../support/kube-constants.js";
+import {ClaimedBy} from "../support/conditions/claimed-by.js";
 
 export class KubeOIDCUserService {
     constructor() {
@@ -53,7 +54,9 @@ export class KubeOIDCUserService {
             this.adapter.namespace,
             id,
             spec,
-            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse),
+            undefined,
+            (new ClaimedBy(this.adapter.currentGateway)).setStatus(true).toLabels(),
         )
         return await this.updateUserStatus(user)
     }
@@ -64,8 +67,28 @@ export class KubeOIDCUserService {
             OIDCGWUser,
             this.adapter.namespace,
             accountId,
-            arguments[0],
-            account.spec,
+            await this.#prefixValues(arguments[0], spec),
+            await this.#prefixValues(account.getSpec(), spec),
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+        )
+        return await this.updateUserStatus(updatedUser)
+    }
+
+    async replaceUserLabels(updatedUser) {
+        updatedUser = await this.adapter.patchNamespacedCustomObject(
+            OIDCGWUser,
+            this.adapter.namespace,
+            updatedUser.accountId,
+            {
+                ['/metadata']: {
+                    labels: updatedUser.getLabels()
+                }
+            },
+            {
+                ['/metadata']: {
+                    labels: updatedUser.getLabels()
+                }
+            },
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
         return await this.updateUserStatus(updatedUser)
@@ -80,5 +103,16 @@ export class KubeOIDCUserService {
             account.getIntendedStatus(),
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
+    }
+
+    async #prefixValues(values, prefix) {
+        const newValues = {}
+        console.log(values)
+        await Promise.all(
+            Object.keys(values).map(async (key) => {
+                newValues['/' + prefix + '/' + key] = values[key]
+            })
+        )
+        return newValues
     }
 }

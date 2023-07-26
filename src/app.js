@@ -11,6 +11,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
 import {setupLogger} from "./implementation/setup-logger.js";
 import {KubeOIDCMiddlewareClientOperator} from "./implementation/kube-oidc-middleware-client-operator.js";
+import KubeOidcUserOperator from "./implementation/kube-oidc-user-operator.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -40,6 +41,8 @@ try {
     await kubeClientOperator.watchClients()
     const kubeMiddlewareClientOperator = new KubeOIDCMiddlewareClientOperator(provider)
     await kubeMiddlewareClientOperator.watchClients()
+    const kubeUserOperator = new KubeOidcUserOperator(provider)
+    await kubeUserOperator.watchUsers()
 } catch (err) {
     if (server?.listening) server.close();
     console.error(err);
