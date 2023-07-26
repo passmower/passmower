@@ -14,6 +14,15 @@ export default koaValidator({
                     resolve(!user)
                 }).catch(reject);
             }
+        }),
+        emailExists: (value, ctx) => new Promise((resolve, reject) => {
+            if (!value) {
+                resolve(true) // We don't want to display that email is taken if it's null
+            } else {
+                Account.findByEmail(ctx, value).then(user => {
+                    resolve(!user)
+                }).catch(reject);
+            }
         })
     }
 })
@@ -29,4 +38,5 @@ export function checkUsername(ctx) {
 
 export function checkEmail(ctx) {
     ctx.checkBody('email', 'Incorrent email').isEmail()
+    ctx.checkBody('email', 'Email is already taken').emailExists()
 }

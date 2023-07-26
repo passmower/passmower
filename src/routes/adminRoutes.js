@@ -105,6 +105,8 @@ export default (provider) => {
 
         if (process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
             checkUsername(ctx)
+        } else {
+            username = Account.getUid()
         }
         checkEmail(ctx)
         let errors = await ctx.validationErrors()
@@ -115,16 +117,7 @@ export default (provider) => {
             }
             return
         }
-        if (await Account.findByEmail(ctx, email) || (username && await Account.findAccount(ctx, username))) {
-            ctx.status = 400
-            ctx.body = {
-                message: 'Account already exists'
-            }
-            return
-        }
-        if (!username) {
-            username = Account.getUid()
-        }
+
         const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, username);
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
