@@ -45,6 +45,7 @@ class Account {
     async claims(use, scope) { // eslint-disable-line no-unused-vars
         let claims = {
             sub: this.accountId, // it is essential to always return a sub claim
+            username: this.accountId,
             groups: this.groups,
             email: this.primaryEmail,
         };

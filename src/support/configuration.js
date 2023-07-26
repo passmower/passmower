@@ -28,10 +28,12 @@ export default {
         iss: null,
         openid: [
             'sub',
+            'username',
             'groups',
         ],
         profile: [
             'sub',
+            'username',
             'groups',
             'email',
             'emails',
