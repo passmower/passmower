@@ -38,6 +38,7 @@ class OIDCClient {
     }
 
     toRedis() {
+        const urlRegex = new RegExp('https:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)');
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
@@ -47,7 +48,7 @@ class OIDCClient {
             token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
             id_token_signed_response_alg: this.#idTokenSignedResponseAlg,
             response_types: this.#responseTypes,
-            redirect_uris: this.#redirectUris,
+            redirect_uris: this.#redirectUris.filter((url) => url.match(urlRegex)),
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
             availableScopes: this.#availableScopes,
             gatewayUri: this.#gatewayUri,
