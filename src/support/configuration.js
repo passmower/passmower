@@ -47,7 +47,12 @@ export default {
         deviceFlow: { enabled: true }, // defaults to false
         revocation: { enabled: true }, // defaults to false
         rpInitiatedLogout: { enabled: false }, // defaults to true
-        introspection: { enabled: true }, // defaults to false
+        introspection: {
+            enabled: true, // defaults to false
+            allowedPolicy: async function introspectionAllowedPolicy(ctx, client, token) {
+                return !(client.clientAuthMethod === 'none' && token.clientId !== ctx.oidc.client.clientId);
+            }
+        },
     },
     ttl: {
         AccessToken: function AccessTokenTTL(ctx, token, client) {
