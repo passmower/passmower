@@ -47,6 +47,7 @@ export default {
         deviceFlow: { enabled: true }, // defaults to false
         revocation: { enabled: true }, // defaults to false
         rpInitiatedLogout: { enabled: false }, // defaults to true
+        introspection: { enabled: true }, // defaults to false
     },
     ttl: {
         AccessToken: function AccessTokenTTL(ctx, token, client) {
