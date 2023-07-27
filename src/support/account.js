@@ -46,7 +46,7 @@ class Account {
         let claims = {
             sub: this.accountId, // it is essential to always return a sub claim
             username: this.accountId,
-            groups: this.groups,
+            groups: await Promise.all(this.groups.map(g => g.prefix + ':' + g.name)),
             email: this.primaryEmail,
         };
         if (scope.includes('profile')) {
