@@ -38,7 +38,7 @@ export default {
             'email',
             'emails',
             'name',
-            'company',
+            'profile',
         ],
         sid: null,
     },

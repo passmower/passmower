@@ -49,13 +49,12 @@ class Account {
             groups: this.groups,
             email: this.primaryEmail,
         };
-        if (this.profile) {
+        if (scope.includes('profile')) {
             claims = {
                 ...claims,
                 name: this.profile.name,
                 emails: this.emails,
-                company: this.profile.company,
-                githubId: this.profile.githubId,
+                profile: this.profile
             };
         }
         return claims
@@ -87,6 +86,7 @@ class Account {
             emails,
             groups: [...(this.#spec.customGroups ?? []), ...(this.#spec.githubGroups ?? [])],
             profile: {
+                ...this.#spec.customProfile ?? {},
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
                 company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
             },
