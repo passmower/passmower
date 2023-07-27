@@ -26,7 +26,7 @@ import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js
 import {clientId, responseType, scope} from "../support/self-oidc-client.js";
 import {auditLog} from "../support/audit-log.js";
 import {UsernameCommitted} from "../support/conditions/username-committed.js";
-import validator, {checkUsername} from "../support/validator.js";
+import validator, {checkEmail, checkRealName, checkUsername} from "../support/validator.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -217,7 +217,7 @@ export default (provider) => {
     });
 
     router.post('/interaction/:uid/email', async (ctx) => {
-        ctx.checkBody('email', 'Invalid email').notEmpty().isEmail();
+        checkEmail(ctx)
         if (await ctx.validationErrors()) {
             return render(provider, ctx, 'login', 'Sign-in', {
                 impersonation: undefined,
@@ -271,13 +271,21 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name }, session: { accountId } } = interactionDetails;
         assert.equal(name, 'name');
-        auditLog(ctx, {interactionDetails, name: ctx.request.body.name}, 'User name updated')
+
+        checkRealName(ctx)
+        if (await ctx.validationErrors()) {
+            return render(provider, ctx, 'enter-name', 'Enter your name', {
+                message: 'Invalid name'
+            })
+        }
+
         await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: {
                 name: ctx.request.body.name
             }
         })
+        auditLog(ctx, {interactionDetails, name: ctx.request.body.name}, 'User name updated')
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

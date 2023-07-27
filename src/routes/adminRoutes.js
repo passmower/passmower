@@ -4,7 +4,13 @@ import Account, {GroupPrefix} from "../support/account.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
 import {signedInToSelf} from "../support/signed-in.js";
 import {auditLog} from "../support/audit-log.js";
-import validator, {checkEmail, checkUsername} from "../support/validator.js";
+import validator, {
+    checkAccountId, checkCompanyName,
+    checkEmail,
+    checkRealName,
+    checkUsername,
+    restValidationErrors
+} from "../support/validator.js";
 import {UsernameCommitted} from "../support/conditions/username-committed.js";
 
 export default (provider) => {
@@ -47,15 +53,22 @@ export default (provider) => {
         }
     })
 
-    router.post('/admin/api/accounts/:accountId', async (ctx, next) => {
-        const accountId = ctx.request.params.accountId
-        const body = ctx.request.body
+    router.post('/admin/api/accounts', async (ctx, next) => {
+        checkAccountId(ctx)
+        checkRealName(ctx)
+        checkCompanyName(ctx)
+        if (await restValidationErrors(ctx)) {
+            return
+        }
+        const accountId = ctx.request.body.accountId
+        const body = {
+                name: ctx.request.body.name,
+                company: ctx.request.body.company,
+                groups: ctx.request.body.groups,
+        }
         await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
-            customProfile: {
-                name: body.name,
-                company: body.company,
-            },
+            customProfile: body,
             customGroups: body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
                 .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
         })
@@ -73,6 +86,10 @@ export default (provider) => {
     })
 
     router.post('/admin/api/account/impersonation', async (ctx, next) => {
+        checkAccountId(ctx)
+        if (await restValidationErrors(ctx)) {
+            return
+        }
         const accountId = ctx.request.body.accountId
         const impersonation = await ctx.sessionService.impersonate(ctx, accountId)
         auditLog(ctx, {accountId}, 'Admin enabled impersonation')
@@ -90,6 +107,10 @@ export default (provider) => {
     })
 
     router.post('/admin/api/account/approve', async (ctx, next) => {
+        checkAccountId(ctx)
+        if (await restValidationErrors(ctx)) {
+            return
+        }
         const accountId = ctx.request.body.accountId
         await Account.approve(ctx, accountId)
         auditLog(ctx, {accountId}, 'Admin approved user')
@@ -109,12 +130,7 @@ export default (provider) => {
             username = Account.getUid()
         }
         checkEmail(ctx)
-        let errors = await ctx.validationErrors()
-        if (errors) {
-            ctx.status = 400
-            ctx.body = {
-                errors
-            }
+        if (await restValidationErrors(ctx)) {
             return
         }
 

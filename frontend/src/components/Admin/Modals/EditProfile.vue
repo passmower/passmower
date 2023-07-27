@@ -71,7 +71,7 @@ export default {
             this.account.groups.splice(index, 1)
         },
         saveAccount() {
-            fetch('/admin/api/accounts/' + this.account.accountId, {
+            fetch('/admin/api/accounts', {
                 method: 'POST',
                 body: JSON.stringify(this.account),
                 headers: {
@@ -79,7 +79,18 @@ export default {
                     'Content-Type': 'application/json'
                 },
             }).then((r) => r.json()).then((r) => {
+              if (r?.errors) {
+                r.errors.forEach(e => {
+                  const $toast = useToast();
+                  $toast.error(e.msg, {
+                    position: 'top-right'
+                  });
+                })
+                throw new Error('Updating profile failed')
+              } else {
                 this.setAccounts(r.accounts)
+                closeModal()
+              }
             }).catch((e) => {
                 console.error(e)
                 const $toast = useToast();
@@ -87,7 +98,6 @@ export default {
                     position: 'top-right'
                 });
             }).finally(() => {
-                closeModal()
             })
         }
     }

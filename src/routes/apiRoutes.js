@@ -5,11 +5,17 @@ import {signedInToSelf} from "../support/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../support/check-account-groups.js";
 import {auditLog} from "../support/audit-log.js";
+import validator, {
+    checkCompanyName,
+    checkRealName,
+    restValidationErrors
+} from "../support/validator.js";
 
 export default (provider) => {
     const router = new Router();
 
     router.use(bodyParser({ json: true }))
+    router.use(validator)
     router.use(async (ctx, next) => {
         const session = await signedInToSelf(ctx, provider)
         if (session) {
@@ -23,11 +29,20 @@ export default (provider) => {
     })
 
     router.post('/api/me', async (ctx, next) => {
+        checkRealName(ctx)
+        checkCompanyName(ctx)
+        if (await restValidationErrors(ctx)) {
+            return
+        }
+
         const accountId = ctx.currentSession.accountId
         const body = ctx.request.body
         const account = await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
-            customProfile: body
+            customProfile: {
+                name: body.name,
+                company: body.company,
+            }
         })
         auditLog(ctx, {accountId, body}, 'User updated profile')
         ctx.body = account.getProfileResponse()
@@ -41,6 +56,7 @@ export default (provider) => {
     })
 
     router.post('/api/session/end', async (ctx, next) => {
+        // TODO: maybe validate but security is provided by sessionService anyway.
         const sessionToDelete = ctx.request.body.id
         const sessions = await ctx.sessionService.endSession(sessionToDelete, ctx, next, provider)
         auditLog(ctx, {sessionToDelete}, 'User ended session')

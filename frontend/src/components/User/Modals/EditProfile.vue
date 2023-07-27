@@ -40,7 +40,18 @@ export default {
           'Content-Type': 'application/json'
         },
       }).then((r) => r.json()).then((r) => {
-        this.setAccount(r)
+        if (r?.errors) {
+          r.errors.forEach(e => {
+            const $toast = useToast();
+            $toast.error(e.msg, {
+              position: 'top-right'
+            });
+          })
+          throw new Error('Updating profile failed')
+        } else {
+          this.setAccount(r)
+          closeModal()
+        }
       }).catch((e) => {
         console.error(e)
         const $toast = useToast();
@@ -48,7 +59,6 @@ export default {
             position: 'top-right'
         });
       }).finally(() => {
-        closeModal()
       })
     }
   }
