@@ -67,6 +67,9 @@ export function checkUsername(ctx) {
 
 export function checkEmail(ctx) {
     ctx.checkBody('email', 'Incorrect email').isEmail()
+}
+
+export function checkIfEmailIsTaken(ctx) {
     ctx.checkBody('email', 'Email is already taken').emailExists()
 }
 
