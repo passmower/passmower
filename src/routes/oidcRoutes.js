@@ -190,7 +190,9 @@ export default (provider) => {
                 }, true)
             }
             case 'name': {
-                return render(provider, ctx, 'enter-name', 'Enter your name')
+                return render(provider, ctx, 'enter-name', 'Enter your name', {
+                    message: undefined,
+                })
             }
             default:
                 return next();
