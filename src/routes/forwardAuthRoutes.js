@@ -57,9 +57,11 @@ export default (provider) => {
                 }
             }
         } else {
-            const uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '')
-            const url = await enableAndGetRedirectUri(provider, uri, clientId, responseType, scope, client)
-            return ctx.redirect(url)
+            if (originalUri.protocol === 'http:' || originalUri.protocol === 'https:') {
+                const uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '').replace(':443', '').replace(':80', '')
+                const url = await enableAndGetRedirectUri(provider, uri, clientId, responseType, scope, client)
+                return ctx.redirect(url)
+            }
         }
     });
 

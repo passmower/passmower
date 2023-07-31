@@ -24,7 +24,13 @@ spec:
           properties:
             spec:
               type: object
+              required:
+                - type
               properties:
+                type:
+                  type: string
+                  enum: [ 'person', 'org', 'service', 'banned' ]
+                  default: person
                 email:
                   type: string
                 companyEmail:
@@ -40,6 +46,7 @@ spec:
                         type: string
                 customProfile:
                   type: object
+                  x-kubernetes-preserve-unknown-fields: true
                   properties:
                     name:
                       type: string
@@ -98,6 +105,7 @@ spec:
                         type: string
                 profile:
                   type: object
+                  x-kubernetes-preserve-unknown-fields: true
                   properties:
                     name:
                       type: string
@@ -112,6 +120,9 @@ spec:
                     x-kubernetes-embedded-resource: true
                     x-kubernetes-preserve-unknown-fields: true
       additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
         - name: Name
           type: string
           jsonPath: .status.profile.name
@@ -160,7 +171,6 @@ spec:
                   type: array
                   items:
                     type: string
-                    pattern: '^(https:\/\/.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$'
                 grantTypes:
                   type: array
                   items:

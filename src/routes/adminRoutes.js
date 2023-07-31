@@ -6,7 +6,7 @@ import {signedInToSelf} from "../support/signed-in.js";
 import {auditLog} from "../support/audit-log.js";
 import validator, {
     checkAccountId, checkCompanyName,
-    checkEmail,
+    checkEmail, checkIfEmailIsTaken,
     checkRealName,
     checkUsername,
     restValidationErrors
@@ -130,6 +130,7 @@ export default (provider) => {
             username = Account.getUid()
         }
         checkEmail(ctx)
+        checkIfEmailIsTaken(ctx)
         if (await restValidationErrors(ctx)) {
             return
         }

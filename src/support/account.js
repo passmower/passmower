@@ -47,16 +47,15 @@ class Account {
         let claims = {
             sub: this.accountId, // it is essential to always return a sub claim
             username: this.accountId,
-            groups: this.groups,
+            groups: await Promise.all(this.groups.map(g => g.prefix + ':' + g.name)),
             email: this.primaryEmail,
         };
-        if (this.profile) {
+        if (scope.includes('profile')) {
             claims = {
                 ...claims,
+                ...this.profile,
                 name: this.profile.name,
                 emails: this.emails,
-                company: this.profile.company,
-                githubId: this.profile.githubId,
             };
         }
         return claims
@@ -81,13 +80,14 @@ class Account {
             primaryEmail = primaryEmail?.email
         }
         if (!primaryEmail) {
-            primaryEmail = this.#spec.email || this.#spec.githubEmails.find(ghEmail => ghEmail.primary)?.email
+            primaryEmail = this.#spec.email || this.#spec.githubEmails?.find(ghEmail => ghEmail.primary)?.email
         }
         return {
             primaryEmail,
             emails,
             groups: [...(this.#spec.customGroups ?? []), ...(this.#spec.githubGroups ?? [])],
             profile: {
+                ...this.#spec.customProfile ?? {},
                 name: this.#spec.customProfile?.name ?? this.#spec.githubProfile?.name ?? null,
                 company: this.#spec.customProfile?.company ?? this.#spec.githubProfile?.company ?? null,
             },
