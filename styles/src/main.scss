@@ -3,7 +3,7 @@
 body {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 0;
   font-weight: normal;
 }
 
@@ -113,6 +113,7 @@ input:disabled {
 }
 
 header {
+  padding-bottom: 50px;
   a {
     margin: 0 10px;
   }
@@ -159,11 +160,11 @@ svg {
 }
 
 .card {
-  width: 25em;
+  width: 640px;
   margin: auto;
   text-align: center;
   &-wide {
-    width: 40em;
+    width: 375px;
   }
   & >h1 {
     font-weight: 100;
@@ -234,6 +235,13 @@ svg {
     }
   }
 }
+@media screen and (max-width: 640px) {
+  .card, .card-wide {
+    width: 100%;
+    padding: 0 1em;
+  }
+}
+
 .grant-debug {
   text-align: center;
   font-family: Fixed, monospace;
