@@ -101,9 +101,15 @@ export default (provider) => {
     }))
     router.use(validator)
 
-    router.get(['/', '/profile'], async (ctx, next) => {
+    router.get(['/', '/profile', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
-            return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
+            if (ctx.path === '/terms-of-service') {
+                // TODO: proper implementation
+                const text = getText(ToSTextName)
+                return render(provider, ctx, 'tos', 'Terms of Service', {text, save: false}, true)
+            } else {
+                return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
+            }
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
             return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
@@ -162,7 +168,7 @@ export default (provider) => {
                 await provider.interactionResult(ctx.req, ctx.res, {
                     tosTextChecksum: crypto.createHash('sha256').update(text, 'utf8').digest('hex'),
                 })
-                return render(provider, ctx, 'tos', 'Terms of Service', {text}, true)
+                return render(provider, ctx, 'tos', 'Terms of Service', {text, save: true}, true)
             }
             case 'approval_required': {
                 // Check again so when user gets approved and refreshes the interaction page, flow can continue.

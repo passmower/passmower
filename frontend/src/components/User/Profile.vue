@@ -15,6 +15,9 @@
         <ul>
             <li v-for="group in account.groups">{{ group.displayName }}</li>
         </ul>
+        <br/>
+        <p v-if="account.tos_accepted_at"><a target="_blank" href="/terms-of-service">Terms of Service</a> accepted at {{account.tos_accepted_at}}</p>
+        <p v-else>Terms of Service not accepted</p>
     </div>
 </template>
 

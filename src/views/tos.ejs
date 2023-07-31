@@ -6,9 +6,11 @@
   <%- text -%>
 </div>
 
+<% if (save) { %>
 <form autocomplete="off" action="/interaction/<%= uid %>/confirm-tos" method="post">
   <button autofocus type="submit" class="login login-submit">Continue</button>
 </form>
+<% } %>
 
 <style>
     .terms-of-service {

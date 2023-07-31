@@ -285,6 +285,9 @@ svg {
       display: flex;
     }
   }
+  & a {
+    color: var(--vt-c-blue);
+  }
 }
 
 .profile-section-header, .modal-header {

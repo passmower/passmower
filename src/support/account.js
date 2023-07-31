@@ -3,6 +3,7 @@ import {GitHubGroupPrefix} from "./kube-constants.js";
 import {Approved} from "./conditions/approved.js";
 import {getSlackId} from "./get-slack-id.js";
 import {auditLog} from "./audit-log.js";
+import {ToSv1} from "./conditions/tosv1.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -104,6 +105,7 @@ class Account {
             company: this.profile.company,
             isAdmin: this.isAdmin,
             groups: this.#mapGroups(),
+            tos_accepted_at: this.#conditions.find(c => c.type === 'ToSv1')?.lastTransitionTime,
         }
         if (forAdmin) {
             profile = {
