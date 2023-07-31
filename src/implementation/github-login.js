@@ -4,6 +4,7 @@ import {OAuth2} from "oauth";
 import accessDenied from "../support/access-denied.js";
 import getLoginResult from "../support/get-login-result.js";
 import {GitHubGroupPrefix} from "../support/kube-constants.js";
+import {auditLog} from "../support/audit-log.js";
 
 export default async (ctx, provider) => {
     const ghOauth = new OAuth2(process.env.GH_CLIENT_ID,
@@ -25,6 +26,7 @@ export default async (ctx, provider) => {
             state,
         })
         ctx.status = 302;
+        auditLog(ctx, {interactionDetails, state}, 'Redirecting user to GitHub')
         return ctx.redirect(ghOauth.getAuthorizeUrl({
             redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
             scope: ['user:email,read:org'],
@@ -35,6 +37,7 @@ export default async (ctx, provider) => {
 
     if (!token) {
         if (!interactionDetails.result || interactionDetails.result.state !== callbackParams.state) {
+            auditLog(ctx, {error: true, interactionDetails}, 'State does not match')
             return accessDenied(ctx, provider,'State does not match')
         }
 
@@ -47,6 +50,7 @@ export default async (ctx, provider) => {
         });
 
         if (accessToken.error || !accessToken.access_token) {
+            auditLog(ctx, {error: accessToken.error, interactionDetails}, 'Error getting access token from GitHub')
             return accessDenied(ctx, provider, 'User aborted login')
         }
 
@@ -64,17 +68,30 @@ export default async (ctx, provider) => {
         headers: {
             'Authorization': `Bearer ${token}`
         },
-    }).then((r) => r.json()).then((r) => r.filter((r) => r.verified));
+    }).then((r) => r.json()).then((r) => r.filter((r) => r.verified)).catch(error => {
+        auditLog(ctx,{error, interactionDetails}, 'Error getting emails from GitHub')
+    });
+
+    if (!emails) {
+        return accessDenied(ctx, provider, 'Error getting emails from GitHub')
+    }
 
     const account = await Account.createOrUpdateByEmails(ctx, provider, undefined, emails);
 
-    if (account) {
+    if (!account?.accountId) {
+        auditLog(ctx,{account, interactionDetails}, 'Unable to determine account from GitHub')
+    } else {
         const user = await fetch('https://api.github.com/user', {
             method: "GET",
             headers: {
                 'Authorization': `Bearer ${token}`
             },
         }).then((r) => r.json());
+
+        if (user.error || !user.name) {
+            auditLog(ctx, {error: user.error, interactionDetails}, 'Error getting profile from GitHub')
+            return accessDenied(ctx, provider, 'Error getting profile from GitHub')
+        }
 
         const githubProfile = {
             name: user.name,
@@ -107,8 +124,8 @@ export default async (ctx, provider) => {
                     name: g,
                 }
             })
-        } catch (e) {
-            console.error('Error getting groups from GitHub: ' + e)
+        } catch (error) {
+            auditLog(ctx, {error, interactionDetails}, 'Error getting groups from GitHub')
         }
 
         await ctx.kubeOIDCUserService.updateUserSpec({

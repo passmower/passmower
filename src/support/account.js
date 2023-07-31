@@ -2,6 +2,7 @@ import ShortUniqueId from "short-unique-id";
 import {GitHubGroupPrefix} from "./kube-constants.js";
 import {Approved} from "./conditions/approved.js";
 import {getSlackId} from "./get-slack-id.js";
+import {auditLog} from "./audit-log.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -191,9 +192,12 @@ class Account {
             email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
+        auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
         let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
+            auditLog(ctx, {emails, email, githubEmails, username}, 'User not found')
             if (!username && process.env.ENROLL_USERS === 'false') {
+                auditLog(ctx, {emails, email, githubEmails, username}, 'User enrollment disabled')
                 return undefined
             } else if (!username && process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
                 const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
@@ -205,9 +209,16 @@ class Account {
                 },{
                     mergeWithLastSubmission: true,
                 })
+                auditLog(ctx, {emails, email, githubEmails, username, interactionDetails}, 'Requiring custom username')
                 return undefined
             }
             user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
+            if (user) {
+                auditLog(ctx, {emails, email, githubEmails, username}, 'Created new user')
+            } else {
+                auditLog(ctx, {emails, email, githubEmails, username, error: true}, 'Failed to create user in Kubernetes')
+                return undefined
+            }
         }
         const slackId = await getSlackId(user)
         return await ctx.kubeOIDCUserService.updateUserSpec({
