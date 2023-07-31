@@ -36,7 +36,7 @@ export default (provider) => {
     })
 
     provider.on('authorization.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'authorization.error')
+        logger.error({ctx, error}, 'authorization.error')
     })
 
     provider.on('authorization.success', (ctx) => {
@@ -44,7 +44,7 @@ export default (provider) => {
     })
 
     provider.on('backchannel.error', (ctx, error, client, accountId, sid) => {
-        logger.debug({ctx, error, client, accountId, sid}, 'backchannel.error')
+        logger.error({ctx, error, client, accountId, sid}, 'backchannel.error')
     })
 
     provider.on('backchannel.success', (ctx, client, accountId, sid) => {
@@ -52,7 +52,7 @@ export default (provider) => {
     })
 
     provider.on('jwks.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'jwks.error')
+        logger.error({ctx, error}, 'jwks.error')
     })
 
     provider.on('client_credentials.destroyed', (token) => {
@@ -80,11 +80,11 @@ export default (provider) => {
     })
 
     provider.on('discovery.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'discovery.error')
+        logger.error({ctx, error}, 'discovery.error')
     })
 
     provider.on('end_session.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'end_session.error')
+        logger.error({ctx, error}, 'end_session.error')
     })
 
     provider.on('end_session.success', (ctx) => {
@@ -92,7 +92,7 @@ export default (provider) => {
     })
 
     provider.on('grant.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'grant.error')
+        logger.error({ctx, error}, 'grant.error')
     })
 
     provider.on('grant.revoked', (ctx, grantId) => {
@@ -128,7 +128,7 @@ export default (provider) => {
     })
 
     provider.on('introspection.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'interaction.destroyed')
+        logger.error({ctx, error}, 'interaction.destroyed')
     })
 
     provider.on('replay_detection.destroyed', (token) => {
@@ -140,7 +140,7 @@ export default (provider) => {
     })
 
     provider.on('pushed_authorization_request.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'pushed_authorization_request.error')
+        logger.error({ctx, error}, 'pushed_authorization_request.error')
     })
 
     provider.on('pushed_authorization_request.success', (ctx, client) => {
@@ -176,7 +176,7 @@ export default (provider) => {
     })
 
     provider.on('registration_create.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'registration_create.error')
+        logger.error({ctx, error}, 'registration_create.error')
     })
 
     provider.on('registration_create.success', (ctx, client) => {
@@ -184,7 +184,7 @@ export default (provider) => {
     })
 
     provider.on('registration_delete.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'registration_delete.error')
+        logger.error({ctx, error}, 'registration_delete.error')
     })
 
     provider.on('registration_delete.success', (ctx, client) => {
@@ -192,11 +192,11 @@ export default (provider) => {
     })
 
     provider.on('registration_read.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'registration_read.error')
+        logger.error({ctx, error}, 'registration_read.error')
     })
 
     provider.on('registration_update.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'registration_update.error')
+        logger.error({ctx, error}, 'registration_update.error')
     })
 
     provider.on('registration_update.success', (ctx, client) => {
@@ -204,11 +204,11 @@ export default (provider) => {
     })
 
     provider.on('revocation.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'revocation.error')
+        logger.error({ctx, error}, 'revocation.error')
     })
 
     provider.on('server_error', (ctx, error) => {
-        logger.debug({ctx, error}, 'server_error')
+        logger.error({ctx, error}, 'server_error')
     })
 
     provider.on('session.destroyed', async (session) => {
@@ -227,6 +227,6 @@ export default (provider) => {
     })
 
     provider.on('userinfo.error', (ctx, error) => {
-        logger.debug({ctx, error}, 'userinfo.error')
+        logger.error({ctx, error}, 'userinfo.error')
     })
 }
