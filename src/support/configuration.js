@@ -111,7 +111,8 @@ export default {
             'kind',
             'uri',
             'displayName',
-            'pkce'
+            'pkce',
+            'overrideIncomingScopes',
         ]
     },
     pkce: {

@@ -23,6 +23,7 @@ class OIDCClient {
     #idTokenSignedResponseAlg = null
     #redirectUris = null
     #allowedGroups = null
+    #overrideIncomingScopes = null
     #availableScopes = null
     #gatewayUri = null
     #uri = null
@@ -54,6 +55,7 @@ class OIDCClient {
             uri: this.#uri,
             displayName: this.#displayName,
             pkce: this.#pkce,
+            overrideIncomingScopes: this.#overrideIncomingScopes,
         }
     }
 
@@ -66,6 +68,7 @@ class OIDCClient {
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
+        this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
         this.#gatewayUri = process.env.ISSUER_URL
         this.#uri = incomingClient.spec.uri

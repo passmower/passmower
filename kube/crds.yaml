@@ -197,6 +197,9 @@ spec:
                   type: array
                   items:
                     type: string
+                overrideIncomingScopes:
+                  type: boolean
+                  default: false
                 availableScopes:
                   type: array
                   items:

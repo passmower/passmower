@@ -15,6 +15,7 @@ spec:
   responseTypes:
     - 'code'
 #    - 'code id_token' # might be needed in some implementations
+  overrideIncomingScopes: true
   availableScopes:
     - 'openid'
     - 'profile'

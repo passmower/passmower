@@ -93,5 +93,23 @@ export default async (provider) => {
         return next();
     });
 
+    provider.use(async (ctx, next) => {
+        try {
+            if (ctx.method === 'GET' && ctx.path === '/auth') {
+                let url = new URL(`http://localhost${ctx.url}`)
+                if (url.searchParams.has('client_id')) {
+                    const client = await provider.Client.find(url.searchParams.get('client_id'));
+                    if (client.overrideIncomingScopes) {
+                        url.searchParams.set('scope', client.availableScopes.join(' '))
+                        ctx.url = url.pathname + url.search
+                    }
+                }
+            }
+        } catch (error) {
+            globalThis.logger.error({url: ctx?.url, error}, 'Error handling incoming scopes, continuing without changes')
+        }
+        await next();
+    });
+
     return provider
 }
