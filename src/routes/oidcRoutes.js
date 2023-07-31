@@ -319,15 +319,15 @@ export default (provider) => {
                 default:
                     throw new Error('not implemented')
             }
+        } else {
+            return provider.interactionFinished(ctx.req, ctx.res, {
+                login: {
+                    accountId: account.accountId,
+                }
+            }, {
+                mergeWithLastSubmission: true,
+            });
         }
-
-        return provider.interactionFinished(ctx.req, ctx.res, {
-            login: {
-                accountId: account.accountId,
-            }
-        }, {
-            mergeWithLastSubmission: true,
-        });
     });
 
 
