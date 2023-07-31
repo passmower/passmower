@@ -165,12 +165,12 @@ svg {
   &-wide {
     width: 40em;
   }
-  & h1 {
+  & >h1 {
     font-weight: 100;
     text-align: center;
     font-size: 2.3em;
   }
-  & h1, h2, h3 {
+  & >h1, >h2, >h3 {
     margin-bottom: 1em;
   }
   & [type=submit] {

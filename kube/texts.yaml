@@ -4,6 +4,25 @@ kind: ConfigMap
 metadata:
   name: oidc-gateway-tos-v1
 data:
+  tos.md: |
+    # Terms of service
+    ## 1. Section
+    Welcome to [oidc-gateway](https://github.com/codemowers/oidc-gateway)!
+    
+    ### 1.2 Conditions
+    You agree to the conditions.
+    
+    #### 1.2.3
+    You agree to the conditions.
+    
+    ##### 1.2.3.4
+    You agree to the conditions.
+    
+    ###### 1.2.3.4.5
+    And the points are:
+      - one
+      - tho
+      - three
   tos.txt: |
     Lorem ipsum.
 ---
