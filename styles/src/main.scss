@@ -160,11 +160,11 @@ svg {
 }
 
 .card {
-  width: 640px;
+  width: 375px;
   margin: auto;
   text-align: center;
   &-wide {
-    width: 375px;
+    width: 640px;
   }
   & >h1 {
     font-weight: 100;
