@@ -88,8 +88,8 @@ export default async (ctx, provider) => {
             },
         }).then((r) => r.json());
 
-        if (user.error || !user.name) {
-            auditLog(ctx, {error: user.error, interactionDetails}, 'Error getting profile from GitHub')
+        if (user.error) {
+            auditLog(ctx, {error: user.error, interactionDetails, user}, 'Error getting profile from GitHub')
             return accessDenied(ctx, provider, 'Error getting profile from GitHub')
         }
 
