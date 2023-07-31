@@ -43,17 +43,18 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: oidc-gateway
+  name: oidc-gateway-dev
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: oidc-gateway
 subjects:
   - kind: ServiceAccount
-    name: oidc-gateway
+    name: oidc-gateway-dev
     namespace: veebkolm-gab7y
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: oidc-gateway
+  name: oidc-gateway-dev
+  namespace: veebkolm-gab7y
