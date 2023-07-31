@@ -126,9 +126,15 @@ spec:
         - name: Name
           type: string
           jsonPath: .status.profile.name
-        - name: Emails
+        - name: Display e-mail
           type: string
-          jsonPath: .status.emails
+          jsonPath: .spec.companyEmail
+        - name: Upstream IdP e-mail
+          type: string
+          jsonPath: .spec.githubEmails[?(@.primary==true)].email
+        - name: GH ID
+          type: string
+          jsonPath: .spec.githubProfile.id
         - name: Groups
           type: string
           jsonPath: .status.groups
