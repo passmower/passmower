@@ -47,7 +47,7 @@ spec:
       serviceAccountName: oidc-gateway
       containers:
         - name: oidc-key-manager
-          image: oidc-gateway
+          image: passmower
           command: [ '/app/node_modules/.bin/key-manager', 'initialize', '-c', 'cluster' ]
       restartPolicy: Never
 ---
@@ -70,7 +70,7 @@ spec:
       serviceAccountName: oidc-gateway-dev
       containers:
         - name: oidc-gateway
-          image: oidc-gateway
+          image: passmower
           ports:
             - containerPort: 3000
           env:

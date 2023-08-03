@@ -11,7 +11,7 @@ spec:
         spec:
           containers:
             - name: oidc-key-manager
-              image: codemowers/oidc-gateway
+              image: codemowers/passmower
               command: [ '/app/node_modules/.bin/key-manager', 'rotate', '--both', '-c', 'cluster', '--restart-deployment', 'oidc-gateway' ]
           serviceAccountName: oidc-key-manager
           restartPolicy: Never

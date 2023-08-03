@@ -2,7 +2,7 @@ apiVersion: skaffold/v4beta1
 kind: Config
 build:
   artifacts:
-    - image: oidc-gateway
+    - image: passmower
 
 manifests:
   rawYaml:
@@ -14,7 +14,7 @@ profiles:
       - command: dev
     build:
       artifacts:
-        - image: oidc-gateway
+        - image: passmower
           docker:
             target: dev
           sync:
