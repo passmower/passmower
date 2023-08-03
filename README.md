@@ -33,14 +33,14 @@ impersonation support for authorized users.
 
 The OIDC Identity Provider has been tested and supports the following applications:
 
-- Nextcloud
-- Freescout
-- Gitea
-- Grafana
-- Wikijs
-- Kubernetes API itself
-- Proxmox 7.4 or later
-- ArgoCD
+- [Nextcloud](https://git.k-space.ee/k-space/kube/src/branch/master/nextcloud/application.yaml)
+- [Freescout](https://git.k-space.ee/k-space/kube/src/branch/master/freescout/application.yml)
+- [Gitea](https://git.k-space.ee/k-space/kube/src/branch/master/gitea/application.yaml)
+- [Grafana](https://git.k-space.ee/k-space/kube/src/branch/master/grafana/application.yml)
+- [Wikijs](https://git.k-space.ee/k-space/kube/src/branch/master/wiki/application.yml)
+- [Kubernetes API itself](https://git.k-space.ee/k-space/kube/src/branch/master/oidc-gateway/kubelogin.yaml)
+- [Proxmox](https://git.k-space.ee/k-space/kube/src/branch/master/oidc-gateway/proxmox.yaml) 7.4 or later
+- [ArgoCD](https://git.k-space.ee/k-space/kube/src/branch/master/argocd/application-extras.yml)
 
 # Usage
 
