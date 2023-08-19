@@ -30,7 +30,7 @@ export const TraefikMiddlewareApiGroup = 'traefik.containo.us'
 export const TraefikMiddlewareApiGroupVersion = 'v1alpha1'
 export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clientId) => `http://${deployment}.${namespace}.svc.cluster.local:3000/forward-auth?client=${clientId}`
 
-export const plulars = {
+export const plurals = {
     [OIDCGWUser]: OIDCGWUsers,
     [OIDCGWClient]: OIDCGWClients,
     [OIDCGWMiddlewareClient]: OIDCGWMiddlewareClients,
