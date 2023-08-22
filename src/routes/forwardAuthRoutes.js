@@ -58,7 +58,8 @@ export default (provider) => {
             }
         } else {
             if (originalUri.protocol === 'http:' || originalUri.protocol === 'https:') {
-                const uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '').replace(':443', '').replace(':80', '')
+                let uri =  originalUri.full.replace(originalUri.pathname, '').replace(originalUri.search, '').replace(':443', '').replace(':80', '')
+                uri = uri + ctx.req.headers['x-forwarded-uri']
                 const url = await enableAndGetRedirectUri(provider, uri, clientId, responseType, scope, client)
                 return ctx.redirect(url)
             }
