@@ -2,7 +2,7 @@ import * as k8s from "@kubernetes/client-node";
 import {
     defaultApiGroup,
     defaultApiGroupVersion,
-    plulars
+    plurals
 } from "../support/kube-constants.js";
 import WatchRequest from "../support/watch-request.js";
 import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
@@ -29,7 +29,7 @@ export class KubernetesAdapter {
             apiGroup,
             apiGroupVersion,
             namespace,
-            plulars[kind]
+            plurals[kind]
         ).then(async (r) => {
             return await Promise.all(
                 r.body.items.map(async (s) => {
@@ -49,7 +49,7 @@ export class KubernetesAdapter {
             apiGroup,
             apiGroupVersion,
             namespace,
-            plulars[kind],
+            plurals[kind],
             id
         ).then((r) => {
             return mapperFunction(r.body)
@@ -66,7 +66,7 @@ export class KubernetesAdapter {
             apiGroup,
             apiGroupVersion,
             namespace,
-            plulars[kind],
+            plurals[kind],
             {
                 apiVersion: apiGroup + '/' + apiGroupVersion,
                 kind,
@@ -98,7 +98,7 @@ export class KubernetesAdapter {
             apiGroup,
             apiGroupVersion,
             namespace,
-            plulars[kind],
+            plurals[kind],
             id,
             patches,
             undefined,
@@ -120,7 +120,7 @@ export class KubernetesAdapter {
             apiGroup,
             apiGroupVersion,
             namespace,
-            plulars[kind],
+            plurals[kind],
             id,
             {
                 apiVersion: apiGroup + '/' + apiGroupVersion,
@@ -228,7 +228,7 @@ export class KubernetesAdapter {
     }
 
     async watchObjects() {
-        const kind = plulars[this.watchParameters.kind]
+        const kind = plurals[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc, new WatchRequest());
         let path = this.watchParameters.namespaceFilter?.namespace ?
