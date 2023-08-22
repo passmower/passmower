@@ -11,6 +11,7 @@ export default {
         },
         policy: setupPolicies()
     },
+    conformIdTokenClaims: false, // https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#id-token-does-not-include-claims-other-than-sub
     cookies: {
         keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
         names: {
@@ -40,6 +41,8 @@ export default {
             'name',
             'profile',
         ],
+        email: ['email', 'email_verified'],
+
         sid: null,
     },
     features: {
