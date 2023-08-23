@@ -57,7 +57,7 @@ export async function restValidationErrors(ctx)
 }
 
 export function checkUsername(ctx) {
-    ctx.checkBody('username', 'Username must be 2-15 characters').isLength({min: 2, max: 15})
+    ctx.checkBody('username', 'Username must be 3-15 characters').isLength({min: 3, max: 15})
     ctx.checkBody('username', 'Username must be alphanumeric').isAlphanumeric()
     ctx.checkBody('username', 'Prohibited username').isBlackListed()
     ctx.checkBody('username', 'Username must start with a letter').startsWithLetter()
