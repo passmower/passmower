@@ -102,22 +102,11 @@ export default async (ctx, provider) => {
 
         let githubGroups = []
         try {
-            githubGroups = await getUserOrganizations(token).then(organizations => organizations.filter(filterUserOrganizations)).then(organizations => {
-                return Promise.all(organizations.map(organization => {
-                    return getOrganizationTeams(token, organization).then(teams => {
-                        return Promise.all(teams.map(team => {
-                            return getUserOrganizationTeamMembership(token, team, user.login)
-                        }))
-                    })
-                })).then(g => {
-                    g = g.flat(2).filter(r => !!r)
-                    g = [
-                        ...g,
-                        ...organizations
-                    ]
-                    return g
-                })
-            })
+            githubGroups = await getOrganizationTeams(token, process.env.GITHUB_ORGANIZATION).then(teams => {
+                return Promise.all(teams.map(team => {
+                    return getUserOrganizationTeamMembership(token, team, user.login)
+                }))
+            }).then(g => g.filter(g => !!g))
             githubGroups = githubGroups.map(g => {
                 return {
                     prefix: GitHubGroupPrefix,
@@ -138,19 +127,6 @@ export default async (ctx, provider) => {
     return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'GitHub'), {
         mergeWithLastSubmission: false,
     });
-}
-
-const filterUserOrganizations = (organization) => {
-    return process.env.GITHUB_ORGANIZATION ? (organization === process.env.GITHUB_ORGANIZATION) : true
-}
-
-const getUserOrganizations = async (token) => {
-    return await fetch(`https://api.github.com/user/memberships/orgs`, {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
-    }).then(r => r.json()).then(r => r.filter(r => r.state === 'active')).then(r => r.map(r => r?.organization?.login.toLowerCase()))
 }
 
 const getOrganizationTeams = async (token, org) => {
