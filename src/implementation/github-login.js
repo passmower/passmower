@@ -29,7 +29,7 @@ export default async (ctx, provider) => {
         auditLog(ctx, {interactionDetails, state}, 'Redirecting user to GitHub')
         return ctx.redirect(ghOauth.getAuthorizeUrl({
             redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
-            scope: ['user:email,read:org'],
+            scope: process.env.GITHUB_ORGANIZATION ? ['user:email,read:org'] : ['user:email'],
             state,
         }));
     }
@@ -101,20 +101,22 @@ export default async (ctx, provider) => {
         }
 
         let githubGroups = []
-        try {
-            githubGroups = await getOrganizationTeams(token, process.env.GITHUB_ORGANIZATION).then(teams => {
-                return Promise.all(teams.map(team => {
-                    return getUserOrganizationTeamMembership(token, team, user.login)
-                }))
-            }).then(g => g.filter(g => !!g))
-            githubGroups = githubGroups.map(g => {
-                return {
-                    prefix: GitHubGroupPrefix,
-                    name: g,
-                }
-            })
-        } catch (error) {
-            auditLog(ctx, {error, interactionDetails}, 'Error getting groups from GitHub')
+        if (process.env.GITHUB_ORGANIZATION) {
+            try {
+                githubGroups = await getOrganizationTeams(token, process.env.GITHUB_ORGANIZATION).then(teams => {
+                    return Promise.all(teams.map(team => {
+                        return getUserOrganizationTeamMembership(token, team, user.login)
+                    }))
+                }).then(g => g.filter(g => !!g))
+                githubGroups = githubGroups.map(g => {
+                    return {
+                        prefix: GitHubGroupPrefix,
+                        name: g,
+                    }
+                })
+            } catch (error) {
+                auditLog(ctx, {error, interactionDetails}, 'Error getting groups from GitHub')
+            }
         }
 
         await ctx.kubeOIDCUserService.updateUserSpec({
