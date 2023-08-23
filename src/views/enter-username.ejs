@@ -11,7 +11,7 @@
 <% } %>
 
 <form autocomplete="off" action="/interaction/<%= uid %>/enter-username" method="post">
-    <input required type="text" name="username" placeholder="Enter username">
+    <input required type="text" name="username" placeholder="Enter username" value="<%= preferredUsername %>">
     <button type="submit" class="login login-submit">Save</button>
 </form>
 

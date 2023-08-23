@@ -76,23 +76,23 @@ export default async (ctx, provider) => {
         return accessDenied(ctx, provider, 'Error getting emails from GitHub')
     }
 
-    const account = await Account.createOrUpdateByEmails(ctx, provider, undefined, emails);
+    const user = await fetch('https://api.github.com/user', {
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+    }).then((r) => r.json());
+
+    if (user.error) {
+        auditLog(ctx, {error: user.error, interactionDetails, user}, 'Error getting profile from GitHub')
+        return accessDenied(ctx, provider, 'Error getting profile from GitHub')
+    }
+
+    const account = await Account.createOrUpdateByEmails(ctx, provider, undefined, emails, undefined, user.login);
 
     if (!account?.accountId) {
         auditLog(ctx,{account, interactionDetails}, 'Unable to determine account from GitHub')
     } else {
-        const user = await fetch('https://api.github.com/user', {
-            method: "GET",
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-        }).then((r) => r.json());
-
-        if (user.error) {
-            auditLog(ctx, {error: user.error, interactionDetails, user}, 'Error getting profile from GitHub')
-            return accessDenied(ctx, provider, 'Error getting profile from GitHub')
-        }
-
         const githubProfile = {
             name: user.name,
             company: user.company,

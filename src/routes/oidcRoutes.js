@@ -139,7 +139,7 @@ export default (provider) => {
         switch (prompt.name) {
             case 'login': {
                 if (interactionDetails?.lastSubmission?.requireCustomUsername) {
-                    return render(provider, ctx, 'enter-username', 'Enter username', {errors: undefined}, true)
+                    return render(provider, ctx, 'enter-username', 'Enter username', {errors: undefined, preferredUsername: interactionDetails?.lastSubmission?.preferredUsername}, true)
                 }
                 return render(provider, ctx, 'login', 'Sign-in', {
                     impersonation: await ctx.sessionService.getImpersonation(ctx),
@@ -303,16 +303,16 @@ export default (provider) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt: { name } } = interactionDetails;
         assert.equal(name, 'login');
-
+        const username = ctx.request.body.username
         checkUsername(ctx)
         let errors = await ctx.validationErrors()
         if (errors) {
             return render(provider, ctx, 'enter-username', 'Enter username', {
-                errors
+                errors,
+                preferredUsername: username,
             }, true)
         }
 
-        const username = ctx.request.body.username
         const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)

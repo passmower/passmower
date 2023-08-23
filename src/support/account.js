@@ -189,7 +189,7 @@ class Account {
         return 'u' + uid.stamp(10);
     }
 
-    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username) {
+    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username, preferredUsername) {
         const emails = [
             email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
@@ -207,6 +207,7 @@ class Account {
                     requireCustomUsername: true,
                     email,
                     githubEmails,
+                    preferredUsername,
                     ...interactionDetails.result
                 },{
                     mergeWithLastSubmission: true,
