@@ -36,6 +36,10 @@ spec:
   ports:
     - protocol: TCP
       port: 3000
+      name: http
+    - protocol: TCP
+      port: 9090
+      name: metrics
 ---
 apiVersion: batch/v1
 kind: Job
@@ -73,6 +77,9 @@ spec:
           image: passmower
           ports:
             - containerPort: 3000
+              name: http
+            - containerPort: 9090
+              name: metrics
           env:
             - name: ISSUER_URL
               value: 'https://gateway-gab7y.codemowers.ee/'

@@ -33,6 +33,7 @@
     "original-url": "^1.2.3",
     "parse-domain": "^7.0.1",
     "pino": "^8.14.1",
+    "prom-client": "^14.2.0",
     "query-string": "^8.1.0",
     "short-unique-id": "^4.4.4",
     "ua-parser-js": "^2.0.0-alpha.1",

@@ -12,6 +12,7 @@ import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
 import {setupLogger} from "./implementation/setup-logger.js";
 import {KubeOIDCMiddlewareClientOperator} from "./implementation/kube-oidc-middleware-client-operator.js";
 import KubeOidcUserOperator from "./implementation/kube-oidc-user-operator.js";
+import metricsServer from "./implementation/metrics-server.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -37,6 +38,7 @@ try {
     server = provider.listen(PORT, () => {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
+    metricsServer()
     const kubeClientOperator = new KubeOIDCClientOperator(provider)
     await kubeClientOperator.watchClients()
     const kubeMiddlewareClientOperator = new KubeOIDCMiddlewareClientOperator(provider)
