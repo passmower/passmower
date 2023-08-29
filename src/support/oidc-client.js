@@ -2,14 +2,21 @@ import {randomUUID} from "crypto";
 import configuration from "./configuration.js";
 import {
     OIDCGWClient,
-    OIDCGWClientId, OIDCGWClientSecretAuthUriKey, OIDCGWClientSecretAvailableScopesKey,
-    OIDCGWClientSecretClientIdKey, OIDCGWClientSecretClientSecretKey,
-    OIDCGWClientSecretGatewayUriKey, OIDCGWClientSecretGrantTypesKey,
+    OIDCGWClientId,
+    OIDCGWClientSecretAllowedGroupsKey,
+    OIDCGWClientSecretAuthUriKey,
+    OIDCGWClientSecretAvailableScopesKey,
+    OIDCGWClientSecretClientIdKey,
+    OIDCGWClientSecretClientSecretKey,
+    OIDCGWClientSecretGatewayUriKey,
+    OIDCGWClientSecretGrantTypesKey,
     OIDCGWClientSecretIdTokenSignedResponseAlgKey,
     OIDCGWClientSecretName,
     OIDCGWClientSecretRedirectUrisKey,
     OIDCGWClientSecretResponseTypesKey,
-    OIDCGWClientSecretTokenEndpointAuthMethodKey, OIDCGWClientSecretTokenUriKey, OIDCGWClientSecretUserInfoUriKey
+    OIDCGWClientSecretTokenEndpointAuthMethodKey,
+    OIDCGWClientSecretTokenUriKey,
+    OIDCGWClientSecretUserInfoUriKey
 } from "./kube-constants.js";
 import {KubeOwnerMetadata} from "./kube-owner-metadata.js";
 import sortObject from "./sort-object.js";
@@ -97,6 +104,7 @@ class OIDCClient {
             [OIDCGWClientSecretAuthUriKey]: provider.urlFor('authorization'),
             [OIDCGWClientSecretTokenUriKey]: provider.urlFor('token'),
             [OIDCGWClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
+            [OIDCGWClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
         })
     }
 
