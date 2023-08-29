@@ -9,8 +9,10 @@ export const OIDCGWMiddlewareClients = 'oidcgatewaymiddlewareclients';
 export const defaultApiGroup = 'codemowers.io'
 export const defaultApiGroupVersion = 'v1alpha1'
 export const OIDCGWClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`
-export const OIDCGWClientId = (namespace, clientName) => `${namespace}-${clientName}`
-export const OIDCGWMiddlewareClientId = (namespace, clientName) => `middleware-${namespace}-${clientName}`
+export const OIDCGWClientId = (namespace, clientName) => `${namespace}.${clientName}`
+// Dot is chosen as the delimiting character as it is one of the few characters that is not encoded in URL and therefore avoids problematic clients that do not properly encode the client parameters for token endpoint.
+// See https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#my-client_secret-with-special-characters-is-not-working
+export const OIDCGWMiddlewareClientId = (namespace, clientName) => `middleware-${namespace}.${clientName}`
 export const OIDCGWClientSecretClientIdKey = 'OIDC_CLIENT_ID'
 export const OIDCGWClientSecretClientSecretKey = 'OIDC_CLIENT_SECRET'
 export const OIDCGWClientSecretGrantTypesKey = 'OIDC_GRANT_TYPES'
