@@ -140,8 +140,8 @@ class Account {
         return this.#conditions
     }
 
-    pushCondition(condition) {
-        this.#conditions.push(condition)
+    setConditions(conditions) {
+        this.#conditions = conditions
         return this
     }
 
