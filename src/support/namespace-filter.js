@@ -23,6 +23,6 @@ export class NamespaceFilter {
     }
 
     filter (namespace) {
-        return microMatch.isMatch(namespace, this.#namespaces)
+        return microMatch.every(namespace, this.#namespaces)
     }
 }
