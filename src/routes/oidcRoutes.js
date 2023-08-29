@@ -108,11 +108,11 @@ export default (provider) => {
                 const text = getText(ToSTextName)
                 return render(provider, ctx, 'tos', 'Terms of Service', {text, save: false}, true)
             } else {
-                return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
+                return ctx.render('frontend', { layout: false, title: 'Passmower' })
             }
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
-            return render(provider, ctx, 'hi', `Welcome to oidc-gateway`, {
+            return render(provider, ctx, 'hi', `Welcome to Passmower`, {
                 url: url.href
             })
         }

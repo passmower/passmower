@@ -52,9 +52,18 @@ subjects:
   - kind: ServiceAccount
     name: oidc-gateway-dev
     namespace: veebkolm-gab7y
+  - kind: ServiceAccount
+    name: passmower-dev
+    namespace: veebkolm-gab7y
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: oidc-gateway-dev
+  namespace: veebkolm-gab7y
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: passmower-dev
   namespace: veebkolm-gab7y

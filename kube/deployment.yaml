@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: oidc-gateway
+  name: passmower
   annotations:
     kubernetes.io/ingress.class: shared
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
@@ -17,7 +17,7 @@ spec:
             path: "/"
             backend:
               service:
-                name: oidc-gateway
+                name: passmower
                 port:
                   number: 3000
   tls:
@@ -28,11 +28,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: oidc-gateway
+  name: passmower
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: oidc-gateway
+    app.kubernetes.io/name: passmower
   ports:
     - protocol: TCP
       port: 3000
@@ -48,7 +48,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: oidc-gateway
+      serviceAccountName: passmower-dev
       containers:
         - name: oidc-key-manager
           image: passmower
@@ -58,33 +58,33 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: oidc-gateway
+  name: passmower
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: oidc-gateway
+      app.kubernetes.io/name: passmower
   podMetricsEndpoints:
     - port: metrics
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: oidc-gateway
+  name: passmower-dev
   labels:
-    app.kubernetes.io/name: oidc-gateway
+    app.kubernetes.io/name: passmower
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: oidc-gateway
+      app.kubernetes.io/name: passmower
   replicas: 1
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: oidc-gateway
+        app.kubernetes.io/name: passmower
     spec:
-      serviceAccountName: oidc-gateway-dev
+      serviceAccountName: passmower-dev
       containers:
-        - name: oidc-gateway
+        - name: passmower
           image: passmower
           ports:
             - containerPort: 3000
@@ -146,10 +146,10 @@ spec:
 #      volumes:
 #        - name: tos
 #          configMap:
-#            name: oidc-gateway-tos-v1
+#            name: passmower-tos-v1
 #        - name: approval
 #          configMap:
-#            name: oidc-gateway-approval-required
+#            name: passmower-approval-required
 #        - name: email-templates
 #          configMap:
-#            name: oidc-gateway-email-templates
+#            name: passmower-email-templates

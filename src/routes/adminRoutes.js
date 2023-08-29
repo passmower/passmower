@@ -36,7 +36,7 @@ export default (provider) => {
     })
 
     router.get('/admin', async (ctx, next) => {
-        return ctx.render('frontend', { layout: false, title: 'oidc-gateway' })
+        return ctx.render('frontend', { layout: false, title: 'Passmower' })
     })
 
     router.get('/admin/api/metadata', async (ctx, next) => {

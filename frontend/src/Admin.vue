@@ -1,7 +1,7 @@
 <template>
     <main>
         <div class="card card-wide">
-            <h1>oidc-gateway admin</h1>
+            <h1>Passmower admin</h1>
             <InviteUser />
             <Accounts />
         </div>

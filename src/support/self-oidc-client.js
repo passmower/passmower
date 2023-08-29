@@ -2,7 +2,7 @@ import {randomUUID} from "crypto";
 import RedisAdapter from "../adapters/redis.js";
 import {getUrlsInProviderBaseDomain} from "./base-domain.js";
 
-export const clientId = 'oidc-gateway'
+export const clientId = 'passmower'
 export const responseType = 'id_token'
 export const scope = 'openid'
 

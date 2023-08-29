@@ -1,5 +1,5 @@
 {
-  "name": "oidc-gateway",
+  "name": "passmower",
   "version": "0.1.0",
   "description": "",
   "main": "src/app.js",

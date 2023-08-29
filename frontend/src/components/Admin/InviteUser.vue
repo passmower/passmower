@@ -6,7 +6,7 @@
     </div>
     <template v-if="requireUsername">
       <label for="username">Username: </label>
-      <input name="username" type="text" v-model="username" placeholder="oidc-gateway is configured to require custom username" />
+      <input name="username" type="text" v-model="username" placeholder="Passmower is configured to require custom username" />
     </template>
     <label for="email">Email: </label>
     <input name="email" type="email" v-model="email" required />

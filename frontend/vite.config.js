@@ -15,8 +15,8 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        entryFileNames: `oidc-gateway-frontend.js`,
-        assetFileNames: `oidc-gateway-frontend.[ext]`
+        entryFileNames: `passmower-frontend.js`,
+        assetFileNames: `passmower-frontend.[ext]`
       }
     }
   },
