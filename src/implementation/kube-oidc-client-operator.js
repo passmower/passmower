@@ -66,6 +66,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #updateOIDCClient(OIDCClient) {
+        await new Promise(res => setTimeout(res, 1000));
         let secret = await this.adapter.getSecret(
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName()
