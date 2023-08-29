@@ -80,9 +80,10 @@ export class KubeOIDCClientOperator {
         )
         if (secret) {
             OIDCClient = OIDCClient.setSecret(secret[OIDCGWClientSecretClientSecretKey])
-            if (!util.isDeepStrictEqual(OIDCClient.toClientSecret(this.provider), secret)) {
+            if (!util.isDeepStrictEqual(OIDCClient.toClientSecret(this.provider), secret) && new Ready().check(OIDCClient)) {
                 OIDCClient = new Ready().setStatus(false).set(OIDCClient)
-                OIDCClient = await this.#replaceClientStatus(OIDCClient)
+                await this.#replaceClientStatus(OIDCClient)
+                return
             }
         } else {
             OIDCClient.generateSecret()
