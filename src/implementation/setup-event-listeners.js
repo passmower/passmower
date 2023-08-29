@@ -1,5 +1,10 @@
 import {updateSessionReference} from "../support/site-session.js";
 import {SessionService} from "./session-service.js";
+import handleOidcFlowMetrics, {
+    clientNotFound, invalidClientError,
+    nonExistentClientError, tokenError,
+    userinfoError
+} from "../support/handle-oidc-flow-metrics.js";
 
 export default (provider) => {
     // https://github.com/panva/node-oidc-provider/blob/v8.x/docs/events.md
@@ -37,6 +42,7 @@ export default (provider) => {
 
     provider.on('authorization.error', (ctx, error) => {
         logger.error({ctx, error}, 'authorization.error')
+        handleOidcFlowMetrics(ctx, error, error.error_detail === clientNotFound ? nonExistentClientError : invalidClientError)
     })
 
     provider.on('authorization.success', (ctx) => {
@@ -93,6 +99,7 @@ export default (provider) => {
 
     provider.on('grant.error', (ctx, error) => {
         logger.error({ctx, error}, 'grant.error')
+        handleOidcFlowMetrics(ctx, error, tokenError)
     })
 
     provider.on('grant.revoked', (ctx, grantId) => {
@@ -228,5 +235,6 @@ export default (provider) => {
 
     provider.on('userinfo.error', (ctx, error) => {
         logger.error({ctx, error}, 'userinfo.error')
+        handleOidcFlowMetrics(ctx, error, userinfoError)
     })
 }
