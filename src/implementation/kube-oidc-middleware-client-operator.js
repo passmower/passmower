@@ -32,27 +32,23 @@ export class KubeOIDCMiddlewareClientOperator {
     async #createOIDCClient (OIDCMiddlewareClient) {
         if (OIDCMiddlewareClient.getGateway() === this.currentGateway) {
             if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
-                OIDCMiddlewareClient = new Ready().setStatus(false).set(OIDCMiddlewareClient)
-                await this.#replaceClientStatus(OIDCMiddlewareClient)
+                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
             }
         } else if (!OIDCMiddlewareClient.getGateway()) {
             // Claim that client
-            let claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+            const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
             if (claimedClient?.getGateway() === this.currentGateway) {
-                claimedClient = new Ready().setStatus(false).set(claimedClient)
-                await this.#replaceClientStatus(claimedClient)
+                await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
+                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
             }
         }
     }
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
-        // TODO: check if middleware is not ready.
         await new Promise(res => setTimeout(res, 1000)); // Wait second as the client is momentarily updated after creation, resulting 404.
-        if (await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)) {
-            await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
-            OIDCMiddlewareClient = new Ready().setStatus(true).set(OIDCMiddlewareClient)
-            await this.#replaceClientStatus(OIDCMiddlewareClient)
-        }
+        await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
+        await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+
     }
 
     async #deleteOIDCClient (OIDCMiddlewareClient) {
