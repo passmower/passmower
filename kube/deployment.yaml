@@ -32,7 +32,7 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: oidc-gateway
+    app.kubernetes.io/name: oidc-gateway
   ports:
     - protocol: TCP
       port: 3000
@@ -60,16 +60,16 @@ kind: Deployment
 metadata:
   name: oidc-gateway
   labels:
-    app: oidc-gateway
+    app.kubernetes.io/name: oidc-gateway
 spec:
   selector:
     matchLabels:
-      app: oidc-gateway
+      app.kubernetes.io/name: oidc-gateway
   replicas: 1
   template:
     metadata:
       labels:
-        app: oidc-gateway
+        app.kubernetes.io/name: oidc-gateway
     spec:
       serviceAccountName: oidc-gateway-dev
       containers:
@@ -86,7 +86,7 @@ spec:
             - name: DEPLOYMENT_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.labels['app']
+                  fieldPath: metadata.labels['app.kubernetes.io/name']
             - name: GROUP_PREFIX
               value: 'codemowers'
             - name: ADMIN_GROUP
