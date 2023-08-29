@@ -177,7 +177,7 @@ export class KubernetesAdapter {
         const secret = await this.#generateSecretData(data)
         let patches = Object.keys(secret).map((k) => {
             return {
-                "op": "replace",
+                "op": "add",
                 "path": "/data/" + k,
                 "value": secret[k]
             }
@@ -319,10 +319,7 @@ export class KubernetesAdapter {
             if (Array.isArray(val)) {
                 val = JSON.stringify(val)
             }
-            if (val) {
-                const buff = Buffer.from(val, 'utf-8');
-                data[k] = buff.toString('base64');
-            }
+            data[k] = val ? Buffer.from(val, 'utf-8').toString('base64') : val
         })
         return data
     }
