@@ -1,7 +1,7 @@
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {
-    OIDCGWMiddlewareClient,
+    OIDCGWMiddlewareClient, spec,
     TraefikMiddleware, TraefikMiddlewareApiGroup, TraefikMiddlewareApiGroupVersion,
 } from "../support/kube-constants.js";
 import OidcMiddlewareClient from "../support/oidc-middleware-client.js";
@@ -84,8 +84,8 @@ export class KubeOIDCMiddlewareClientOperator {
                 TraefikMiddleware,
                 OIDCMiddlewareClient.getClientNamespace(),
                 OIDCMiddlewareClient.getClientName(),
-                OIDCMiddlewareClient.toMiddlewareSpec(this.adapter.deployment, this.adapter.namespace),
-                existingMiddleware.spec,
+                await this.adapter.prefixValues(OIDCMiddlewareClient.toMiddlewareSpec(this.adapter.deployment, this.adapter.namespace), spec),
+                await this.adapter.prefixValues(existingMiddleware.spec, spec),
                 (r) => (r),
                 TraefikMiddlewareApiGroup,
                 TraefikMiddlewareApiGroupVersion

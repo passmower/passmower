@@ -67,8 +67,8 @@ export class KubeOIDCUserService {
             OIDCGWUser,
             this.adapter.namespace,
             accountId,
-            await this.#prefixValues(arguments[0], spec),
-            await this.#prefixValues(account.getSpec(), spec),
+            await this.adapter.prefixValues(arguments[0], spec),
+            await this.adapter.prefixValues(account.getSpec(), spec),
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
         return await this.updateUserStatus(updatedUser)
@@ -103,15 +103,5 @@ export class KubeOIDCUserService {
             account.getIntendedStatus(),
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
-    }
-
-    async #prefixValues(values, prefix) {
-        const newValues = {}
-        await Promise.all(
-            Object.keys(values).map(async (key) => {
-                newValues['/' + prefix + '/' + key] = values[key]
-            })
-        )
-        return newValues
     }
 }

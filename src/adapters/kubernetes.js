@@ -271,6 +271,16 @@ export class KubernetesAdapter {
         });
     }
 
+    async prefixValues(values, prefix) {
+        const newValues = {}
+        await Promise.all(
+            Object.keys(values).map(async (key) => {
+                newValues['/' + prefix + '/' + key] = values[key]
+            })
+        )
+        return newValues
+    }
+
     #getPatches (name, values, existingValues) {
         let patches = []
         if (typeof values !== 'undefined') {
