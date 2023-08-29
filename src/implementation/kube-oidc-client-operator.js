@@ -6,6 +6,9 @@ import {
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../support/namespace-filter.js";
+import util from "util";
+import {Ready} from "../support/conditions/ready.js";
+import {Claimed} from "../support/conditions/claimed.js";
 
 export class KubeOIDCClientOperator {
     constructor(provider) {
@@ -29,7 +32,7 @@ export class KubeOIDCClientOperator {
 
     async #createOIDCClient (OIDCClient) {
         if (OIDCClient.getGateway() === this.currentGateway) {
-            if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
+            if (!await this.redisAdapter.find(OIDCClient.getClientId()) || !await this.adapter.getSecret(OIDCClient.getClientNamespace(), OIDCClient.getSecretName())) {
                 // Recreate the Kube secret if we don't have the client in Redis. It's an edge case anyways.
                 OIDCClient.generateSecret()
                 await this.adapter.deleteSecret(
@@ -37,6 +40,8 @@ export class KubeOIDCClientOperator {
                     OIDCClient.getSecretName()
                 )
                 await this.#createKubeSecret(OIDCClient)
+                OIDCClient = new Ready().setStatus(false).set(OIDCClient) // Validate in updateOIDCClient
+                await this.#replaceClientStatus(OIDCClient)
             }
         } else if (!OIDCClient.getGateway()) {
             // Claim that client
@@ -52,8 +57,10 @@ export class KubeOIDCClientOperator {
     }
 
     async #replaceClientStatus (OIDCClient) {
+        OIDCClient = new Claimed().setStatus(true).set(OIDCClient)
         const status = {
-            gateway: this.currentGateway
+            gateway: this.currentGateway,
+            conditions: OIDCClient.getConditions(),
         }
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCGWClient,
@@ -71,9 +78,25 @@ export class KubeOIDCClientOperator {
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName()
         )
-        secret ? OIDCClient.setSecret(secret[OIDCGWClientSecretClientSecretKey]) : OIDCClient.generateSecret()
-        await this.#patchKubeSecret(OIDCClient)
-        await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
+        if (secret) {
+            OIDCClient = OIDCClient.setSecret(secret[OIDCGWClientSecretClientSecretKey])
+            if (!util.isDeepStrictEqual(OIDCClient.toClientSecret(this.provider), secret)) {
+                OIDCClient = new Ready().setStatus(false).set(OIDCClient)
+                OIDCClient = await this.#replaceClientStatus(OIDCClient)
+            }
+        } else {
+            OIDCClient.generateSecret()
+            OIDCClient = new Ready().setStatus(false).set(OIDCClient)
+            OIDCClient = await this.#replaceClientStatus(OIDCClient)
+        }
+        if (!new Ready().check(OIDCClient)) {
+            await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
+            let success = await this.#patchKubeSecret(OIDCClient)
+            if (success) {
+                OIDCClient = new Ready().setStatus(true).set(OIDCClient)
+                await this.#replaceClientStatus(OIDCClient)
+            }
+        }
     }
 
     async #createKubeSecret(OIDCClient) {
