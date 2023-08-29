@@ -13,15 +13,24 @@ export class BaseCondition {
         return this
     }
 
-    check(account) {
-        return account?.getConditions()?.find(c => c.type === this.type)?.status === conditionStatusTrue ?? false
+    check(resource) {
+        return resource?.getConditions()?.find(c => c.type === this.type)?.status === conditionStatusTrue ?? false
     }
 
-    add(account) {
-        return account.pushCondition(this.#toKubeCondition())
+    add(resource) {
+        const conditions = resource.getConditions()
+        conditions.push(this.toKubeCondition())
+        return resource.setConditions(conditions)
     }
 
-    #toKubeCondition() {
+    set(resource) {
+        const conditions =  resource?.getConditions() || []
+        const exists = conditions.findIndex(c => c.type === this.type)
+        exists !== -1 ? conditions[exists] = this.toKubeCondition() : conditions.push(this.toKubeCondition())
+        return resource.setConditions(conditions)
+    }
+
+    toKubeCondition() {
         const condition = new V1Condition()
         condition.apiVersion = defaultApiGroupVersion
         condition.kind = 'Condition'

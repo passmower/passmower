@@ -10,17 +10,15 @@ const transporter = Nodemailer.createTransport({
     }
 });
 
-const mailOptions = {
-    from: `${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME}`,
-};
-
 class EmailAdapter {
     async sendMail(to, subject, textContent, htmlContent) {
         return await transporter.sendMail(
             {
-                ...mailOptions,
                 to,
                 subject,
+                headers: {
+                    From: `${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME} <${process.env.EMAIL_USERNAME}>`,
+                },
                 text: textContent,
                 html: htmlContent
             })

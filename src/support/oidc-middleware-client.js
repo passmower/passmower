@@ -22,6 +22,7 @@ export default class OIDCMiddlewareClient {
         gateway: null
     }
     #uid = null
+    #conditions = []
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -33,6 +34,7 @@ export default class OIDCMiddlewareClient {
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
+        this.#conditions = incomingClient.status?.conditions ?? []
         return this
     }
 
@@ -61,6 +63,15 @@ export default class OIDCMiddlewareClient {
                 authResponseHeaders: Object.values(this.#headerMapping)
             }
         }
+    }
+
+    getConditions() {
+        return this.#conditions
+    }
+
+    setConditions(conditions) {
+        this.#conditions = conditions
+        return this
     }
 
     getClientId() {

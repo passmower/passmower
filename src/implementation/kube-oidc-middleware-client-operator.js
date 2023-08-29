@@ -6,6 +6,8 @@ import {
 } from "../support/kube-constants.js";
 import OidcMiddlewareClient from "../support/oidc-middleware-client.js";
 import {NamespaceFilter} from "../support/namespace-filter.js";
+import {Ready} from "../support/conditions/ready.js";
+import {Claimed} from "../support/conditions/claimed.js";
 
 export class KubeOIDCMiddlewareClientOperator {
     constructor(provider) {
@@ -30,22 +32,27 @@ export class KubeOIDCMiddlewareClientOperator {
     async #createOIDCClient (OIDCMiddlewareClient) {
         if (OIDCMiddlewareClient.getGateway() === this.currentGateway) {
             if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                OIDCMiddlewareClient = new Ready().setStatus(false).set(OIDCMiddlewareClient)
+                await this.#replaceClientStatus(OIDCMiddlewareClient)
             }
         } else if (!OIDCMiddlewareClient.getGateway()) {
             // Claim that client
-            const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+            let claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
             if (claimedClient?.getGateway() === this.currentGateway) {
-                await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                claimedClient = new Ready().setStatus(false).set(claimedClient)
+                await this.#replaceClientStatus(claimedClient)
             }
         }
     }
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
+        // TODO: check if middleware is not ready.
         await new Promise(res => setTimeout(res, 1000)); // Wait second as the client is momentarily updated after creation, resulting 404.
-        await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-        await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+        if (await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)) {
+            await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+            OIDCMiddlewareClient = new Ready().setStatus(true).set(OIDCMiddlewareClient)
+            await this.#replaceClientStatus(OIDCMiddlewareClient)
+        }
     }
 
     async #deleteOIDCClient (OIDCMiddlewareClient) {
@@ -64,7 +71,7 @@ export class KubeOIDCMiddlewareClientOperator {
             TraefikMiddlewareApiGroupVersion
         )
         if (!existingMiddleware) {
-            await this.adapter.createNamespacedCustomObject(
+            return await this.adapter.createNamespacedCustomObject(
                 TraefikMiddleware,
                 OIDCMiddlewareClient.getClientNamespace(),
                 OIDCMiddlewareClient.getClientName(),
@@ -76,7 +83,7 @@ export class KubeOIDCMiddlewareClientOperator {
                 TraefikMiddlewareApiGroupVersion
             )
         } else {
-            await this.adapter.patchNamespacedCustomObject(
+            return await this.adapter.patchNamespacedCustomObject(
                 TraefikMiddleware,
                 OIDCMiddlewareClient.getClientNamespace(),
                 OIDCMiddlewareClient.getClientName(),
@@ -90,8 +97,10 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #replaceClientStatus (OIDCMiddlewareClient) {
+        OIDCMiddlewareClient = new Claimed().setStatus(true).set(OIDCMiddlewareClient)
         const status = {
-            gateway: this.currentGateway
+            gateway: this.currentGateway,
+            conditions: OIDCMiddlewareClient.getConditions(),
         }
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCGWMiddlewareClient,

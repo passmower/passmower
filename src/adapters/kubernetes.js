@@ -309,8 +309,10 @@ export class KubernetesAdapter {
             if (Array.isArray(val)) {
                 val = JSON.stringify(val)
             }
-            const buff = Buffer.from(val, 'utf-8');
-            data[k] = buff.toString('base64');
+            if (val) {
+                const buff = Buffer.from(val, 'utf-8');
+                data[k] = buff.toString('base64');
+            }
         })
         return data
     }

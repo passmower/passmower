@@ -12,6 +12,7 @@ import {
     OIDCGWClientSecretTokenEndpointAuthMethodKey, OIDCGWClientSecretTokenUriKey, OIDCGWClientSecretUserInfoUriKey
 } from "./kube-constants.js";
 import {KubeOwnerMetadata} from "./kube-owner-metadata.js";
+import sortObject from "./sort-object.js";
 
 class OIDCClient {
     #clientName = null
@@ -34,6 +35,7 @@ class OIDCClient {
     }
     #uid = null
     #pkce = true
+    #conditions = {}
 
     constructor() {
     }
@@ -77,11 +79,12 @@ class OIDCClient {
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
+        this.#conditions = incomingClient.status?.conditions ?? []
         return this
     }
 
     toClientSecret(provider) {
-        return {
+        return sortObject({
             [OIDCGWClientSecretClientIdKey]: this.getClientId(),
             [OIDCGWClientSecretClientSecretKey]: this.#clientSecret,
             [OIDCGWClientSecretGrantTypesKey]: this.#grantTypes.join(','),
@@ -94,7 +97,16 @@ class OIDCClient {
             [OIDCGWClientSecretAuthUriKey]: provider.urlFor('authorization'),
             [OIDCGWClientSecretTokenUriKey]: provider.urlFor('token'),
             [OIDCGWClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
-        }
+        })
+    }
+
+    getConditions() {
+        return this.#conditions
+    }
+
+    setConditions(conditions) {
+        this.#conditions = conditions
+        return this
     }
 
     hasSecret() {
