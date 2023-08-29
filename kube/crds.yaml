@@ -289,6 +289,12 @@ spec:
               properties:
                 gateway:
                   type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-embedded-resource: true
+                    x-kubernetes-preserve-unknown-fields: true
       additionalPrinterColumns:
         - name: Gateway
           type: string
