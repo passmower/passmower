@@ -29,7 +29,7 @@ spec:
               properties:
                 type:
                   type: string
-                  enum: [ 'person', 'org', 'service', 'banned' ]
+                  enum: [ 'person', 'org', 'service', 'banned', 'group' ]
                   default: person
                 email:
                   type: string
