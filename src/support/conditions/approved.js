@@ -13,9 +13,12 @@ export class Approved extends BaseCondition {
     }
 
     add(account) {
-        const parts = this.requiredGroup.split(':')
-        parts.splice(0, 1)
-        const requiredGroupName = parts.join(':')
-        return account.pushCustomGroup(requiredGroupName)
+        if (this.requiredGroup && this.requiredGroup.includes(':')) {
+            const parts = this.requiredGroup.split(':')
+            parts.splice(0, 1)
+            const requiredGroupName = parts.join(':')
+            return account.pushCustomGroup(requiredGroupName)
+        }
+        return account
     }
 }
