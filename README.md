@@ -108,6 +108,12 @@ env:
         key: OIDC_GATEWAY_AUTH_URI
 ```
 
+To list applications:
+
+```
+kubectl get oidcgatewayclients --all-namespaces -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .spec.uri] | @tsv' | column -t
+```
+
 ## User enrollment
 
 If automatic enrollment is disabled users can be managed GitOps style.
@@ -125,6 +131,12 @@ spec:
   customProfile:
     name: John Smith
   email: johnsmith@gmail.com
+```
+
+To list users:
+
+```
+kubectl get oidcgatewayusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .spec.githubProfile.id // "-", .status.profile.name] | @tsv' | column -t
 ```
 
 ## Traefik middleware
