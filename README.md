@@ -1,17 +1,21 @@
-# OIDC Identity Provider
+# Passmower authorization server
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Overview
 
-This Node.js-based OIDC (OpenID Connect) Identity Provider is specifically
-designed for Kubernetes environments. It seamlessly integrates with Kubernetes,
-persisting its data, including users and enrolled applications,
-using Kubernetes Custom Resource Definitions (CRD).
-Session data is stored in Redis. The OIDC Identity Provider
-automatically discovers applications from the Kubernetes API and supports
-dynamic enrollment and removal of applications. It also provides out-of-the-box
-impersonation support for authorized users.
+Passmower is Node.js-based OIDC (OpenID Connect) Identity Provider that is
+designed for Kubernetes environments.
+It seamlessly integrates with Kubernetes, persisting its data, including users
+and enrolled applications, using Kubernetes Custom Resource Definitions (CRD)
+while storing session data in Redis.
+Passmower does not aim to replace your existing organizational
+IdP (Azure, Okta, GitHub etc), but to rather gap the bridge between that and
+rest of your Kubernetes ecosystem.
+
+Passmower automatically discovers applications from the Kubernetes API and
+supports dynamic enrollment and removal of applications.
+It also provides out-of-the-box impersonation support for authorized users.
 
 ## Features
 
@@ -31,7 +35,7 @@ impersonation support for authorized users.
 
 ## Supported Applications
 
-The OIDC Identity Provider has been tested and supports the following applications:
+Passmower has been tested and supports the following applications:
 
 - [Nextcloud](https://git.k-space.ee/k-space/kube/src/branch/master/nextcloud/application.yaml)
 - [Freescout](https://git.k-space.ee/k-space/kube/src/branch/master/freescout/application.yml)
@@ -46,11 +50,11 @@ The OIDC Identity Provider has been tested and supports the following applicatio
 
 ## Application enrollment
 
-Once the OIDC Identity Provider is successfully deployed, you can begin using
+Once Passmower is successfully deployed, you can begin using
 it to manage authentication and authorization for your Kubernetes applications
 and supported services.
 
-The OIDC Identity Provider automatically discovers applications running within
+Passmower automatically discovers applications running within
 the Kubernetes cluster. To enroll a supported application for OIDC-based
 authentication, you can use the following Kubernetes manifest:
 
@@ -151,10 +155,10 @@ For the ingress refer to automatically created middleware
 
 # Contributing
 
-We welcome contributions to enhance the functionality and features of this
-OIDC Identity Provider for Kubernetes. If you find any issues or have
-suggestions for improvement, please open an issue or submit a pull request.
+We welcome contributions to enhance the functionality and features of Passmower.
+If you find any issues or have suggestions for improvement,
+please open an issue or submit a pull request.
 
 # License
 
-This OIDC Identity Provider for Kubernetes is licensed under the MIT License.
+Passmower is licensed under the MIT License.
