@@ -64,7 +64,11 @@ async function reverseLookupPromise(ip) {
 
 const inCluster = async (ctx) => {
     const metadata = parseRequestMetadata(ctx.request.headers)
-    const rDns = await reverseLookupPromise(metadata.ip)
+    let rDns
+    try {
+        rDns = await reverseLookupPromise(metadata.ip)
+    } catch (e) {
+    }
     return rDns[0]?.endsWith('svc.cluster.local') || false
 }
 
