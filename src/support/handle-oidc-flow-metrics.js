@@ -67,9 +67,10 @@ const inCluster = async (ctx) => {
     let rDns
     try {
         rDns = await reverseLookupPromise(metadata.ip)
+        rDns = rDns[0]
     } catch (e) {
     }
-    return rDns[0]?.endsWith('svc.cluster.local') || false
+    return rDns ? rDns.endsWith('svc.cluster.local') : false
 }
 
 export default (ctx, error, context) => {
