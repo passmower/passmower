@@ -64,12 +64,11 @@ export default (provider) => {
         const body = {
                 name: ctx.request.body.name,
                 company: ctx.request.body.company,
-                groups: ctx.request.body.groups,
         }
         await ctx.kubeOIDCUserService.updateUserSpec({
             accountId,
             customProfile: body,
-            customGroups: body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
+            customGroups: ctx.request.body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
                 .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
         })
         auditLog(ctx, {accountId, body}, 'Admin updated user')
