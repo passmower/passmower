@@ -19,7 +19,7 @@ export class EmailLogin {
     {
         const {uid, params} = await provider.interactionDetails(ctx.req, ctx.res);
         const client = await provider.Client.find(params.client_id);
-        const email = ctx.request.body.email
+        const email = ctx.request.body.email.toLowerCase()
         const account = await Account.findByEmail(ctx, email)
         if (process.env.ENROLL_USERS === 'false' && !account) {
             auditLog(ctx, {email}, 'Account doesn\'t exist')
