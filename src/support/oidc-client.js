@@ -43,6 +43,7 @@ class OIDCClient {
     #uid = null
     #pkce = true
     #conditions = {}
+    #allowedCORSOrigins = null
 
     constructor() {
     }
@@ -65,6 +66,7 @@ class OIDCClient {
             displayName: this.#displayName,
             pkce: this.#pkce,
             overrideIncomingScopes: this.#overrideIncomingScopes,
+            allowedCORSOrigins: this.#allowedCORSOrigins,
         }
     }
 
@@ -87,6 +89,7 @@ class OIDCClient {
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
         this.#conditions = incomingClient.status?.conditions ?? []
+        this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins ?? []
         return this
     }
 

@@ -209,6 +209,10 @@ spec:
                 pkce:
                   type: boolean
                   default: true
+                allowedCORSOrigins:
+                  type: array
+                  items:
+                    type: string
             status:
               type: object
               properties:

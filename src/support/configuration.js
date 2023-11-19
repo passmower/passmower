@@ -1,6 +1,8 @@
 import Account from "./account.js";
 import renderError from "./render-error.js";
 import setupPolicies from "../implementation/setup-policies.js";
+import {errors} from "oidc-provider";
+import isOrigin from "./is-origin.js";
 
 export default {
     findAccount: Account.findAccount,
@@ -116,7 +118,28 @@ export default {
             'displayName',
             'pkce',
             'overrideIncomingScopes',
-        ]
+            'allowedCORSOrigins'
+        ],
+        validator(ctx, key, value, metadata) {
+            if (key === 'allowedCORSOrigins') {
+                // set default (no CORS)
+                if (value === undefined) {
+                    metadata['allowedCORSOrigins'] = [];
+                    return;
+                }
+                // validate an array of Origin strings
+                if (!Array.isArray(value) || !value.every(isOrigin)) {
+                    throw new errors.InvalidClientMetadata(`allowedCORSOrigins must be an array of origins`);
+                }
+            }
+        },
+    },
+    clientBasedCORS(ctx, origin, client) {
+        // https://github.com/panva/node-oidc-provider/blob/main/recipes/client_based_origins.md
+        // ctx.oidc.route can be used to exclude endpoints from this behaviour, in that case just return
+        // true to always allow CORS on them, false to deny
+        // you may also allow some known internal origins if you want to
+        return client.allowedCORSOrigins.includes(origin);
     },
     pkce: {
       required: function pkceRequired(ctx, client) {
