@@ -74,7 +74,7 @@ export default (provider) => {
         let apps = await clientsRedis.getSetMembers(1)
         apps = await Promise.all(apps.map(app => {
             return clientRedis.find(app)
-        })).then(r => r.filter(c => c.uri))
+        })).then(r => r.filter(c => c?.uri))
             .then(r => r.filter(c => checkAccountGroups(c, ctx.currentAccount)))
         apps = await Promise.all(apps.map(async c => {
             return {
