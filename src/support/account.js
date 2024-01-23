@@ -4,6 +4,7 @@ import {Approved} from "./conditions/approved.js";
 import {getSlackId} from "./get-slack-id.js";
 import {auditLog} from "./audit-log.js";
 import {ToSv1} from "./conditions/tosv1.js";
+import validator from "validator";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -190,8 +191,15 @@ class Account {
     }
 
     static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username, preferredUsername) {
+        if (Array.isArray(githubEmails)) {
+            githubEmails = githubEmails.map((e) => {
+                e.email = e.email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(e.email) : e.email
+                return e
+            })
+            githubEmails = [...new Map(githubEmails.map(v => [v.email, v])).values()]
+        }
         const emails = [
-            email,
+            email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(email) : email,
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
         auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
@@ -247,6 +255,7 @@ class Account {
     }
 
     static async findByEmail(ctx, email) {
+        email = email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(email) : email
         return await ctx.kubeOIDCUserService.findUserByEmails([email])
     }
 

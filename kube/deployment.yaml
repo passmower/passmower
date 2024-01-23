@@ -114,6 +114,8 @@ spec:
               value: 'veebkolm.ee'
             - name: REQUIRE_CUSTOM_USERNAME
               value: 'true'
+            - name: NORMALIZE_EMAIL_ADDRESSES
+              value: 'true'
           envFrom:
             - secretRef:
                 name: redis-oidc-gateway-owner-secrets
