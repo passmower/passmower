@@ -246,15 +246,13 @@ export default (provider) => {
         });
     });
 
-    router.get('/interaction/:uid/email-sent', async (ctx) => {
-        return render(provider, ctx, 'message', 'Email sent', {
-            message: 'Please check your inbox'
-        })
-    });
-
-    router.get('/interaction/:uid/slack-sent', async (ctx) => {
-        return render(provider, ctx, 'message', 'Message sent', {
-            message: 'Please check your Slack or email inbox'
+    router.get('/interaction/:uid/link-sent', async (ctx) => {
+        const recipients = Object.keys(ctx.request.query).map((q) => {
+            const success = ctx.request.query[q] === 'true'
+            return success ? (q === 'email' ? 'email inbox' : 'Slack') : null;
+        }).filter(a => a);
+        return render(provider, ctx, 'message', 'Link sent', {
+            message: `Please check your inbox ${recipients.join(' or ')}`
         })
     });
 

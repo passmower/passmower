@@ -42,22 +42,28 @@ export class EmailLogin {
             browser: metadata.browser,
             ip: metadata.ip
         })
-        const emailSent = await this.adapter.sendMail(
+        const sendEmail = this.adapter.sendMail(
             email,
             getEmailSubject('emails/link'),
             content.text,
             content.html
         )
-        auditLog(ctx, {email}, 'Sent login link via email')
-        if (this.slackAdapter.client && account?.slackId) {
-            await this.slackAdapter.sendMessage(account.slackId, content.text)
-            auditLog(ctx, {email, slackId: account.slackId}, 'Sent login link via Slack')
-            return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
-        } else if (!emailSent) {
-            auditLog(ctx, {email, error: true}, 'Failed to send login link via email')
-            throw new CustomOIDCProviderError('email_sending_failed', 'Failed to send login link via email. Please try again or contact support.')
+            .then(() => auditLog(ctx, {email}, 'Sent login link via email'))
+            .then(() => true)
+            .catch((error) => logger.error({ctx, error}, 'email-login.email_error'))
+
+        const sendSlack = this.slackAdapter.client && account?.slackId ? this.slackAdapter.sendMessage(account.slackId, content.text)
+            .then(() => auditLog(ctx, {email, slackId: account.slackId}, 'Sent login link via Slack'))
+            .then(() => true)
+            .catch((error) => logger.error({ctx, error}, 'email-login.slack_error'))
+            : null
+
+        const promises = await Promise.all([sendEmail, sendSlack]);
+        if (promises[0] || promises[1]) {
+            return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/link-sent?email=${promises[0] ? 'true' : 'false'}&slack=${promises[1] ? 'true' : 'false'}`)
+        } else {
+            throw new CustomOIDCProviderError('email_sending_failed', `Failed to send login link via email ${this.slackAdapter.client ? 'or Slack' : ''}. Please try again or contact support.`)
         }
-        return ctx.redirect(`${process.env.ISSUER_URL}interaction/${uid}/email-sent`)
     }
 
     async verifyLink(ctx, provider) {
