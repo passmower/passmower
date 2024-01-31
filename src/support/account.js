@@ -54,8 +54,8 @@ class Account {
         };
         if (scope.includes('profile')) {
             claims = {
-                ...claims,
                 ...this.profile,
+                ...claims,
                 name: this.profile.name,
                 emails: this.emails,
             };
