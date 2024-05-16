@@ -41,6 +41,7 @@ export default {
             'email',
             'emails',
             'name',
+            'nickname',
             'profile',
         ],
         email: ['email', 'email_verified'],
