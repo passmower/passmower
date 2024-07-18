@@ -1,15 +1,15 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
-import {signedInToSelf} from "../support/signed-in.js";
+import {signedInToSelf} from "../utils/session/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
-import {checkAccountGroups} from "../support/check-account-groups.js";
-import {auditLog} from "../support/audit-log.js";
+import {checkAccountGroups} from "../utils/user/check-account-groups.js";
+import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
     checkCompanyName,
     checkRealName,
     restValidationErrors
-} from "../support/validator.js";
+} from "../utils/session/validator.js";
 
 export default (provider) => {
     const router = new Router();
@@ -37,9 +37,10 @@ export default (provider) => {
 
         const accountId = ctx.currentSession.accountId
         const body = ctx.request.body
-        const account = await ctx.kubeOIDCUserService.updateUserSpec({
+        const account = await ctx.kubeOIDCUserService.updateUserSpecs(
             accountId,
-            customProfile: {
+            {
+            passmower: {
                 name: body.name,
                 company: body.company,
             }

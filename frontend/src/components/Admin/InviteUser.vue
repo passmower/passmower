@@ -2,7 +2,7 @@
   <div class="profile-section">
     <div class="profile-section-header no-flex">
       <h2>Invite new user</h2>
-      <p>You can also create users by creating OIDCGWUser CRDs</p>
+      <p>You can also create users by creating OIDCUser CRDs</p>
     </div>
     <template v-if="requireUsername">
       <label for="username">Username: </label>

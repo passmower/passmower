@@ -1,11 +1,11 @@
 import Router from "koa-router";
 import originalUrl from 'original-url';
-import {validateSiteSession} from "../support/site-session.js";
-import Account from "../support/account.js";
-import {isHostInProviderBaseDomain} from "../support/base-domain.js";
+import {validateSiteSession} from "../utils/session/site-session.js";
+import Account from "../models/account.js";
+import {isHostInProviderBaseDomain} from "../utils/session/base-domain.js";
 import RedisAdapter from "../adapters/redis.js";
-import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
-import {responseType, scope} from "../support/oidc-middleware-client.js";
+import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
+import {responseType, scope} from "../models/oidc-middleware-client.js";
 
 export default (provider) => {
     const router = new Router();
