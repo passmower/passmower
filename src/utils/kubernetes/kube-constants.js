@@ -29,7 +29,7 @@ export const OIDCClientSecretAllowedGroupsKey = 'OIDC_ALLOWED_GROUPS'
 export const GitHubGroupPrefix = 'github.com'
 export const TraefikMiddleware = 'Middleware'
 export const TraefikMiddlewares = 'middlewares'
-export const TraefikMiddlewareApiGroup = 'traefik.containo.us'
+export const TraefikMiddlewareApiGroup = 'traefik.io'
 export const TraefikMiddlewareApiGroupVersion = 'v1alpha1'
 export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clientId) => `http://${deployment}.${namespace}.svc.cluster.local:3000/forward-auth?client=${clientId}`
 
