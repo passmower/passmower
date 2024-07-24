@@ -4,9 +4,6 @@ build:
   artifacts:
     - image: passmower
 
-manifests:
-  rawYaml:
-    - kube/deployment.yaml
 
 profiles:
   - name: dev
@@ -26,7 +23,27 @@ profiles:
               - src: 'styles/src/**'
                 dest: .
     deploy:
-      kubectl: {}
+      helm:
+        releases:
+          - name: passmower-dev
+            chartPath: ./
+            setValueTemplates:
+              image.repository: "{{.IMAGE_REPO_passmower}}"
+              image.tag: "{{.IMAGE_TAG_passmower}}@{{.IMAGE_DIGEST_passmower}}"
+            setValues:
+              image.pullPolicy: "IfNotPresent"
+              passmower.host: "passmower-dev.veebkolm.eu"
+              passmower.group_prefix: "codemowers"
+              passmower.admin_group: "github.com:veebkolm-ee:admins"
+              passmower.required_group: "github.com:veebkolm-ee:admins"
+              passmower.github_organization: "veebkolm-ee"
+              passmower.enroll_users: true
+              passmower.namespace_selector: "*"
+              passmower.preferred_email_domain: "veebkolm.ee"
+              passmower.require_custom_username: true
+              passmower.normalize_email_addresses: true
+              passmower.email_credentials_secretRef: "email-credentials"
+              passmower.github_client_secretRef: "github-client"
 
 #portForward:
 #  - resourceType: deployment

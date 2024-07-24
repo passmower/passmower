@@ -4,13 +4,11 @@ kind: Ingress
 metadata:
   name: passmower
   annotations:
-    kubernetes.io/ingress.class: shared
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-    external-dns.alpha.kubernetes.io/target: traefik.codemowers.ee
+    external-dns.alpha.kubernetes.io/target: veebkolm.eu
 spec:
   rules:
-    - host: gateway-gab7y.codemowers.ee
+    - host: passmower-dev.veebkolm.eu
       http:
         paths:
           - pathType: Prefix
@@ -20,10 +18,6 @@ spec:
                 name: passmower
                 port:
                   number: 3000
-  tls:
-    - hosts:
-        - "*.codemowers.ee"
-
 ---
 apiVersion: v1
 kind: Service
@@ -93,7 +87,7 @@ spec:
               name: metrics
           env:
             - name: ISSUER_URL
-              value: 'https://gateway-gab7y.codemowers.ee/'
+              value: 'https://passmower-dev.veebkolm.eu/'
             - name: DEPLOYMENT_NAME
               valueFrom:
                 fieldRef:
@@ -101,39 +95,40 @@ spec:
             - name: GROUP_PREFIX
               value: 'codemowers'
             - name: ADMIN_GROUP
-              value: 'github.com:codemowers:admins'
+              value: 'github.com:veebkolm-ee:admins'
             - name: REQUIRED_GROUP
-              value: 'codemowers:users'
+              value: 'github.com:veebkolm-ee:admins'
             - name: GITHUB_ORGANIZATION
-              value: 'codemowers'
+              value: 'veebkolm-ee'
             - name: ENROLL_USERS
               value: 'true'
             - name: NAMESPACE_SELECTOR
-              value: 'veebkolm-*'
+              value: '*'
             - name: PREFERRED_EMAIL_DOMAIN
               value: 'veebkolm.ee'
             - name: REQUIRE_CUSTOM_USERNAME
               value: 'true'
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: 'true'
+            - name: REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: redis-passmower-owner-secrets
+                  key: REDIS_MASTER_0_URI
           envFrom:
-            - secretRef:
-                name: redis-oidc-gateway-owner-secrets
             - secretRef:
                   name: oidc-keys
             - secretRef:
                 name: email-credentials
             - secretRef:
                 name: github-client
-            - secretRef:
-                name: slack-client
           readinessProbe:
             httpGet:
               path: /.well-known/openid-configuration
               port: 3000
               httpHeaders:
                 - name: x-forwarded-for # suppress oidc-provider warning
-                  value: 'https://gateway-gab7y.codemowers.ee/'
+                  value: 'https://passmower-dev.veebkolm.eu/'
                 - name: x-forwarded-proto # suppress oidc-provider warning
                   value: https
             initialDelaySeconds: 5
