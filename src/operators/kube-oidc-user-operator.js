@@ -29,12 +29,11 @@ export class KubeOIDCUserOperator {
     }
 
     async #claimOIDCUser (OIDCUser) {
-        if (!(new ClaimedBy(this.adapter.instance)).check(OIDCUser)) {
-            let condition = new ClaimedBy(this.adapter.instance)
-            condition = condition.setStatus(true)
-            OIDCUser.setLabels(condition.toLabels())
-            await this.userService.replaceUserLabels(OIDCUser)
-        }
+        let condition = new ClaimedBy(this.adapter.instance)
+        condition = condition.setStatus(true)
+        OIDCUser.setLabels(condition.toLabels())
+        await this.userService.replaceUserLabels(OIDCUser)
+        await this.userService.updateUserStatus(OIDCUser)
     }
 
     async #updateOIDCUser(OIDCUser) {
