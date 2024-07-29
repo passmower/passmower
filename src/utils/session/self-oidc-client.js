@@ -22,6 +22,11 @@ export const initializeSelfOidcClient = async () => {
     await redis.upsert(clientId, baseClient)
 }
 
+export const getSelfOidcClient = async () => {
+    const redis = new RedisAdapter('Client')
+    return await redis.find(clientId)
+}
+
 const validateUris = (uris) => {
     const filteredUris = [
         ...getUrlsInProviderBaseDomain(uris),

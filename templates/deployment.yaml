@@ -93,15 +93,15 @@ spec:
                   value: https
           livenessProbe:
             httpGet:
-              path: /.well-known/openid-configuration
-              port: 3000
+              path: /health
+              port: 9090
               httpHeaders:
                 - name: x-forwarded-for # suppress oidc-provider warning
                   value: {{ include "passmower.url" . }}
                 - name: x-forwarded-proto # suppress oidc-provider warning
                   value: https
-            initialDelaySeconds: 5
-            periodSeconds: 1
+            initialDelaySeconds: 30
+            periodSeconds: 3
           volumeMounts:
             - mountPath: /app/tos
               name: tos
