@@ -30,13 +30,20 @@ export class KubeOIDCClientOperator {
     async #createOIDCClient (OIDCClient) {
         if (OIDCClient.getInstance() === this.instance) {
             if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
-                // Recreate the Kube secret if we don't have the client in Redis. It's an edge case anyways.
-                OIDCClient.generateSecret()
-                await this.adapter.deleteSecret(
+                let secret = await this.adapter.getSecret(
                     OIDCClient.getClientNamespace(),
                     OIDCClient.getSecretName()
                 )
-                await this.#createKubeSecret(OIDCClient)
+                if (secret) {
+                    OIDCClient.setSecret(secret.data[OIDCClientSecretClientSecretKey])
+                } else {
+                    OIDCClient.generateSecret()
+                    await this.adapter.deleteSecret(
+                        OIDCClient.getClientNamespace(),
+                        OIDCClient.getSecretName()
+                    )
+                    await this.#createKubeSecret(OIDCClient)
+                }
             }
         } else if (!OIDCClient.getInstance()) {
             // Claim that client
