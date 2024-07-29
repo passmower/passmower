@@ -31,42 +31,24 @@ passmower:
   # Different texts displayed and sent to the user
   texts:
     approval:
-      "Dear User,
-      
-       Thank you for your interest in accessing our infrastructure.
-       
-       Please contact us.
-      "
+      #configMapRef:
+      #  name: ""
+      content: ""
     emails:
+      #configMapRef:
+      #  name: ""
       login_link:
         subject: "Passmower login link"
         text: "Open the following link to log in: <%= url %>"
-        body: "<div>
-                    <p>Open the following link to log in: <%= url %></p>
-                    <p>Best regards, <br/> Passmower</p>
-                </div>"
+        body: ""
       terms_of_service:
         subject: "Terms of Service agreement confirmation"
-        text: "Hi, <%= name %>!
-              
-              You agreed with the Terms of Service at <%= timestamp %>
-              
-              Content SHA256 hash: <%= hash %>
-              
-              Best regards,
-              Passmower"
-        body: "<div>
-                <p>Hi, <%= name %>!</p>
-                <p>You agreed with the following Terms of Service at <%= timestamp %></p>
-                <p>Content SHA256 hash: <%= hash %></p>
-                <blockquote>
-                    <%- content -%>
-                </blockquote>
-                <p>Best regards, <br/> Passmower</p>
-            </div>"
-        content: "Rules
-        
-                Also known as code of conduct, guidelines, etc."
+        text: ""
+        body: ""
+    terms_of_service:
+        #configMapRef:
+        #  name: ""
+        content: ""
 
 redis:
   # Requires the Codemowers redis-operator to be installed: https://github.com/codemowers/operatorlib/tree/main/samples/redis-operator

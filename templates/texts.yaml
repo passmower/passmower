@@ -1,17 +1,22 @@
+{{- if .Values.passmower.texts.terms_of_service.content }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-tos
 data:
-  tos.md: "{{ .Values.passmower.texts.emails.terms_of_service.content }}"
+  tos.md: "{{ .Values.passmower.texts.terms_of_service.content }}"
+{{- end }}
 ---
+{{- if .Values.passmower.texts.approval.content }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-approval
 data:
-  approval.txt: "{{ .Values.passmower.texts.approval }}"
+  approval.txt: "{{ .Values.passmower.texts.approval.content }}"
+{{- end }}
 ---
+{{- if .Values.passmower.texts.emails.login_link }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,3 +28,4 @@ data:
   tos.subject: "{{ .Values.passmower.texts.emails.terms_of_service.subject }}"
   tos.txt: "{{ .Values.passmower.texts.emails.terms_of_service.text }}"
   tos.ejs: "{{ .Values.passmower.texts.emails.terms_of_service.body }}"
+{{- end }}

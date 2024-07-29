@@ -126,13 +126,25 @@ spec:
       volumes:
         - name: tos
           configMap:
+            {{- if .Values.passmower.texts.terms_of_service.configMapRef }}
+            name: {{ .Values.passmower.texts.terms_of_service.configMapRef.name }}
+            {{- else }}
             name: {{ include "passmower.fullname" . }}-tos
+            {{- end }}
         - name: approval
           configMap:
+            {{- if .Values.passmower.texts.approval.configMapRef }}
+            name: {{ .Values.passmower.texts.approval.configMapRef.name }}
+            {{- else }}
             name: {{ include "passmower.fullname" . }}-approval
+            {{- end }}
         - name: email-templates
           configMap:
+            {{- if .Values.passmower.texts.emails.configMapRef }}
+            name: {{ .Values.passmower.texts.emails.configMapRef.name }}
+            {{- else }}
             name: {{ include "passmower.fullname" . }}-email-templates
+            {{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
