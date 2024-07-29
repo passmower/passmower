@@ -21,3 +21,10 @@
 .idea/
 *.tmproj
 .vscode/
+
+# Code
+node_modules/
+src/
+frontend/
+kube/
+styles/
