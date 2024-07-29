@@ -1,4 +1,4 @@
-{{- if .Values.passmower.texts.terms_of_service.content }}
+{{- if not .Values.passmower.texts.terms_of_service.configMapRef }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,7 +7,7 @@ data:
   tos.md: "{{ .Values.passmower.texts.terms_of_service.content }}"
 {{- end }}
 ---
-{{- if .Values.passmower.texts.approval.content }}
+{{- if not .Values.passmower.texts.approval.configMapRef }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,7 +16,7 @@ data:
   approval.txt: "{{ .Values.passmower.texts.approval.content }}"
 {{- end }}
 ---
-{{- if .Values.passmower.texts.emails.login_link }}
+{{- if not .Values.passmower.texts.emails.configMapRef }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
