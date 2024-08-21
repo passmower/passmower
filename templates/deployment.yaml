@@ -41,6 +41,8 @@ spec:
               value: {{ .Values.passmower.required_group | quote }}
             - name: GITHUB_ORGANIZATION
               value: {{ .Values.passmower.github_organization | quote }}
+            - name: USE_GITHUB_USERNAME
+              value: {{ .Values.passmower.use_github_username | quote }}
             - name: ENROLL_USERS
               value: {{ .Values.passmower.enroll_users | quote }}
             - name: NAMESPACE_SELECTOR

@@ -12,6 +12,8 @@ passmower:
   required_group: ""
   # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
   github_organization: "passmower"
+  # Attempt to use GH username in OIDC response instead of regular username (OIDCUser CRD name).
+  use_github_username: false
   # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
   enroll_users: true
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.

@@ -51,9 +51,10 @@ class Account {
      *   or not return them in id tokens but only userinfo and so on.
      */
     async claims(use, scope) { // eslint-disable-line no-unused-vars
+        const username = process.env.USE_GITHUB_USERNAME === 'true' ? (this.#github.login || this.accountId) : this.accountId
         let claims = {
-            sub: this.accountId, // it is essential to always return a sub claim
-            username: this.accountId,
+            sub: username, // it is essential to always return a sub claim
+            username,
             groups: await Promise.all(this.groups.map(g => g.prefix + ':' + g.name)),
             email: this.primaryEmail,
         };
