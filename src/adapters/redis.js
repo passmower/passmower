@@ -2,7 +2,13 @@
 import Redis from 'ioredis'; // eslint-disable-line import/no-unresolved
 import isEmpty from 'lodash/isEmpty.js';
 
-const client = new Redis(process.env.REDIS_URI, { keyPrefix: 'oidc:' });
+const client = new Redis(process.env.REDIS_URI, {
+    keyPrefix: 'oidc:',
+    reconnectOnError(err) {
+        globalThis.logger.error(err)
+        return true
+    },
+});
 
 const grantable = new Set([
     'AccessToken',
