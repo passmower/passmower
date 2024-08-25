@@ -153,10 +153,10 @@ spec:
           jsonPath: .status.primaryEmail
         - name: Upstream IdP e-mail
           type: string
-          jsonPath: .spec.github.emails[?(@.primary==true)].email
+          jsonPath: .github.emails[?(@.primary==true)].email
         - name: GH ID
           type: string
-          jsonPath: .spec.github.id
+          jsonPath: .github.id
         - name: Groups
           type: string
           jsonPath: .status.groups
