@@ -1,6 +1,6 @@
 ---
-apiVersion: codemowers.io/v1alpha1
-kind: OIDCGWMiddlewareClient
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCMiddlewareClient
 metadata:
   name: whoami
 spec:
