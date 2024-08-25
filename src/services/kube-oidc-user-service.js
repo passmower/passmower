@@ -3,6 +3,7 @@ import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {OIDCUserCrd} from "../utils/kubernetes/kube-constants.js";
 import {ClaimedBy} from "../conditions/claimed-by.js";
 import merge from "lodash/merge.js";
+import cloneDeep from "lodash/cloneDeep.js";
 
 export class KubeOIDCUserService {
     constructor() {
@@ -65,8 +66,8 @@ export class KubeOIDCUserService {
     }
 
     async updateUserSpecs(accountId, {passmower, slack, github} = {}) {
-        const account = await this.findUser(accountId)
-        let extended = merge(arguments[1], account.getSpecs())
+        let account = await this.findUser(accountId)
+        let extended = merge(cloneDeep(account.getSpecs()), arguments[1])
         const updatedUser = await this.adapter.patchNamespacedCustomObject(
             OIDCUserCrd,
             this.adapter.namespace,

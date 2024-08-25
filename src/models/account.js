@@ -88,7 +88,7 @@ class Account {
             primaryEmail = primaryEmail?.email
         }
         if (!primaryEmail) {
-            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#spec.githubEmails?.find(ghEmail => ghEmail.primary)?.email
+            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github.emails?.find(ghEmail => ghEmail.primary)?.email
         }
         return {
             primaryEmail,
