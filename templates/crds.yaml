@@ -87,6 +87,10 @@ spec:
                   type: string
                 email:
                   type: string
+                phones:
+                  type: array
+                  items:
+                    type: string
                 groups:
                   type: array
                   items:
@@ -136,6 +140,10 @@ spec:
                       type: string
                     name:
                       type: string
+                    phones:
+                      type: array
+                      items:
+                        type: string
                   x-kubernetes-preserve-unknown-fields: true
                 slackId:
                   type: string
@@ -151,6 +159,9 @@ spec:
         - name: Display e-mail
           type: string
           jsonPath: .status.primaryEmail
+        - name: Phone
+          type: string
+          jsonPath: .status.profile.phones[0]
         - name: Upstream IdP e-mail
           type: string
           jsonPath: .github.emails[?(@.primary==true)].email

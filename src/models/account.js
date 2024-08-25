@@ -97,9 +97,10 @@ class Account {
             profile: {
                 name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? null,
                 company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? null,
+                phones: this.#spec?.phones ?? null,
             },
             slackId: this.#slack?.id ?? null,
-            conditions: this.#conditions
+            conditions: this.#conditions,
         }
     }
 
@@ -109,6 +110,7 @@ class Account {
             email: this.primaryEmail,
             name: this.profile.name,
             company: this.profile.company,
+            phones: this.profile.phones,
             isAdmin: this.isAdmin,
             groups: this.#mapGroups(),
             tos_accepted_at: this.#conditions.find(c => c.type === 'ToSv1')?.lastTransitionTime,
