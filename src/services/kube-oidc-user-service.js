@@ -18,12 +18,12 @@ export class KubeOIDCUserService {
         )
     }
 
-    async findUser(id) {
+    async findUser(id, ctx) {
         return await this.adapter.getNamespacedCustomObject(
             OIDCUserCrd,
             this.adapter.namespace,
             id,
-            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse).setContext(ctx)
         )
     }
 

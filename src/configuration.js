@@ -32,19 +32,16 @@ export default {
         openid: [
             'sub',
             'username',
-            'groups',
         ],
         profile: [
-            'sub',
-            'username',
-            'groups',
             'email',
             'emails',
             'name',
             'profile',
         ],
         email: ['email', 'email_verified'],
-
+        groups: ['groups'],
+        allowed_groups: ['groups'],
         sid: null,
     },
     features: {

@@ -16,6 +16,7 @@ class Account {
     #conditions = []
     #labels = {}
     #metadata = {}
+    #ctx = null
 
     fromKubernetes(apiResponse) {
         this.accountId = apiResponse.metadata.name
@@ -36,6 +37,11 @@ class Account {
         return this
     }
 
+    setContext(ctx) {
+        this.#ctx = ctx;
+        return this
+    }
+
     fromRedis(redisObject) {
         Object.assign(this, redisObject)
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
@@ -49,23 +55,35 @@ class Account {
      *   claims depending on the scope automatically you might want to skip
      *   loading some claims from external resources etc. based on this detail
      *   or not return them in id tokens but only userinfo and so on.
+     * @param claims {object} - the part of the claims authorization parameter for either
+     *   "id_token" or "userinfo" (depends on the "use" param)
+     * @param rejected {Array[String]} - claim names that were rejected by the end-user, you might
+     *   want to skip loading some claims from external resources or through db projection
      */
-    async claims(use, scope) { // eslint-disable-line no-unused-vars
+    async claims(use, scope, claims, rejected) { // eslint-disable-line no-unused-vars
         const username = process.env.USE_GITHUB_USERNAME === 'true' ? (this.#github.login || this.accountId) : this.accountId
-        let claims = {
+        const groups = await Promise.all(this.groups.map(g => g.prefix + ':' + g.name))
+        let response = {
             sub: username, // it is essential to always return a sub claim
             username,
-            groups: await Promise.all(this.groups.map(g => g.prefix + ':' + g.name)),
             email: this.primaryEmail,
         };
         if (scope.includes('profile')) {
-            claims = {
-                ...claims,
+            response = {
+                ...response,
                 ...this.profile,
                 emails: this.emails,
             };
         }
-        return claims
+        if (scope.includes('allowed_groups')) {
+            const clientGroups = this.#ctx.oidc.client.allowedGroups || []
+            response.groups = clientGroups.length ? groups.filter(g => clientGroups.includes(g)) : clientGroups
+        }
+        if (scope.includes(' groups')) {
+            response.groups = groups
+        }
+
+        return response
     }
 
     getIntendedStatus() {
@@ -259,12 +277,7 @@ class Account {
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-        const account = await ctx.kubeOIDCUserService.findUser(id)
-        // const redis = new RedisAdapter('Account')
-        // const cachedUser = await redis.find(id)
-        // const account = cachedUser ? (new Account()).fromRedis(cachedUser) : await ctx.kubeApiService.findUser(id)
-        // await redis.upsert(id, account, 60)
-        return account ? account : null
+        return await ctx.kubeOIDCUserService.findUser(id, ctx) || null
     }
 
     static async findByEmail(ctx, email) {

@@ -221,6 +221,8 @@ spec:
                       - openid
                       - profile
                       - offline_access
+                      - groups
+                      - allowed_groups
                 displayName:
                   type: string
                 grantTypes:
