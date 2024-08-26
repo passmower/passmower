@@ -56,7 +56,7 @@ passmower:
     disable_frontend_edit:
         #configMapRef:
         #  name: ""
-        content: "Editing profile is disabled. Please see [our Git](https://git.k-space.ee)"
+        content: "Editing profile is disabled. Please see [our Git](https://github.com)"
 
 redis:
   # Requires the Codemowers redis-operator to be installed: https://github.com/codemowers/operatorlib/tree/main/samples/redis-operator
