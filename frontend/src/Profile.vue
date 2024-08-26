@@ -20,6 +20,7 @@ import {useAccountStore} from "@/stores/account";
 import Profile from "@/components/User/Profile.vue";
 import Sessions from "@/components/User/Sessions.vue";
 import {container} from "jenesius-vue-modal";
+import {useImpersonationStore} from "@/stores/impersonation";
 
 export default {
   components: {
@@ -43,9 +44,13 @@ export default {
     fetch('/api/sessions').then((r) => r.json()).then((r) => {
       this.setSessions(r.sessions)
     })
+    fetch('/admin/api/account/impersonation').then((r) => r.json()).then((r) => {
+      this.setImpersonation(r.impersonation)
+    })
   },
   methods: {
     ...mapActions(useAccountStore, ['setAccount', 'setSessions']),
+    ...mapActions(useImpersonationStore, ['setImpersonation']),
   }
 }
 

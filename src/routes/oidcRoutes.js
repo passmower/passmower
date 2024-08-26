@@ -246,6 +246,13 @@ export default (provider) => {
         });
     });
 
+    router.post('/interaction/:uid/impersonate/end', async (ctx) => {
+         await ctx.sessionService.endImpersonation(ctx)
+        return provider.interactionFinished(ctx.req, ctx.res, {
+            mergeWithLastSubmission: true,
+        });
+    });
+
     router.get('/interaction/:uid/link-sent', async (ctx) => {
         const recipients = Object.keys(ctx.request.query).map((q) => {
             const success = ctx.request.query[q] === 'true'

@@ -11,7 +11,7 @@
       </div>
       <XMark v-if="!session.current" @click="end(session)" />
     </div>
-    <button type="submit" @click="end(sessions.find((s) => s.current))">Log out</button>
+    <button type="submit" @click="end(sessions.find((s) => s.current))">{{ `Log out ${impersonation ? ' and end impersonation' : ''}` }}</button>
   </div>
 </template>
 
@@ -21,6 +21,7 @@ import {useAccountStore} from "@/stores/account";
 import XMark from "@/components/Icons/XMark.vue";
 import {openModal} from "jenesius-vue-modal";
 import EndSession from "@/components/User/Modals/EndSession.vue";
+import {useImpersonationStore} from "@/stores/impersonation";
 
 export default {
   name: "Profile",
@@ -31,10 +32,11 @@ export default {
   computed: {
     ...mapStores(useAccountStore),
     ...mapState(useAccountStore, ['sessions']),
+    ...mapState(useImpersonationStore, ['impersonation']),
   },
   methods: {
     async end(session) {
-      const modal = await openModal(EndSession, {
+      await openModal(EndSession, {
         sessionId: session.id
       });
     }
