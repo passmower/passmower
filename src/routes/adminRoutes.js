@@ -5,13 +5,14 @@ import {GitHubGroupPrefix} from "../utils/kubernetes/kube-constants.js";
 import {signedInToSelf} from "../utils/session/signed-in.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
-    checkAccountId, checkCompanyName,
+    checkAccountId, checkCompanyName, checkDisableFrontendEdit,
     checkEmail, checkIfEmailIsTaken,
     checkRealName,
     checkUsername,
     restValidationErrors
 } from "../utils/session/validator.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
+import {getText} from "../utils/get-text.js";
 
 export default (provider) => {
     const router = new Router();
@@ -43,6 +44,8 @@ export default (provider) => {
         ctx.body = {
             groupPrefix: GroupPrefix,
             requireUsername: process.env.REQUIRE_CUSTOM_USERNAME === 'true',
+            disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
+            disableEditingText: getText('disable_frontend_edit'),
         }
     })
 
@@ -57,6 +60,7 @@ export default (provider) => {
         checkAccountId(ctx)
         checkRealName(ctx)
         checkCompanyName(ctx)
+        checkDisableFrontendEdit(ctx)
         if (await restValidationErrors(ctx)) {
             return
         }
@@ -131,6 +135,7 @@ export default (provider) => {
         }
         checkEmail(ctx)
         checkIfEmailIsTaken(ctx)
+        checkDisableFrontendEdit(ctx)
         if (await restValidationErrors(ctx)) {
             return
         }

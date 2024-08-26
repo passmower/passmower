@@ -2,6 +2,7 @@ import usernameBlacklist from "../user/username-blacklist.js";
 import Account from "../../models/account.js";
 import koaValidator from "koa-async-validator";
 import validator from "validator";
+import {getText} from "../get-text.js";
 
 export default koaValidator({
     customValidators: {
@@ -39,7 +40,8 @@ export default koaValidator({
         }),
         isValidCompanyName: (value) => validator.isAlphanumeric(value, 'en-US', {
             ignore: ' ÜÕÖÄüõöä'
-        })
+        }),
+        disableFrontendEdit: () =>  process.env.DISABLE_FRONTEND_EDIT !== 'true'
     }
 })
 
@@ -84,4 +86,8 @@ export function checkCompanyName(ctx) {
 export function checkAccountId(ctx) {
     ctx.checkBody('accountId', 'User does not exist').usernameNotExists()
     ctx.checkBody('accountId', 'User must be 2-15 characters').isLength({min: 2, max: 15})
+}
+
+export function checkDisableFrontendEdit(ctx) {
+    ctx.check('', getText('disable_frontend_edit')).disableFrontendEdit()
 }

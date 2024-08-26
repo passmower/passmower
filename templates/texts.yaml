@@ -16,6 +16,15 @@ data:
   approval.txt: "{{ .Values.passmower.texts.approval.content }}"
 {{- end }}
 ---
+{{- if not .Values.passmower.texts.disable_frontend_edit.configMapRef }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "passmower.fullname" . }}-disable-frontend-edit
+data:
+  disable_frontend_edit.md: "{{ .Values.passmower.texts.disable_frontend_edit.content }}"
+{{- end }}
+---
 {{- if not .Values.passmower.texts.emails.configMapRef }}
 apiVersion: v1
 kind: ConfigMap

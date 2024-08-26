@@ -16,6 +16,8 @@ passmower:
   use_github_username: false
   # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
   enroll_users: true
+  # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
+  disable_frontend_edit: false
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.
   namespace_selector: "*"
   # Domain which will be preferred for determining primary emails.
@@ -51,6 +53,10 @@ passmower:
         #configMapRef:
         #  name: ""
         content: ""
+    disable_frontend_edit:
+        #configMapRef:
+        #  name: ""
+        content: "Editing profile is disabled. Please see [our Git](https://git.k-space.ee)"
 
 redis:
   # Requires the Codemowers redis-operator to be installed: https://github.com/codemowers/operatorlib/tree/main/samples/redis-operator

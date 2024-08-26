@@ -6,10 +6,11 @@ import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
-    checkCompanyName,
+    checkCompanyName, checkDisableFrontendEdit,
     checkRealName,
     restValidationErrors
 } from "../utils/session/validator.js";
+import {getText} from "../utils/get-text.js";
 
 export default (provider) => {
     const router = new Router();
@@ -25,12 +26,20 @@ export default (provider) => {
 
     router.get('/api/me', async (ctx, next) => {
         const account = ctx.currentAccount
-        ctx.body = account.getProfileResponse()
+        ctx.body = {
+            ...account.getProfileResponse(),
+            disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
+        }
+    })
+
+    router.get('/api/texts/disable_frontend_edit', async (ctx, next) => {
+        ctx.body = getText('disable_frontend_edit')
     })
 
     router.post('/api/me', async (ctx, next) => {
         checkRealName(ctx)
         checkCompanyName(ctx)
+        checkDisableFrontendEdit(ctx)
         if (await restValidationErrors(ctx)) {
             return
         }

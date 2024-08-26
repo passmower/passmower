@@ -188,7 +188,7 @@ class Account {
                 name: g.name,
                 prefix: g.prefix,
                 displayName: g.prefix + ':' + g.name,
-                editable: g.prefix !== GitHubGroupPrefix,
+                editable: g.prefix !== GitHubGroupPrefix && process.env.DISABLE_FRONTEND_EDIT !== 'true',
             }
         }).sort(g => g.editable ? 1 : -1) : []
     }

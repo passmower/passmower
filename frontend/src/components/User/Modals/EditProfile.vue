@@ -4,11 +4,14 @@
       <h2>Edit profile</h2>
       <XMark @click="closeModal" />
     </div>
-    <label for="name">Name: </label>
-    <input name="name" type="text" v-model="account.name" />
-    <label for="name">Company: </label>
-    <input name="name" type="text" v-model="account.company" />
-    <button type="submit" @click="saveAccount">Save changes</button>
+    <template v-if="!account.disableEditing">
+      <label for="name">Name: </label>
+      <input name="name" type="text" v-model="account.name" />
+      <label for="name">Company: </label>
+      <input name="name" type="text" v-model="account.company" />
+      <button type="submit" @click="saveAccount">Save changes</button>
+    </template>
+    <div v-else v-html="disableEditingText" />
   </div>
 </template>
 
@@ -24,9 +27,17 @@ export default {
   components: {
     XMark
   },
+  data() {
+    return {
+      disableEditingText: ''
+    }
+  },
   computed: {
     ...mapStores(useAccountStore),
     ...mapState(useAccountStore, ['account']),
+  },
+  created: async function () {
+    this.disableEditingText = await fetch('/api/texts/disable_frontend_edit').then((r) => r.text())
   },
   methods: {
     ...mapActions(useAccountStore, ['setAccount']),
