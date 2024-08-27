@@ -46,6 +46,12 @@ Passmower has been tested and supports the following applications:
 - [Proxmox](https://git.k-space.ee/k-space/kube/src/branch/master/oidc-gateway/proxmox.yaml) 7.4 or later
 - [ArgoCD](https://git.k-space.ee/k-space/kube/src/branch/master/argocd/application-extras.yml)
 
+# Installation
+
+Install using helm from ghcr.io: `helm install passmower oci://ghcr.io/passmower/passmower --version 1.0.0`
+
+See and use [values.yaml](values.yaml) for customizations.
+
 # Usage
 
 ## Application enrollment
