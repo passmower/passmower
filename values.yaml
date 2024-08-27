@@ -90,10 +90,10 @@ ingress:
   #      - chart-example.local
 
 image:
-  repository: passmower/passmower
+  repository: mirror.gcr.io/passmower/passmower
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "develop"
+  # tag: "develop"
 
 podSecurityContext: {}
   # fsGroup: 2000
