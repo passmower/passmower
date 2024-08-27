@@ -52,6 +52,7 @@ Install using helm from ghcr.io, **at least setting the hostname**: `helm instal
 
 See and use [values.yaml](values.yaml) for customizations.
 
+
 # Usage
 
 ## Application enrollment
