@@ -1,3 +1,4 @@
+ARG BUILDPLATFORM=amd64
 FROM --platform=$BUILDPLATFORM node:lts AS dev
 
 # define /app as working directory

@@ -1,0 +1,389 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oidcusers.codemowers.cloud
+spec:
+  group: codemowers.cloud
+  names:
+    plural: oidcusers
+    singular: oidcuser
+    kind: OIDCUser
+    listKind: OIDCUserList
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            github:
+              type: object
+              properties:
+                company:
+                  type: string
+                email:
+                  type: string
+                emails:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      email:
+                        type: string
+                      primary:
+                        type: boolean
+                        default: false
+                groups:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      prefix:
+                        type: string
+                        enum:
+                          - github.com
+                id:
+                  type: integer
+                login:
+                  type: string
+                name:
+                  type: string
+            passmower:
+              type: object
+              properties:
+                company:
+                  type: string
+                email:
+                  type: string
+                groups:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      prefix:
+                        type: string
+                name:
+                  type: string
+            slack:
+              type: object
+              properties:
+                id:
+                  type: string
+            spec:
+              type: object
+              required:
+                - type
+              properties:
+                companyEmail:
+                  type: string
+                email:
+                  type: string
+                phones:
+                  type: array
+                  items:
+                    type: string
+                groups:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      prefix:
+                        type: string
+                type:
+                  type: string
+                  default: person
+                  enum:
+                    - person
+                    - org
+                    - service
+                    - banned
+                    - group
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                    x-kubernetes-embedded-resource: true
+                emails:
+                  type: array
+                  items:
+                    type: string
+                groups:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      prefix:
+                        type: string
+                primaryEmail:
+                  type: string
+                profile:
+                  type: object
+                  properties:
+                    company:
+                      type: string
+                    name:
+                      type: string
+                    phones:
+                      type: array
+                      items:
+                        type: string
+                  x-kubernetes-preserve-unknown-fields: true
+                slackId:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Type
+          type: string
+          jsonPath: .spec.type
+        - name: Name
+          type: string
+          jsonPath: .status.profile.name
+        - name: Display e-mail
+          type: string
+          jsonPath: .status.primaryEmail
+        - name: Phone
+          type: string
+          jsonPath: .status.profile.phones[0]
+        - name: Upstream IdP e-mail
+          type: string
+          jsonPath: .github.emails[?(@.primary==true)].email
+        - name: GH ID
+          type: string
+          jsonPath: .github.id
+        - name: Groups
+          type: string
+          jsonPath: .status.groups
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oidcclients.codemowers.cloud
+spec:
+  group: codemowers.cloud
+  names:
+    plural: oidcclients
+    singular: oidcclient
+    kind: OIDCClient
+    listKind: OIDCClientList
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - redirectUris
+                - grantTypes
+                - responseTypes
+              properties:
+                allowedCORSOrigins:
+                  type: array
+                  items:
+                    type: string
+                allowedGroups:
+                  type: array
+                  items:
+                    type: string
+                availableScopes:
+                  type: array
+                  default:
+                    - openid
+                  items:
+                    type: string
+                    enum:
+                      - openid
+                      - profile
+                      - offline_access
+                      - groups
+                      - allowed_groups
+                displayName:
+                  type: string
+                grantTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - implicit
+                      - authorization_code
+                      - refresh_token
+                idTokenSignedResponseAlg:
+                  type: string
+                  enum:
+                    - PS256
+                    - RS256
+                    - ES256
+                overrideIncomingScopes:
+                  type: boolean
+                  default: false
+                pkce:
+                  type: boolean
+                  default: true
+                redirectUris:
+                  type: array
+                  items:
+                    type: string
+                responseTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - code id_token
+                      - code
+                      - id_token
+                      - none
+                secretMetadata:
+                  type: object
+                  properties:
+                    annotations:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    labels:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                secretRefreshPod:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  x-kubernetes-embedded-resource: true
+                tokenEndpointAuthMethod:
+                  type: string
+                  enum:
+                    - client_secret_basic
+                    - client_secret_jwt
+                    - client_secret_post
+                    - private_key_jwt
+                    - none
+                uri:
+                  type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                    x-kubernetes-embedded-resource: true
+                instance:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Instance
+          type: string
+          description: Passmower deployment which manages this client
+          jsonPath: .status.instance
+        - name: Uris
+          type: string
+          description: Redirect URLs configured for this client
+          jsonPath: .spec.redirectUris
+        - name: Allowed groups
+          type: string
+          description: Groups allowed to this client
+          jsonPath: .spec.allowedGroups
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oidcmiddlewareclients.codemowers.cloud
+spec:
+  group: codemowers.cloud
+  names:
+    plural: oidcmiddlewareclients
+    singular: oidcmiddlewareclient
+    kind: OIDCMiddlewareClient
+    listKind: OIDCMiddlewareClientList
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              properties:
+                allowedGroups:
+                  type: array
+                  items:
+                    type: string
+                displayName:
+                  type: string
+                headerMapping:
+                  type: object
+                  default:
+                    email: Remote-Email
+                    groups: Remote-Groups
+                    name: Remote-Name
+                    user: Remote-User
+                  properties:
+                    email:
+                      type: string
+                    groups:
+                      type: string
+                    name:
+                      type: string
+                    user:
+                      type: string
+                uri:
+                  type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                    x-kubernetes-embedded-resource: true
+                instance:
+                  type: string
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Instance
+          type: string
+          description: Passmower deployment which manages this client
+          jsonPath: .status.instance
+        - name: Uri
+          type: string
+          description: URL configured for this client
+          jsonPath: .spec.uri
+        - name: Allowed groups
+          type: string
+          description: Groups allowed to this client
+          jsonPath: .spec.allowedGroups
+  conversion:
+    strategy: None

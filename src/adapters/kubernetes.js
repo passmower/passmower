@@ -3,9 +3,11 @@ import {
     defaultApiGroup,
     defaultApiGroupVersion,
     plurals
-} from "../support/kube-constants.js";
-import WatchRequest from "../support/watch-request.js";
+} from "../utils/kubernetes/kube-constants.js";
+import WatchRequest from "../utils/kubernetes/watch-request.js";
 import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
+import {diff} from 'jsondiffpatch';
+import {format} from 'jsondiffpatch/formatters/jsonpatch';
 
 export class KubernetesAdapter {
     constructor() {
@@ -16,9 +18,9 @@ export class KubernetesAdapter {
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
         this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
         this.deployment = process.env.DEPLOYMENT_NAME
-        this.currentGateway = this.namespace + '-' + this.deployment
+        this.instance = this.namespace + '-' + this.deployment
         const interceptor = (reqOptions) => {
-            reqOptions.headers['User-Agent'] = this.currentGateway
+            reqOptions.headers['User-Agent'] = this.instance
         }
         this.customObjectsApi.addInterceptor(interceptor)
         this.customObjectsApi.addInterceptor(interceptor)
@@ -77,7 +79,7 @@ export class KubernetesAdapter {
                         this.#getOwnerReference(owner)
                     ] : undefined
                 },
-                spec
+                ...spec
             }
         ).then(async (r) => {
             return mapperFunction(r.body)
@@ -90,10 +92,8 @@ export class KubernetesAdapter {
     }
 
     async patchNamespacedCustomObject(kind, namespace, id, values, existingValues, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        let patches = []
-        for (let [key, value] of Object.entries(values)) {
-            patches = [...patches, ...this.#getPatches(key, value, existingValues)]
-        }
+        const delta = diff(existingValues, values)
+        const patches = format(delta);
         return await this.customObjectsApi.patchNamespacedCustomObject(
             apiGroup,
             apiGroupVersion,
@@ -143,7 +143,13 @@ export class KubernetesAdapter {
             id,
             namespace
         ).then(async (r) => {
-            return this.#parseSecretData(r.body.data)
+            return {
+                metadata: {
+                    annotations: r.body.metadata?.annotations,
+                    labels: r.body.metadata?.labels,
+                },
+                data: await this.#parseSecretData(r.body.data)
+            }
         }).catch((e) => {
             if (e.statusCode === 404) {
                 return null
@@ -153,13 +159,11 @@ export class KubernetesAdapter {
         })
     }
 
-    async createSecret(namespace, id, data, ownerMetadata) {
+    async createSecret(namespace, id, data, metadata) {
         let kubeSecret = new V1Secret()
         kubeSecret.metadata = {
             name: id,
-            ownerReferences: [
-                this.#getOwnerReference(ownerMetadata)
-            ]
+            ...metadata
         }
         kubeSecret.data = await this.#generateSecretData(data)
         await this.coreV1Api.createNamespacedSecret(
@@ -173,15 +177,17 @@ export class KubernetesAdapter {
         })
     }
 
-    async patchSecret(namespace, id, data) {
-        const secret = await this.#generateSecretData(data)
-        let patches = Object.keys(secret).map((k) => {
-            return {
-                "op": "add",
-                "path": "/data/" + k,
-                "value": secret[k]
-            }
-        })
+    async patchSecret(namespace, id, data, metadata, existingSecret) {
+        const delta = diff(
+            {
+                metadata: existingSecret.metadata,
+                data: existingSecret.data,
+            },
+            {
+                metadata: metadata,
+                data: await this.#generateSecretData(data),
+            })
+        const patches = format(delta);
         return await this.coreV1Api.patchNamespacedSecret(
             id,
             namespace,
@@ -204,6 +210,21 @@ export class KubernetesAdapter {
         await this.coreV1Api.deleteNamespacedSecret(
             id,
             namespace
+        ).then(async (r) => {
+            return r.body.status
+        }).catch((e) => {
+            if (e.statusCode !== 404) {
+                globalThis.logger.error(e)
+                return null
+            }
+        })
+    }
+
+    async createPod(namespace, podSpec, dryRun = false) {
+        await this.coreV1Api.createNamespacedPod(
+            namespace,
+            podSpec,
+            undefined,
         ).then(async (r) => {
             return r.body.status
         }).catch((e) => {
@@ -269,39 +290,6 @@ export class KubernetesAdapter {
             // watch returns a request object which you can use to abort the watch.
             // setTimeout(() => { req.abort(); }, 10);
         });
-    }
-
-    async prefixValues(values, prefix) {
-        const newValues = {}
-        await Promise.all(
-            Object.keys(values).map(async (key) => {
-                newValues['/' + prefix + '/' + key] = values[key]
-            })
-        )
-        return newValues
-    }
-
-    #getPatches (name, values, existingValues) {
-        let patches = []
-        if (typeof values !== 'undefined') {
-            const op = existingValues?.[name] ? 'replace' : 'add'
-            if (typeof values === 'object' && !Array.isArray(values)) {
-                for (let [key, value] of Object.entries(values)) {
-                    patches.push({
-                        op,
-                        "path": name + '/' + key,
-                        "value": value
-                    })
-                }
-            } else {
-                patches.push({
-                    op,
-                    "path": name,
-                    "value": values
-                })
-            }
-        }
-        return patches
     }
 
     #getOwnerReference(ownerMetadata) {

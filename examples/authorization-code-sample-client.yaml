@@ -1,0 +1,25 @@
+---
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCClient
+metadata:
+  name: authorization-code-sample-client
+spec:
+  uri: 'https://client-gab7y.codemowers.ee/'
+  redirectUris:
+    - 'https://client-gab7y.codemowers.ee/cb'
+#  allowedGroups: # if no groups are set, everyone is allowed
+#    - 'codemowers:users'
+  grantTypes:
+    - 'authorization_code'
+    - 'refresh_token' # might be supported by some implementations
+  responseTypes:
+    - 'code'
+#    - 'code id_token' # might be needed in some implementations
+  overrideIncomingScopes: true
+  availableScopes:
+    - 'openid'
+    - 'profile'
+    - 'offline_access'
+  tokenEndpointAuthMethod: 'client_secret_basic'
+  pkce: true
+#  idTokenSignedResponseAlg: 'RS256'

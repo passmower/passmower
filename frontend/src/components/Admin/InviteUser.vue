@@ -2,15 +2,18 @@
   <div class="profile-section">
     <div class="profile-section-header no-flex">
       <h2>Invite new user</h2>
-      <p>You can also create users by creating OIDCGWUser CRDs</p>
+      <p>You can also create users by creating OIDCUser CRDs</p>
     </div>
-    <template v-if="requireUsername">
-      <label for="username">Username: </label>
-      <input name="username" type="text" v-model="username" placeholder="Passmower is configured to require custom username" />
+    <template v-if="!disableEditing">
+      <template v-if="requireUsername">
+        <label for="username">Username: </label>
+        <input name="username" type="text" v-model="username" placeholder="Passmower is configured to require custom username" />
+      </template>
+      <label for="email">Email: </label>
+      <input name="email" type="email" v-model="email" required />
+      <button type="submit" @click="inviteUser">Invite</button>
     </template>
-    <label for="email">Email: </label>
-    <input name="email" type="email" v-model="email" required />
-    <button type="submit" @click="inviteUser">Invite</button>
+    <div v-else v-html="disableEditingText" />
   </div>
 </template>
 
@@ -29,7 +32,7 @@ export default {
     }
   },
   computed: {
-    ...mapState(userAdminStore, ['requireUsername']),
+    ...mapState(userAdminStore, ['requireUsername', 'disableEditing', 'disableEditingText']),
   },
   methods: {
     ...mapActions(useAccountsStore, ['setAccounts']),

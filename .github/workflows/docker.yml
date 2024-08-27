@@ -12,23 +12,67 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v3
+
+      - name: Get chart verison
+        id: chart_version
+        run: |
+          echo "CHART_VERSION=$(cat Chart.yaml | awk -F"[ ',]+" '/version:/{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: tag_exists
+        run: |
+          TAG_EXISTS=true
+          if ! [ $(git tag -l "${{ env.tag_prefix }}${{ steps.chart_version.outputs.CHART_VERSION }}") ]; then
+              TAG_EXISTS=false
+          fi
+          echo TAG_EXISTS=$TAG_EXISTS >> $GITHUB_OUTPUT
+
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
+
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
+
       -
         name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
+
+      -
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
+
+
       -
         name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ github.repository }}:latest
+          tags: |
+            ${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
+            ${{ github.repository }}:latest
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
+
+      -
+        name: Push Image to GHCR
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: docker.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
+          dst: |
+            ghcr.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
+            ghcr.io/${{ github.repository }}:latest
+        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'

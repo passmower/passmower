@@ -1,0 +1,183 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "passmower.fullname" . }}
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "passmower.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "passmower.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "passmower.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: ISSUER_URL
+              value: {{ include "passmower.url" . }}
+            - name: DEPLOYMENT_NAME
+              value: {{ .Chart.Name }}
+            - name: GROUP_PREFIX
+              value: {{ .Values.passmower.group_prefix | quote }}
+            - name: ADMIN_GROUP
+              value: {{ .Values.passmower.admin_group | quote }}
+            - name: REQUIRED_GROUP
+              value: {{ .Values.passmower.required_group | quote }}
+            - name: GITHUB_ORGANIZATION
+              value: {{ .Values.passmower.github_organization | quote }}
+            - name: USE_GITHUB_USERNAME
+              value: {{ .Values.passmower.use_github_username | quote }}
+            - name: ENROLL_USERS
+              value: {{ .Values.passmower.enroll_users | quote }}
+            - name: DISABLE_FRONTEND_EDIT
+              value: {{ .Values.passmower.disable_frontend_edit | quote }}
+            - name: NAMESPACE_SELECTOR
+              value: {{ .Values.passmower.namespace_selector | quote }}
+            - name: PREFERRED_EMAIL_DOMAIN
+              value: {{ .Values.passmower.preferred_email_domain | quote }}
+            - name: REQUIRE_CUSTOM_USERNAME
+              value: {{ .Values.passmower.require_custom_username | quote }}
+            - name: NORMALIZE_EMAIL_ADDRESSES
+              value: {{ .Values.passmower.normalize_email_addresses | quote }}
+            - name: REDIS_URI
+              {{- if .Values.redis.internal.enabled }}
+              value: redis://redis
+              {{- end }}
+              {{- if .Values.redis.redisClaim.enabled }}
+              valueFrom:
+                secretKeyRef:
+                  name: redis-{{ include "passmower.fullname" . }}-owner-secret
+                  key: REDIS_MASTER_0_URI
+              {{- end }}
+              {{- if .Values.redis.external.enabled }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.external.secretKeyRef.name }}
+                  key: {{ .Values.redis.external.secretKeyRef.key }}
+              {{- end }}
+          envFrom:
+            - secretRef:
+                name: oidc-keys
+            {{- if .Values.passmower.email_credentials_secretRef }}
+            - secretRef:
+                name: {{ .Values.passmower.email_credentials_secretRef }}
+            {{- end }}
+            {{- if .Values.passmower.github_client_secretRef }}
+            - secretRef:
+                name: {{ .Values.passmower.github_client_secretRef }}
+            {{- end }}
+            {{- if .Values.passmower.slack_client_secretRef }}
+            - secretRef:
+                name: {{ .Values.passmower.slack_client_secretRef }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /.well-known/openid-configuration
+              port: 3000
+              httpHeaders:
+                - name: x-forwarded-for # suppress oidc-provider warning
+                  value: {{ include "passmower.url" . }}
+                - name: x-forwarded-proto # suppress oidc-provider warning
+                  value: https
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+              httpHeaders:
+                - name: x-forwarded-for # suppress oidc-provider warning
+                  value: {{ include "passmower.url" . }}
+                - name: x-forwarded-proto # suppress oidc-provider warning
+                  value: https
+            initialDelaySeconds: 30
+            periodSeconds: 3
+          volumeMounts:
+            - mountPath: /app/tos
+              name: tos
+            - mountPath: /app/approval
+              name: approval
+            - mountPath: /app/disable_frontend_edit
+              name: disable-frontend-edit
+            - mountPath: /app/src/views/custom/emails
+              name: email-templates
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: tos
+          configMap:
+            {{- if .Values.passmower.texts.terms_of_service.configMapRef }}
+            name: {{ .Values.passmower.texts.terms_of_service.configMapRef.name }}
+            {{- else }}
+            name: {{ include "passmower.fullname" . }}-tos
+            {{- end }}
+        - name: approval
+          configMap:
+            {{- if .Values.passmower.texts.approval.configMapRef }}
+            name: {{ .Values.passmower.texts.approval.configMapRef.name }}
+            {{- else }}
+            name: {{ include "passmower.fullname" . }}-approval
+            {{- end }}
+        - name: disable-frontend-edit
+          configMap:
+            {{- if .Values.passmower.texts.disable_frontend_edit.configMapRef }}
+            name: {{ .Values.passmower.texts.disable_frontend_edit.configMapRef.name }}
+            {{- else }}
+            name: {{ include "passmower.fullname" . }}-disable-frontend-edit
+            {{- end }}
+        - name: email-templates
+          configMap:
+            {{- if .Values.passmower.texts.emails.configMapRef }}
+            name: {{ .Values.passmower.texts.emails.configMapRef.name }}
+            {{- else }}
+            name: {{ include "passmower.fullname" . }}-email-templates
+            {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ include "passmower.fullname" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: oidc-key-manager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
+          command: [ '/app/node_modules/.bin/key-manager', 'initialize', '-c', 'cluster' ]
+      restartPolicy: Never

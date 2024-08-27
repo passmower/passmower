@@ -1,10 +1,12 @@
 .kpt-pipeline/
-kube/
+examples/
+templates/
 skaffold.yaml
 README.md
 .git/
 node_modules/
 .drone.yml
+.github/
 
 # Editor directories and files
 .vscode/*

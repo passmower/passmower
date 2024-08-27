@@ -11,6 +11,10 @@
         <ul>
             <li v-for="email in account.emails">{{ email }}</li>
         </ul>
+        <p><strong>Phones: </strong></p>
+        <ul>
+          <li v-for="phone in account.phones">{{ phone }}</li>
+        </ul>
         <p><strong>Groups: </strong></p>
         <ul>
             <li v-for="group in account.groups">{{ group.displayName }}</li>

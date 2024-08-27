@@ -14,6 +14,7 @@ import {useAccountStore} from "@/stores/account";
 import XMark from "@/components/Icons/XMark.vue";
 import {closeModal} from "jenesius-vue-modal"
 import {useToast} from "vue-toast-notification";
+import {useImpersonationStore} from "@/stores/impersonation";
 
 export default {
   name: "EndSession",
@@ -26,11 +27,32 @@ export default {
   computed: {
     ...mapStores(useAccountStore),
     ...mapState(useAccountStore, ['sessions']),
+    ...mapState(useImpersonationStore, ['impersonation']),
   },
   methods: {
     ...mapActions(useAccountStore, ['setSessions']),
+    ...mapActions(useImpersonationStore, ['setImpersonation']),
     closeModal,
     endSession () {
+      if (this.impersonation) {
+        fetch('/admin/api/account/impersonation/end', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }).then((r) => r.json()).then((r) => {
+          this.setImpersonation(r.impersonation)
+        }).catch((e) => {
+          console.error(e)
+          const $toast = useToast();
+          $toast.error('Ending impersonation failed', {
+            position: 'top-right'
+          });
+        })
+      } else {
+
+      }
+
       fetch('/api/session/end', {
         method: 'POST',
         body: JSON.stringify({

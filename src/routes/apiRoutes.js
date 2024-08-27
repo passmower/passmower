@@ -1,15 +1,16 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
-import {signedInToSelf} from "../support/signed-in.js";
+import {signedInToSelf} from "../utils/session/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
-import {checkAccountGroups} from "../support/check-account-groups.js";
-import {auditLog} from "../support/audit-log.js";
+import {checkAccountGroups} from "../utils/user/check-account-groups.js";
+import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
-    checkCompanyName,
+    checkCompanyName, checkDisableFrontendEdit,
     checkRealName,
     restValidationErrors
-} from "../support/validator.js";
+} from "../utils/session/validator.js";
+import {getText} from "../utils/get-text.js";
 
 export default (provider) => {
     const router = new Router();
@@ -25,21 +26,30 @@ export default (provider) => {
 
     router.get('/api/me', async (ctx, next) => {
         const account = ctx.currentAccount
-        ctx.body = account.getProfileResponse()
+        ctx.body = {
+            ...account.getProfileResponse(),
+            disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
+        }
+    })
+
+    router.get('/api/texts/disable_frontend_edit', async (ctx, next) => {
+        ctx.body = getText('disable_frontend_edit')
     })
 
     router.post('/api/me', async (ctx, next) => {
         checkRealName(ctx)
         checkCompanyName(ctx)
+        checkDisableFrontendEdit(ctx)
         if (await restValidationErrors(ctx)) {
             return
         }
 
         const accountId = ctx.currentSession.accountId
         const body = ctx.request.body
-        const account = await ctx.kubeOIDCUserService.updateUserSpec({
+        const account = await ctx.kubeOIDCUserService.updateUserSpecs(
             accountId,
-            customProfile: {
+            {
+            passmower: {
                 name: body.name,
                 company: body.company,
             }

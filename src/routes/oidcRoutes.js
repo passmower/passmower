@@ -7,26 +7,26 @@ import isEmpty from 'lodash/isEmpty.js';
 import { koaBody as bodyParser } from 'koa-body';
 import Router from 'koa-router';
 
-import GithubLogin from "../implementation/github-login.js";
-import {EmailLogin} from "../implementation/email-login.js";
-import accessDenied from "../support/access-denied.js";
-import getLoginResult from "../support/get-login-result.js";
-import Account from "../support/account.js";
+import GithubLogin from "../services/login/github-login.js";
+import {EmailLogin} from "../services/login/email-login.js";
+import accessDenied from "../utils/session/access-denied.js";
+import getLoginResult from "../utils/user/get-login-result.js";
+import Account from "../models/account.js";
 import crypto from "node:crypto";
-import {Approved} from "../support/conditions/approved.js";
-import {ApprovalTextName, getText, ToSTextName} from "../support/get-text.js";
+import {Approved} from "../conditions/approved.js";
+import {ApprovalTextName, getText, ToSTextName} from "../utils/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
-import renderError from "../support/render-error.js";
-import {addGrant} from "../support/add-grants.js";
-import {signedInToSelf} from "../support/signed-in.js";
-import {addSiteSession} from "../support/site-session.js";
-import {confirmTos} from "../support/confirm-tos.js";
-import {checkAccountGroups} from "../support/check-account-groups.js";
-import {enableAndGetRedirectUri} from "../support/enable-and-get-redirect-uri.js";
-import {clientId, responseType, scope} from "../support/self-oidc-client.js";
-import {auditLog} from "../support/audit-log.js";
-import {UsernameCommitted} from "../support/conditions/username-committed.js";
-import validator, {checkEmail, checkRealName, checkUsername} from "../support/validator.js";
+import renderError from "../utils/render-error.js";
+import {addGrant} from "../utils/session/add-grants.js";
+import {signedInToSelf} from "../utils/session/signed-in.js";
+import {addSiteSession} from "../utils/session/site-session.js";
+import {confirmTos} from "../utils/user/confirm-tos.js";
+import {checkAccountGroups} from "../utils/user/check-account-groups.js";
+import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
+import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
+import {auditLog} from "../utils/session/audit-log.js";
+import {UsernameCommitted} from "../conditions/username-committed.js";
+import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -212,7 +212,7 @@ export default (provider) => {
         switch (ctx.request.body.upstream) {
             case 'gh': {
                 auditLog(ctx, {}, ctx.request.body.code ? 'GitHub login callback received' : 'GitHub login initiated')
-                return await GithubLogin(ctx, provider)
+                return GithubLogin(ctx, provider);
             }
             default:
                 return undefined;
@@ -242,6 +242,13 @@ export default (provider) => {
         const account = await Account.findAccount(ctx, impersonation.accountId)
         auditLog(ctx, {impersonation, account}, 'Impersonation used to log in')
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'Impersonation'), {
+            mergeWithLastSubmission: true,
+        });
+    });
+
+    router.post('/interaction/:uid/impersonate/end', async (ctx) => {
+         await ctx.sessionService.endImpersonation(ctx)
+        return provider.interactionFinished(ctx.req, ctx.res, {
             mergeWithLastSubmission: true,
         });
     });
@@ -285,12 +292,13 @@ export default (provider) => {
             })
         }
 
-        await ctx.kubeOIDCUserService.updateUserSpec({
-            accountId,
-            customProfile: {
-                name: ctx.request.body.name
+        await ctx.kubeOIDCUserService.updateUserSpecs(accountId,
+            {
+                passmower: {
+                    name: ctx.request.body.name
+                }
             }
-        })
+        )
         auditLog(ctx, {interactionDetails, name: ctx.request.body.name}, 'User name updated')
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,

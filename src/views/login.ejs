@@ -27,5 +27,8 @@
   <form autocomplete="off" action="/interaction/<%= uid %>/impersonate" method="post">
     <button type="submit" class="login login-submit">Impersonate <%= impersonation.accountId %></button>
   </form>
+  <form autocomplete="off" action="/interaction/<%= uid %>/impersonate/end" method="post">
+      <button type="submit" class="login login-submit">End impersonating <%= impersonation.accountId %></button>
+    </form>
 <% } %>
 

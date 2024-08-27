@@ -1,0 +1,127 @@
+nameOverride: ""
+fullnameOverride: ""
+
+passmower:
+  # Hostname on which Passmower will be deployed to. Will be used as ingress host.
+  host: ""
+  # Local groups will be created with given prefix.
+  group_prefix: "passmower"
+  # Local or remote group which members will automatically become admins.
+  admin_group: "github.com:foo:bar"
+  # If set, require all users to be member of the given local or remote group.
+  required_group: ""
+  # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
+  github_organization: "passmower"
+  # Attempt to use GH username in OIDC response instead of regular username (OIDCUser CRD name).
+  use_github_username: false
+  # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
+  enroll_users: true
+  # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
+  disable_frontend_edit: false
+  # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.
+  namespace_selector: "*"
+  # Domain which will be preferred for determining primary emails.
+  preferred_email_domain: "gmail.com"
+  # Require users to set a custom username instead of system generated one. Will be used as OIDCUser CRD name and OIDC username claim.
+  require_custom_username: true
+  # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
+  normalize_email_addresses: true
+  # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
+  email_credentials_secretRef: "email-credentials"
+  # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
+  github_client_secretRef: "github-client"
+  # Slack API client secret name. Secret must contain SLACK_TOKEN
+  # slack_client_secretRef: "slack-client"
+  # Different texts displayed and sent to the user
+  texts:
+    approval:
+      #configMapRef:
+      #  name: ""
+      content: ""
+    emails:
+      #configMapRef:
+      #  name: ""
+      login_link:
+        subject: "Passmower login link"
+        text: "Open the following link to log in: <%= url %>"
+        body: ""
+      terms_of_service:
+        subject: "Terms of Service agreement confirmation"
+        text: ""
+        body: ""
+    terms_of_service:
+        #configMapRef:
+        #  name: ""
+        content: ""
+    disable_frontend_edit:
+        #configMapRef:
+        #  name: ""
+        content: "Editing profile is disabled. Please see [our Git](https://github.com)"
+
+redis:
+  # Requires the Codemowers redis-operator to be installed: https://github.com/codemowers/operatorlib/tree/main/samples/redis-operator
+  redisClaim:
+    enabled: false
+    spec:
+      capacity: 100Mi
+      class: ephemeral
+  # Deploys a simple, non persistent Redis deployment.
+  internal:
+    enabled: true
+  # Use your own implementation - just provide a secret with a valid Redis URL.
+  external:
+    enabled: false
+    secretKeyRef:
+      name: "redis-passmower-owner-secrets"
+      key: "REDIS_MASTER_0_URI"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+image:
+  repository: ghcr.io/passmower/passmower
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  # tag: "develop"
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+replicaCount: 1
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,10 @@
+---
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCMiddlewareClient
+metadata:
+  name: whoami
+spec:
+  uri: 'https://whoami-gab7y.codemowers.ee/'
+  headerMapping:
+    user: 'Remote-Username'
+

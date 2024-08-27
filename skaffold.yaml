@@ -4,9 +4,6 @@ build:
   artifacts:
     - image: passmower
 
-manifests:
-  rawYaml:
-    - kube/deployment.yaml
 
 profiles:
   - name: dev
@@ -26,7 +23,15 @@ profiles:
               - src: 'styles/src/**'
                 dest: .
     deploy:
-      kubectl: {}
+      helm:
+        releases:
+          - name: passmower-dev
+            chartPath: ./
+            setValueTemplates:
+              image.repository: "{{.IMAGE_REPO_passmower}}"
+              image.tag: "{{.IMAGE_TAG_passmower}}@{{.IMAGE_DIGEST_passmower}}"
+            valuesFiles:
+              - values.dev.yaml
 
 #portForward:
 #  - resourceType: deployment

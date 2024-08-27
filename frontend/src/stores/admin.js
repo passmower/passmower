@@ -5,6 +5,8 @@ export const userAdminStore = defineStore('admin', {
       return {
           groupPrefix: null,
           requireUsername: false,
+          disableEditing: false,
+          disableEditingText: null,
       }
     },
     actions: {
@@ -13,6 +15,12 @@ export const userAdminStore = defineStore('admin', {
         },
         setRequireUsername(val) {
             this.requireUsername = val
+        },
+        setDisableEditing(val) {
+            this.disableEditing = val
+        },
+        setDisableEditingText(val) {
+            this.disableEditingText = val
         },
     },
 })

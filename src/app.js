@@ -4,15 +4,15 @@ import { dirname } from 'desm';
 import render from '@koa/ejs';
 import oidcRoutes from './routes/oidcRoutes.js';
 import apiRoutes from './routes/apiRoutes.js';
-import setupProvider from "./implementation/setup-provider.js";
+import setupProvider from "./providers/setup-provider.js";
 import serve from 'koa-static';
-import KubeOIDCClientOperator from "./implementation/kube-oidc-client-operator.js";
+import KubeOIDCClientOperator from "./operators/kube-oidc-client-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
-import {setupLogger} from "./implementation/setup-logger.js";
-import {KubeOIDCMiddlewareClientOperator} from "./implementation/kube-oidc-middleware-client-operator.js";
-import KubeOidcUserOperator from "./implementation/kube-oidc-user-operator.js";
-import metricsServer from "./implementation/metrics-server.js";
+import {setupLogger} from "./providers/setup-logger.js";
+import {KubeOIDCMiddlewareClientOperator} from "./operators/kube-oidc-middleware-client-operator.js";
+import KubeOidcUserOperator from "./operators/kube-oidc-user-operator.js";
+import metricsServer from "./routes/metrics-server.js";
 
 const __dirname = dirname(import.meta.url);
 

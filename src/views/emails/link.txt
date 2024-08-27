@@ -1,4 +1,4 @@
-<%= gateway %> received request to log in as <%= email %> for <%= client %> on <%= client_url %>
+<%= instance %> received request to log in as <%= email %> for <%= client %> on <%= client_url %>
 
 Open the following link to log in: <%= url %>
 
