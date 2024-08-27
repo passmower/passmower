@@ -40,11 +40,12 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ github.repository }}:develop
+          tags: |
+            ${{ github.repository }}:develop
 
       -
         name: Push image to GHCR
         run: |
           docker buildx imagetools create \
             --tag ghcr.io/${{ github.repository }}:develop
-            ${{ github.repository }}:develop
+            docker.io/${{ github.repository }}:develop
