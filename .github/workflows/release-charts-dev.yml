@@ -21,8 +21,8 @@ jobs:
       - name: Publish Helm chart to the ghcr.io registry
         uses: appany/helm-oci-chart-releaser@v0.4.2
         with:
-          name: passmower
-          repository: passmower/helm
+          name: helm
+          repository: passmower
           tag: 0.1.1
           path: ./
           registry: ghcr.io
