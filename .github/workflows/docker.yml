@@ -74,5 +74,4 @@ jobs:
           src: docker.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
           dst: |
             ghcr.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
-            ghcr.io/${{ github.repository }}:latest
         if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
