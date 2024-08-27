@@ -44,8 +44,9 @@ jobs:
             ${{ github.repository }}:develop
 
       -
-        name: Push image to GHCR
-        run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/${{ github.repository }}:develop
-            docker.io/${{ github.repository }}:develop
+        name: Push Image to GHCR
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: docker.io/${{ github.repository }}:develop
+          dst: |
+            ghcr.io/${{ github.repository }}:develop
