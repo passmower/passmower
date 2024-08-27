@@ -28,4 +28,3 @@ jobs:
           registry: ghcr.io
           registry_username: ${{ secrets.GHCR_USERNAME }}
           registry_password: ${{ secrets.GHCR_TOKEN }}
-        if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
