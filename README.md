@@ -48,7 +48,7 @@ Passmower has been tested and supports the following applications:
 
 # Installation
 
-Install using helm from ghcr.io, **at least setting the hostname**: `helm install passmower oci://ghcr.io/passmower/passmower --version 1.0.0 --set passmower.host=auth.your.domain`
+Install using helm from ghcr.io, **at least setting the hostname**: `helm install passmower oci://ghcr.io/passmower/helm --version 1.0.0 --set passmower.host=auth.your.domain`
 
 See and use [values.yaml](values.yaml) for customizations.
 
