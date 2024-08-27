@@ -163,6 +163,9 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
   labels:
     {{- include "passmower.labels" . | nindent 4 }}
 spec:
