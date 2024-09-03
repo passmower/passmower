@@ -104,8 +104,9 @@ spec:
                   value: {{ include "passmower.url" . }}
                 - name: x-forwarded-proto # suppress oidc-provider warning
                   value: https
-            initialDelaySeconds: 30
-            periodSeconds: 3
+            initialDelaySeconds: 10
+            timeoutSeconds: 10
+            periodSeconds: 30
           volumeMounts:
             - mountPath: /app/tos
               name: tos

@@ -66,6 +66,7 @@ class Account {
         let response = {
             sub: username, // it is essential to always return a sub claim
             username,
+            nickname: username,
             email: this.primaryEmail,
         };
         if (scope.includes('profile')) {
