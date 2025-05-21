@@ -256,10 +256,10 @@ export default (provider) => {
     router.get('/interaction/:uid/link-sent', async (ctx) => {
         const recipients = Object.keys(ctx.request.query).map((q) => {
             const success = ctx.request.query[q] === 'true'
-            return success ? (q === 'email' ? 'email inbox' : 'Slack') : null;
+            return success ? (q === 'email' ? 'e-mail' : 'Slack') : null;
         }).filter(a => a);
         return render(provider, ctx, 'message', 'Link sent', {
-            message: `Please check your inbox ${recipients.join(' or ')}`
+            message: `Login link sent to ${recipients.join(' and ')}`
         })
     });
 
