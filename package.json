@@ -10,7 +10,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@codemowers/oidc-key-manager": "^1.0.0",
+    "@codemowers/oidc-key-manager": "^1.1.0",
     "@koa/ejs": "^5.1.0",
     "@kubernetes/client-node": "^0.20.0",
     "@slack/web-api": "^7.0.2",

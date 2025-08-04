@@ -44,9 +44,7 @@ Common labels
 {{- define "passmower.labels" -}}
 helm.sh/chart: {{ include "passmower.chart" . }}
 {{ include "passmower.selectorLabels" . }}
-{{- if .Chart.Version }}
-app.kubernetes.io/version: {{ .Chart.Version | quote }}
-{{- end }}
+{{ if .Chart.Version }}app.kubernetes.io/version: {{ .Chart.Version | quote }}{{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
