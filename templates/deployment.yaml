@@ -160,6 +160,7 @@ spec:
             name: {{ include "passmower.fullname" . }}-email-templates
             {{- end }}
 ---
+# generates Secret/oidc-keys
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -180,5 +181,11 @@ spec:
       containers:
         - name: oidc-key-manager
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
-          command: [ '/app/node_modules/.bin/key-manager', 'initialize', '-c', 'cluster' ]
+          command: [
+            '/app/node_modules/.bin/key-manager', 'initialize',
+            {{- range $label := splitList "\n" (include "passmower.selectorLabels" .) }}
+            '-l', '{{ $label }}',
+            {{- end }}
+            '-c', 'cluster'
+          ]
       restartPolicy: Never
