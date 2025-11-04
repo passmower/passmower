@@ -178,6 +178,14 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: oidc-key-manager
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
@@ -188,4 +196,4 @@ spec:
             {{- end }}
             '-c', 'cluster'
           ]
-      restartPolicy: Never
+      restartPolicy: OnFailure
