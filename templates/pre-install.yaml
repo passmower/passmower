@@ -1,0 +1,79 @@
+---
+# Service account for key-manager job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+---
+# Role for key-manager to create secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch"]
+---
+# RoleBinding for key-manager
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "passmower.fullname" . }}-key-manager
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "passmower.fullname" . }}-key-manager
+---
+# generates Secret/oidc-keys
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "passmower.fullname" . }}-key-manager
+  annotations:
+    "helm.sh/hook": pre-install
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ include "passmower.fullname" . }}-key-manager
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: oidc-key-manager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
+          command: [
+            '/app/node_modules/.bin/key-manager', 'initialize',
+            {{- range $label := splitList "\n" (include "passmower.selectorLabels" .) }}
+            '-l', '{{ $label }}',
+            {{- end }}
+            '-c', 'cluster'
+          ]
+      restartPolicy: OnFailure
