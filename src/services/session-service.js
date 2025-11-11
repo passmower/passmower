@@ -79,7 +79,7 @@ export class SessionService {
             },
             urlFor: () => {
                 // don't redirect when ending other sessions in frontpage
-                return ''
+                return process.env.ISSUER_URL
             },
             provider: this.provider,
             session: {
