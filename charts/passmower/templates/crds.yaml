@@ -78,6 +78,45 @@ spec:
               properties:
                 id:
                   type: string
+            webauthn:
+              type: object
+              properties:
+                credentials:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - publicKey
+                      - counter
+                    properties:
+                      id:
+                        type: string
+                        description: Base64URL-encoded credential ID
+                      publicKey:
+                        type: string
+                        description: Base64URL-encoded COSE public key
+                      counter:
+                        type: integer
+                        description: Signature counter for replay attack protection
+                      transports:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - usb
+                            - ble
+                            - nfc
+                            - internal
+                            - hybrid
+                        description: Supported authenticator transports
+                      createdAt:
+                        type: string
+                        format: date-time
+                        description: When the credential was registered
+                      name:
+                        type: string
+                        description: User-friendly name for the credential
             spec:
               type: object
               required:
@@ -122,6 +161,9 @@ spec:
                   type: array
                   items:
                     type: string
+                passkeyCount:
+                  type: integer
+                  description: Number of registered passkeys
                 groups:
                   type: array
                   items:
@@ -168,6 +210,9 @@ spec:
         - name: GH ID
           type: string
           jsonPath: .github.id
+        - name: Passkeys
+          type: integer
+          jsonPath: .status.passkeyCount
         - name: Groups
           type: string
           jsonPath: .status.groups

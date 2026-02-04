@@ -55,6 +55,8 @@ spec:
               value: {{ .Values.passmower.require_custom_username | quote }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalize_email_addresses | quote }}
+            - name: WEBAUTHN_ENABLED
+              value: {{ .Values.passmower.webauthn_enabled | quote }}
             - name: REDIS_URI
               {{- if .Values.redis.internal.enabled }}
               value: redis://redis

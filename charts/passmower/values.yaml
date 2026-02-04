@@ -26,6 +26,8 @@ passmower:
   require_custom_username: true
   # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
   normalize_email_addresses: true
+  # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
+  webauthn_enabled: true
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   email_credentials_secretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET

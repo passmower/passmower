@@ -12,6 +12,7 @@ import {EmailLogin} from "../services/login/email-login.js";
 import accessDenied from "../utils/session/access-denied.js";
 import getLoginResult from "../utils/user/get-login-result.js";
 import Account from "../models/account.js";
+import {WebAuthnService} from "../services/webauthn/index.js";
 import crypto from "node:crypto";
 import {Approved} from "../conditions/approved.js";
 import {ApprovalTextName, getText, ToSTextName} from "../utils/get-text.js";
@@ -97,7 +98,7 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
 export default (provider) => {
     const router = new Router();
     router.use(bodyParser({
-        text: false, json: false, patchNode: true, patchKoa: true,
+        text: false, json: true, patchNode: true, patchKoa: true,
     }))
     router.use(validator())
 
@@ -268,6 +269,83 @@ export default (provider) => {
         const result = emailLogin.verifyLink(ctx, provider)
         auditLog(ctx, {params: ctx.request.params, result}, 'Login link used')
         return result
+    });
+
+    // ============================================
+    // Passkey/WebAuthn Login Routes
+    // ============================================
+
+    // Start passkey authentication
+    router.post('/interaction/:uid/passkey/start', async (ctx) => {
+        const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
+        assert.equal(name, 'login');
+
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const uid = ctx.params.uid;
+
+        try {
+            // Start authentication without specifying a user (discoverable credentials)
+            const options = await webauthn.startAuthentication(uid);
+            auditLog(ctx, { uid }, 'Passkey authentication started');
+            ctx.body = options;
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to start passkey authentication');
+            ctx.status = 500;
+            ctx.body = { error: 'Failed to start authentication' };
+        }
+    });
+
+    // Complete passkey authentication
+    router.post('/interaction/:uid/passkey/finish', async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
+        const { prompt: { name } } = interactionDetails;
+        assert.equal(name, 'login');
+
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const uid = ctx.params.uid;
+        const { response } = ctx.request.body;
+
+        if (!response) {
+            ctx.status = 400;
+            ctx.body = { error: 'Missing response' };
+            return;
+        }
+
+        try {
+            const result = await webauthn.finishAuthentication(uid, response);
+
+            if (result.verified && result.account) {
+                auditLog(ctx, {
+                    uid,
+                    accountId: result.account.accountId
+                }, 'Passkey authentication successful');
+
+                // Complete the login flow
+                return provider.interactionFinished(ctx.req, ctx.res,
+                    await getLoginResult(ctx, provider, result.account, 'Passkey'),
+                    { mergeWithLastSubmission: true }
+                );
+            } else {
+                auditLog(ctx, { uid }, 'Passkey authentication failed');
+                ctx.status = 401;
+                ctx.body = { error: 'Authentication failed' };
+            }
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to complete passkey authentication');
+            auditLog(ctx, { uid, error: error.message }, 'Passkey authentication error');
+            ctx.status = 400;
+            ctx.body = { error: error.message || 'Authentication failed' };
+        }
+    });
+
+    // Check if user has passkeys (for conditional UI)
+    router.get('/interaction/:uid/passkey/available', async (ctx) => {
+        // This endpoint allows the login page to check if passkey login is available
+        // It doesn't require the user to be identified first
+        ctx.body = {
+            available: process.env.WEBAUTHN_ENABLED !== 'false',
+            rpId: new URL(process.env.ISSUER_URL).hostname,
+        };
     });
 
     router.post('/interaction/:uid/confirm-tos', async (ctx) => {

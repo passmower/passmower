@@ -2,8 +2,16 @@ import Account from "../models/account.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {OIDCUserCrd} from "../utils/kubernetes/kube-constants.js";
 import {ClaimedBy} from "../conditions/claimed-by.js";
-import merge from "lodash/merge.js";
+import mergeWith from "lodash/mergeWith.js";
 import cloneDeep from "lodash/cloneDeep.js";
+import isArray from "lodash/isArray.js";
+
+// Custom merge that replaces arrays instead of merging by index
+function mergeReplacingArrays(objValue, srcValue) {
+    if (isArray(srcValue)) {
+        return srcValue;
+    }
+}
 
 export class KubeOIDCUserService {
     constructor() {
@@ -67,7 +75,7 @@ export class KubeOIDCUserService {
 
     async updateUserSpecs(accountId, {passmower, slack, github} = {}) {
         let account = await this.findUser(accountId)
-        let extended = merge(cloneDeep(account.getSpecs()), arguments[1])
+        let extended = mergeWith(cloneDeep(account.getSpecs()), arguments[1], mergeReplacingArrays)
         const updatedUser = await this.adapter.patchNamespacedCustomObject(
             OIDCUserCrd,
             this.adapter.namespace,
@@ -107,5 +115,126 @@ export class KubeOIDCUserService {
             account.getIntendedStatus(),
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
+    }
+
+    // WebAuthn/Passkey methods
+
+    /**
+     * Find a user by their passkey credential ID
+     * @param {string} credentialId - Base64URL-encoded credential ID
+     * @returns {Promise<Account|null>}
+     */
+    async findUserByPasskeyId(credentialId) {
+        const allUsers = await this.listUsers();
+        return allUsers.find(user =>
+            user.webauthn?.credentials?.some(cred => cred.id === credentialId)
+        ) || null;
+    }
+
+    /**
+     * Add a new passkey to a user's account
+     * @param {string} accountId
+     * @param {object} credential - The credential to add
+     */
+    async addPasskey(accountId, credential) {
+        const account = await this.findUser(accountId);
+        const existingCredentials = account.webauthn?.credentials || [];
+
+        // Ensure we don't add duplicate credentials
+        if (existingCredentials.some(c => c.id === credential.id)) {
+            throw new Error('Credential already exists');
+        }
+
+        const updatedWebauthn = {
+            webauthn: {
+                credentials: [...existingCredentials, credential]
+            }
+        };
+
+        return await this.updateUserSpecs(accountId, updatedWebauthn);
+    }
+
+    /**
+     * Remove a passkey from a user's account
+     * @param {string} accountId
+     * @param {string} credentialId - Base64URL-encoded credential ID
+     */
+    async removePasskey(accountId, credentialId) {
+        const account = await this.findUser(accountId);
+        const existingCredentials = account.webauthn?.credentials || [];
+
+        const updatedCredentials = existingCredentials.filter(c => c.id !== credentialId);
+
+        if (updatedCredentials.length === existingCredentials.length) {
+            throw new Error('Credential not found');
+        }
+
+        const updatedWebauthn = {
+            webauthn: {
+                credentials: updatedCredentials
+            }
+        };
+
+        return await this.updateUserSpecs(accountId, updatedWebauthn);
+    }
+
+    /**
+     * Rename a passkey
+     * @param {string} accountId
+     * @param {string} credentialId
+     * @param {string} newName
+     */
+    async renamePasskey(accountId, credentialId, newName) {
+        const account = await this.findUser(accountId);
+        const existingCredentials = account.webauthn?.credentials || [];
+
+        const credIndex = existingCredentials.findIndex(c => c.id === credentialId);
+        if (credIndex === -1) {
+            throw new Error('Credential not found');
+        }
+
+        const updatedCredentials = [...existingCredentials];
+        updatedCredentials[credIndex] = {
+            ...updatedCredentials[credIndex],
+            name: newName
+        };
+
+        const updatedWebauthn = {
+            webauthn: {
+                credentials: updatedCredentials
+            }
+        };
+
+        return await this.updateUserSpecs(accountId, updatedWebauthn);
+    }
+
+    /**
+     * Update the counter for a passkey (for replay attack protection)
+     * @param {string} accountId
+     * @param {string} credentialId
+     * @param {number} newCounter
+     */
+    async updatePasskeyCounter(accountId, credentialId, newCounter) {
+        const account = await this.findUser(accountId);
+        const existingCredentials = account.webauthn?.credentials || [];
+
+        const credIndex = existingCredentials.findIndex(c => c.id === credentialId);
+        if (credIndex === -1) {
+            throw new Error('Credential not found');
+        }
+
+        const updatedCredentials = [...existingCredentials];
+        updatedCredentials[credIndex] = {
+            ...updatedCredentials[credIndex],
+            counter: newCounter
+        };
+
+        const updatedWebauthn = {
+            webauthn: {
+                credentials: updatedCredentials
+            }
+        };
+
+        return await this.updateUserSpecs(accountId, updatedWebauthn);
     }
 }

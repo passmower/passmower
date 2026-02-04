@@ -9,7 +9,8 @@ export const useAccountStore = defineStore('account', {
           emails: [],
         },
         originalAccount: {},
-        sessions: []
+        sessions: [],
+        passkeys: []
       }
     },
     actions: {
@@ -19,6 +20,9 @@ export const useAccountStore = defineStore('account', {
         },
         setSessions(sessions) {
             this.sessions = sessions
+        },
+        setPasskeys(passkeys) {
+            this.passkeys = passkeys
         },
     },
 })
