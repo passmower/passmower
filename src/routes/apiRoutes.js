@@ -1,6 +1,6 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { koaBody as bodyParser } from 'koa-body';
-import Router from 'koa-router';
+import Router from '@koa/router';
 import {signedInToSelf} from "../utils/session/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";

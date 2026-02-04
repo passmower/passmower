@@ -1,4 +1,4 @@
-import Router from "koa-router";
+import Router from "@koa/router";
 import {koaBody as bodyParser} from "koa-body";
 import Account, {GroupPrefix} from "../models/account.js";
 import {GitHubGroupPrefix} from "../utils/kubernetes/kube-constants.js";

@@ -5,7 +5,7 @@ import { inspect } from 'node:util';
 
 import isEmpty from 'lodash/isEmpty.js';
 import { koaBody as bodyParser } from 'koa-body';
-import Router from 'koa-router';
+import Router from '@koa/router';
 
 import GithubLogin from "../services/login/github-login.js";
 import {EmailLogin} from "../services/login/email-login.js";
