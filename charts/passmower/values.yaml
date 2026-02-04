@@ -77,6 +77,14 @@ redis:
       name: "redis-passmower-owner-secrets"
       key: "REDIS_MASTER_0_URI"
 
+podMonitor:
+  # Enable PodMonitor for Prometheus Operator
+  enabled: false
+  # Additional labels for the PodMonitor
+  labels: {}
+  # Scrape interval
+  interval: 30s
+
 service:
   type: ClusterIP
   port: 80
