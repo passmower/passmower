@@ -320,11 +320,14 @@ export default (provider) => {
                     accountId: result.account.accountId
                 }, 'Passkey authentication successful');
 
-                // Complete the login flow
-                return provider.interactionFinished(ctx.req, ctx.res,
-                    await getLoginResult(ctx, provider, result.account, 'Passkey'),
-                    { mergeWithLastSubmission: true }
-                );
+                // For XHR requests, return JSON with redirect URL instead of redirecting
+                // This avoids CSP connect-src issues when redirecting to external origins
+                const loginResult = await getLoginResult(ctx, provider, result.account, 'Passkey');
+                const redirectUrl = await provider.interactionResult(ctx.req, ctx.res, loginResult, {
+                    mergeWithLastSubmission: true,
+                });
+
+                ctx.body = { success: true, redirectUrl };
             } else {
                 auditLog(ctx, { uid }, 'Passkey authentication failed');
                 ctx.status = 401;

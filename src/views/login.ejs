@@ -141,22 +141,22 @@
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ response: authResponse }),
-        redirect: 'follow'
+        body: JSON.stringify({ response: authResponse })
       });
 
-      if (finishResponse.redirected) {
-        console.log('Authentication successful, redirecting...');
-        window.location.href = finishResponse.url;
+      const finishResult = await finishResponse.json();
+
+      if (!finishResponse.ok) {
+        throw new Error(finishResult.error || 'Authentication failed');
+      }
+
+      if (finishResult.success && finishResult.redirectUrl) {
+        console.log('Authentication successful, redirecting to:', finishResult.redirectUrl);
+        window.location.href = finishResult.redirectUrl;
         return;
       }
 
-      if (!finishResponse.ok) {
-        const error = await finishResponse.json();
-        throw new Error(error.error || 'Authentication failed');
-      }
-
-      // If we get here without redirect, reload
+      // If we get here without redirect URL, reload
       console.log('Authentication successful, reloading...');
       window.location.reload();
 
