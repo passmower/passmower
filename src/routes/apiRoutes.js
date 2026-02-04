@@ -16,7 +16,7 @@ export default (provider) => {
     const router = new Router();
 
     router.use(bodyParser({ json: true }))
-    router.use(validator)
+    router.use(validator())
     router.use(async (ctx, next) => {
         const session = await signedInToSelf(ctx, provider)
         if (session) {

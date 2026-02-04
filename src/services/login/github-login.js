@@ -34,7 +34,6 @@ export default async (ctx, provider) => {
         }));
     }
 
-
     if (!token) {
         if (!interactionDetails.result || interactionDetails.result.state !== callbackParams.state) {
             auditLog(ctx, {error: true, interactionDetails}, 'State does not match')

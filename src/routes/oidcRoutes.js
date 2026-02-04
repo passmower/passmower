@@ -99,7 +99,7 @@ export default (provider) => {
     router.use(bodyParser({
         text: false, json: false, patchNode: true, patchKoa: true,
     }))
-    router.use(validator)
+    router.use(validator())
 
     router.get(['/', '/profile', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
