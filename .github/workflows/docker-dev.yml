@@ -41,12 +41,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ github.repository }}:0.1.1
+            ${{ github.repository }}:1.2.0-dev
 
       -
         name: Push Image to GHCR
         uses: akhilerm/tag-push-action@v2.0.0
         with:
-          src: docker.io/${{ github.repository }}:0.1.1
+          src: docker.io/${{ github.repository }}:1.2.0-dev
           dst: |
-            ghcr.io/${{ github.repository }}:0.1.1
+            ghcr.io/${{ github.repository }}:1.2.0-dev
