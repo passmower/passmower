@@ -26,12 +26,12 @@ profiles:
       helm:
         releases:
           - name: passmower-dev
-            chartPath: ./
+            chartPath: ./charts/passmower
             setValueTemplates:
               image.repository: "{{.IMAGE_REPO_passmower}}"
               image.tag: "{{.IMAGE_TAG_passmower}}@{{.IMAGE_DIGEST_passmower}}"
             valuesFiles:
-              - values.dev.yaml
+              - ./charts/passmower/values.dev.yaml
 
 #portForward:
 #  - resourceType: deployment
