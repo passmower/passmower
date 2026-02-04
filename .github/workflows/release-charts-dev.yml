@@ -24,7 +24,7 @@ jobs:
           name: passmower
           repository: passmower/charts
           tag: 1.2.0-dev
-          path: ./
+          path: ./charts/passmower
           registry: ghcr.io
           registry_username: ${{ secrets.GHCR_USERNAME }}
           registry_password: ${{ secrets.GHCR_TOKEN }}
