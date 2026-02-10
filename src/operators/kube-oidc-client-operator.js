@@ -78,8 +78,17 @@ export class KubeOIDCClientOperator {
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName()
         )
-        secret ? OIDCClient.setSecret(secret.data[OIDCClientSecretClientSecretKey]) : OIDCClient.generateSecret()
-        await this.#patchKubeSecret(OIDCClient, secret)
+        if (secret) {
+            OIDCClient.setSecret(secret.data[OIDCClientSecretClientSecretKey])
+            await this.#patchKubeSecret(OIDCClient, secret)
+        } else {
+            OIDCClient.generateSecret()
+            await this.adapter.deleteSecret(
+                OIDCClient.getClientNamespace(),
+                OIDCClient.getSecretName()
+            )
+            await this.#createKubeSecret(OIDCClient)
+        }
         await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
     }
 
