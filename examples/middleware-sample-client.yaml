@@ -4,7 +4,9 @@ kind: OIDCMiddlewareClient
 metadata:
   name: whoami
 spec:
-  uri: 'https://whoami-gab7y.codemowers.ee/'
+  uri: 'https://whoami.ee-west-1.codemowers.io/'
   headerMapping:
-    user: 'Remote-Username'
-
+    user: Remote-Username
+    email: Remote-Email
+    groups: Remote-Groups
+    name: Remote-Name

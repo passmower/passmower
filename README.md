@@ -37,18 +37,47 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 Passmower has been tested and supports the following applications:
 
-- [Nextcloud](https://git.k-space.ee/k-space/kube/src/branch/master/nextcloud/application.yaml)
-- [Freescout](https://git.k-space.ee/k-space/kube/src/branch/master/freescout/application.yml)
-- [Gitea](https://git.k-space.ee/k-space/kube/src/branch/master/gitea/application.yaml)
-- [Grafana](https://git.k-space.ee/k-space/kube/src/branch/master/grafana/application.yml)
-- [Wikijs](https://git.k-space.ee/k-space/kube/src/branch/master/wiki/application.yml)
-- [Kubernetes API itself](https://git.k-space.ee/k-space/kube/src/branch/master/oidc-gateway/kubelogin.yaml)
-- [Proxmox](https://git.k-space.ee/k-space/kube/src/branch/master/oidc-gateway/proxmox.yaml) 7.4 or later
-- [ArgoCD](https://git.k-space.ee/k-space/kube/src/branch/master/argocd/application-extras.yml)
+- [Nextcloud](https://git.k-space.ee/k-space/kube/src/branch/master/nextcloud/)
+- [Freescout](https://git.k-space.ee/k-space/kube/src/branch/master/freescout/)
+- [Gitea](https://git.k-space.ee/k-space/kube/src/branch/master/gitea/)
+- [Grafana](https://git.k-space.ee/k-space/kube/src/branch/master/grafana/)
+- [Wikijs](https://git.k-space.ee/k-space/kube/src/branch/master/wiki/)
+- [Kubernetes API itself](https://git.k-space.ee/k-space/kube/src/branch/master/passmower/kubelogin.yaml)
+- [Proxmox](https://git.k-space.ee/k-space/kube/src/branch/master/passmower/proxmox.yaml) 7.4 or later
+- [ArgoCD](https://git.k-space.ee/k-space/kube/src/branch/master/argocd/)
+- [Matrix](https://matrix.org/)
+- [MemeLord](https://github.com/l4rm4nd/MemeLord)
 
 # Installation
 
-Install using helm from ghcr.io, **at least setting the hostname**: `helm install passmower oci://ghcr.io/passmower/charts/passmower --version 1.0.0 --set passmower.host=auth.your.domain`
+Install using helm from ghcr.io, **at least set the hostname**:
+
+```
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 1.2.0 --set passmower.host=auth.your.domain
+```
+
+Note we commend installing Passmower declaratively either by using
+[ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or
+[Rancher Helm Controller](https://github.com/k3s-io/helm-controller)
+
+```
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: passmower
+  namespace: kube-system
+spec:
+  bootstrap: true
+  version: 1.2.0
+  chart: oci://ghcr.io/passmower/charts/passmower
+  createNamespace: true
+  failurePolicy: reinstall
+  targetNamespace: passmower
+  valuesContent: |-
+    passmower:
+      host: auth.example.com
+```
 
 See and use [values.yaml](values.yaml) for customizations.
 
@@ -67,8 +96,8 @@ authentication, you can use the following Kubernetes manifest:
 
 ```
 ---
-apiVersion: codemowers.io/v1alpha1
-kind: OIDCGWClient
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCClient
 metadata:
   name: grafana
 spec:
@@ -118,7 +147,7 @@ env:
 To list applications:
 
 ```
-kubectl get oidcgatewayclients --all-namespaces -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .spec.uri] | @tsv' | column -t
+kubectl get oidcclients --all-namespaces -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .spec.uri] | @tsv' | column -t
 ```
 
 ## User enrollment
@@ -126,24 +155,22 @@ kubectl get oidcgatewayclients --all-namespaces -o json | jq -r '.items[] | [.me
 If automatic enrollment is disabled users can be managed GitOps style.
 
 ```
-apiVersion: codemowers.io/v1alpha1
-kind: OIDCGWUser
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCUser
 metadata:
   name: johnsmith
 spec:
   companyEmail: johnsmith@example.com
-  customGroups:
+  groups:
   - name: kubernetes:admins
     prefix: example.com
-  customProfile:
-    name: John Smith
-  email: johnsmith@gmail.com
+  type: person
 ```
 
 To list users:
 
 ```
-kubectl get oidcgatewayusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .spec.githubProfile.id // "-", .status.profile.name] | @tsv' | column -t
+kubectl get oidcusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .github.id // "-", .status.profile.name] | @tsv' | column -t
 ```
 
 ## Traefik middleware
@@ -152,8 +179,8 @@ For legacy applications `forwardAuth` based middleware option is supported.
 
 ```
 ---
-apiVersion: codemowers.io/v1alpha1
-kind: OIDCGWMiddlewareClient
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCMiddlewareClient
 metadata:
   name: webmail
 spec:
@@ -165,7 +192,7 @@ spec:
     email: Remote-Email
     groups: Remote-Groups
     name: Remote-Name
-    user: Remote-Username
+    user: Remote-User
 ```
 
 For the ingress refer to automatically created middleware
