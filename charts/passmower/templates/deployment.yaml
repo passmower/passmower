@@ -57,6 +57,8 @@ spec:
               value: {{ .Values.passmower.normalize_email_addresses | quote }}
             - name: WEBAUTHN_ENABLED
               value: {{ .Values.passmower.webauthn_enabled | quote }}
+            - name: REDIS_IP_FAMILY
+              value: {{ .Values.redis.ipFamily | default "0" | quote }}
             - name: REDIS_URI
               {{- if .Values.redis.internal.enabled }}
               value: redis://redis.{{ .Release.Namespace }}.svc.cluster.local

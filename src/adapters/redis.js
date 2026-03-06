@@ -20,6 +20,7 @@ const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
 function createRedisClient(isInitial = false) {
     const newClient = new Redis(process.env.REDIS_URI, {
         keyPrefix: 'oidc:',
+        family: parseInt(process.env.REDIS_IP_FAMILY ?? '0'),
         // Only enable offline queue for initial connection, disable after ready
         enableOfflineQueue: isInitial,
         // Shorter timeouts for faster failover detection
