@@ -78,7 +78,7 @@ if (isHeadlessService) {
 
     const checkDnsAndReconnect = async () => {
         try {
-            const currentIps = await dns.resolve4(redisHost);
+            const currentIps = await dns.resolve(redisHost);
             currentIps.sort();
 
             if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {

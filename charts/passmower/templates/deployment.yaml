@@ -59,7 +59,7 @@ spec:
               value: {{ .Values.passmower.webauthn_enabled | quote }}
             - name: REDIS_URI
               {{- if .Values.redis.internal.enabled }}
-              value: redis://redis
+              value: redis://redis.{{ .Release.Namespace }}.svc.cluster.local
               {{- end }}
               {{- if .Values.redis.redisClaim.enabled }}
               valueFrom:
