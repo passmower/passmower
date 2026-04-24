@@ -4,8 +4,7 @@ import {
     defaultApiGroupVersion,
     plurals
 } from "../utils/kubernetes/kube-constants.js";
-import WatchRequest from "../utils/kubernetes/watch-request.js";
-import {V1OwnerReference, V1Secret} from "@kubernetes/client-node";
+import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
 
@@ -14,32 +13,29 @@ export class KubernetesAdapter {
         const kc = new k8s.KubeConfig();
         this.kc = kc
         kc.loadFromCluster()
-        this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
-        this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
         this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
         this.deployment = process.env.DEPLOYMENT_NAME
         this.instance = this.namespace + '-' + this.deployment
-        const interceptor = (reqOptions) => {
-            reqOptions.headers['User-Agent'] = this.instance
-        }
-        this.customObjectsApi.addInterceptor(interceptor)
-        this.customObjectsApi.addInterceptor(interceptor)
+        const userAgentMiddleware = setHeaderMiddleware('User-Agent', this.instance)
+        this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
+        this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
+        this.defaultOptions = { middleware: [userAgentMiddleware] }
     }
 
     async listNamespacedCustomObject(kind, namespace, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        return await this.customObjectsApi.listNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
+        return await this.customObjectsApi.listNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
             namespace,
-            plurals[kind]
-        ).then(async (r) => {
+            plural: plurals[kind]
+        }, this.defaultOptions).then(async (r) => {
             return await Promise.all(
-                r.body.items.map(async (s) => {
+                r.items.map(async (s) => {
                     return mapperFunction(s)
                 })
             )
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -47,16 +43,16 @@ export class KubernetesAdapter {
     }
 
     async getNamespacedCustomObject(kind, namespace, id, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        return await this.customObjectsApi.getNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
+        return await this.customObjectsApi.getNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
             namespace,
-            plurals[kind],
-            id
-        ).then((r) => {
-            return mapperFunction(r.body)
+            plural: plurals[kind],
+            name: id
+        }, this.defaultOptions).then((r) => {
+            return mapperFunction(r)
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -64,12 +60,12 @@ export class KubernetesAdapter {
     }
 
     async createNamespacedCustomObject(kind, namespace, name, spec, mapperFunction, owner, labels = {}, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        return await this.customObjectsApi.createNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
+        return await this.customObjectsApi.createNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
             namespace,
-            plurals[kind],
-            {
+            plural: plurals[kind],
+            body: {
                 apiVersion: apiGroup + '/' + apiGroupVersion,
                 kind,
                 metadata: {
@@ -81,10 +77,10 @@ export class KubernetesAdapter {
                 },
                 ...spec
             }
-        ).then(async (r) => {
-            return mapperFunction(r.body)
+        }, this.defaultOptions).then(async (r) => {
+            return mapperFunction(r)
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -94,21 +90,18 @@ export class KubernetesAdapter {
     async patchNamespacedCustomObject(kind, namespace, id, values, existingValues, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         const delta = diff(existingValues, values)
         const patches = format(delta);
-        return await this.customObjectsApi.patchNamespacedCustomObject(
-            apiGroup,
-            apiGroupVersion,
+        const patchOptions = setHeaderOptions('Content-Type', 'application/json-patch+json', this.defaultOptions)
+        return await this.customObjectsApi.patchNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
             namespace,
-            plurals[kind],
-            id,
-            patches,
-            undefined,
-            undefined,
-            undefined,
-            { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
-        ).then(async (r) => {
-            return mapperFunction(r.body)
+            plural: plurals[kind],
+            name: id,
+            body: patches
+        }, patchOptions).then(async (r) => {
+            return mapperFunction(r)
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -116,13 +109,13 @@ export class KubernetesAdapter {
     }
 
     async replaceNamespacedCustomObjectStatus(kind, namespace, id, resourceVersion, status, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        return await this.customObjectsApi.replaceNamespacedCustomObjectStatus(
-            apiGroup,
-            apiGroupVersion,
+        return await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
+            group: apiGroup,
+            version: apiGroupVersion,
             namespace,
-            plurals[kind],
-            id,
-            {
+            plural: plurals[kind],
+            name: id,
+            body: {
                 apiVersion: apiGroup + '/' + apiGroupVersion,
                 kind,
                 metadata: {
@@ -131,27 +124,27 @@ export class KubernetesAdapter {
                 },
                 status,
             }
-        ).then((r) => {
-            return mapperFunction(r.body)
+        }, this.defaultOptions).then((r) => {
+            return mapperFunction(r)
         }).catch((e) => {
             globalThis.logger.error(e)
         })
     }
 
     async getSecret(namespace, id) {
-        return await this.coreV1Api.readNamespacedSecret(
-            id,
+        return await this.coreV1Api.readNamespacedSecret({
+            name: id,
             namespace
-        ).then(async (r) => {
+        }, this.defaultOptions).then(async (r) => {
             return {
                 metadata: {
-                    annotations: r.body.metadata?.annotations,
-                    labels: r.body.metadata?.labels,
+                    annotations: r.metadata?.annotations,
+                    labels: r.metadata?.labels,
                 },
-                data: await this.#parseSecretData(r.body.data)
+                data: await this.#parseSecretData(r.data)
             }
         }).catch((e) => {
-            if (e.statusCode === 404) {
+            if (e.code === 404) {
                 return null
             } else {
                 globalThis.logger.error(e)
@@ -166,11 +159,11 @@ export class KubernetesAdapter {
             ...metadata
         }
         kubeSecret.data = await this.#generateSecretData(data)
-        await this.coreV1Api.createNamespacedSecret(
+        await this.coreV1Api.createNamespacedSecret({
             namespace,
-            kubeSecret
-        ).then(async (r) => {
-            return this.#parseSecretData(r.body.data)
+            body: kubeSecret
+        }, this.defaultOptions).then(async (r) => {
+            return this.#parseSecretData(r.data)
         }).catch((e) => {
             globalThis.logger.error(e)
             return null
@@ -188,18 +181,13 @@ export class KubernetesAdapter {
                 data: await this.#generateSecretData(data),
             })
         const patches = format(delta);
-        return await this.coreV1Api.patchNamespacedSecret(
-            id,
+        const patchOptions = setHeaderOptions('Content-Type', 'application/json-patch+json', this.defaultOptions)
+        return await this.coreV1Api.patchNamespacedSecret({
+            name: id,
             namespace,
-            patches,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            { "headers": { "Content-type": k8s.PatchUtils.PATCH_FORMAT_JSON_PATCH}}
-        ).then((r) => {
-            return this.#parseSecretData(r.body.data)
+            body: patches
+        }, patchOptions).then((r) => {
+            return this.#parseSecretData(r.data)
         }).catch((e) => {
             globalThis.logger.error(e)
             return null
@@ -207,13 +195,13 @@ export class KubernetesAdapter {
     }
 
     async deleteSecret(namespace, id) {
-        await this.coreV1Api.deleteNamespacedSecret(
-            id,
+        await this.coreV1Api.deleteNamespacedSecret({
+            name: id,
             namespace
-        ).then(async (r) => {
-            return r.body.status
+        }, this.defaultOptions).then(async (r) => {
+            return r.status
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -221,14 +209,13 @@ export class KubernetesAdapter {
     }
 
     async createPod(namespace, podSpec, dryRun = false) {
-        await this.coreV1Api.createNamespacedPod(
+        await this.coreV1Api.createNamespacedPod({
             namespace,
-            podSpec,
-            undefined,
-        ).then(async (r) => {
-            return r.body.status
+            body: podSpec
+        }, this.defaultOptions).then(async (r) => {
+            return r.status
         }).catch((e) => {
-            if (e.statusCode !== 404) {
+            if (e.code !== 404) {
                 globalThis.logger.error(e)
                 return null
             }
@@ -251,7 +238,7 @@ export class KubernetesAdapter {
     async watchObjects() {
         const kind = plurals[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
-        const watch = new k8s.Watch(this.kc, new WatchRequest());
+        const watch = new k8s.Watch(this.kc);
         let path = this.watchParameters.namespaceFilter?.namespace ?
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespaceFilter.namespace}` :
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}`
@@ -286,9 +273,9 @@ export class KubernetesAdapter {
                     globalThis.logger.error(err)
                 }
                 setTimeout(() => { this.watchObjects(); }, 10 * 1000);
-            }).then((req) => {
-            // watch returns a request object which you can use to abort the watch.
-            // setTimeout(() => { req.abort(); }, 10);
+            }).then((abortController) => {
+            // watch returns an AbortController which you can use to abort the watch.
+            // setTimeout(() => { abortController.abort(); }, 10);
         });
     }
 

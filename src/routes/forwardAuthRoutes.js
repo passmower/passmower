@@ -1,4 +1,4 @@
-import Router from "koa-router";
+import Router from "@koa/router";
 import originalUrl from 'original-url';
 import {validateSiteSession} from "../utils/session/site-session.js";
 import Account from "../models/account.js";

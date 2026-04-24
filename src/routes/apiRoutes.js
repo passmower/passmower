@@ -1,6 +1,6 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { koaBody as bodyParser } from 'koa-body';
-import Router from 'koa-router';
+import Router from '@koa/router';
 import {signedInToSelf} from "../utils/session/signed-in.js";
 import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
@@ -11,12 +11,13 @@ import validator, {
     restValidationErrors
 } from "../utils/session/validator.js";
 import {getText} from "../utils/get-text.js";
+import {WebAuthnService} from "../services/webauthn/index.js";
 
 export default (provider) => {
     const router = new Router();
 
     router.use(bodyParser({ json: true }))
-    router.use(validator)
+    router.use(validator())
     router.use(async (ctx, next) => {
         const session = await signedInToSelf(ctx, provider)
         if (session) {
@@ -95,6 +96,113 @@ export default (provider) => {
         })).then(apps => apps.sort((a, b) => a.name.localeCompare(b.name)))
         ctx.body = {
             apps
+        }
+    })
+
+    // ============================================
+    // Passkey/WebAuthn Management Routes
+    // ============================================
+
+    // List user's passkeys
+    router.get('/api/passkeys', async (ctx) => {
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const passkeys = webauthn.listPasskeys(ctx.currentAccount);
+        ctx.body = { passkeys };
+    })
+
+    // Start passkey registration
+    router.post('/api/passkeys/register/start', async (ctx) => {
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        try {
+            const options = await webauthn.startRegistration(ctx.currentAccount);
+            auditLog(ctx, { accountId: ctx.currentAccount.accountId }, 'Passkey registration started');
+            ctx.body = options;
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to start passkey registration');
+            ctx.status = 500;
+            ctx.body = { error: 'Failed to start registration' };
+        }
+    })
+
+    // Complete passkey registration
+    router.post('/api/passkeys/register/finish', async (ctx) => {
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const { response, name } = ctx.request.body;
+
+        if (!response) {
+            ctx.status = 400;
+            ctx.body = { error: 'Missing response' };
+            return;
+        }
+
+        try {
+            const result = await webauthn.finishRegistration(
+                ctx.currentAccount,
+                response,
+                name || 'Passkey'
+            );
+
+            if (result.verified) {
+                auditLog(ctx, {
+                    accountId: ctx.currentAccount.accountId,
+                    credentialId: result.credential?.id,
+                    name: name
+                }, 'Passkey registered successfully');
+                ctx.body = {
+                    verified: true,
+                    credential: {
+                        id: result.credential.id,
+                        name: result.credential.name,
+                        createdAt: result.credential.createdAt,
+                    }
+                };
+            } else {
+                ctx.status = 400;
+                ctx.body = { verified: false, error: 'Verification failed' };
+            }
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to complete passkey registration');
+            ctx.status = 400;
+            ctx.body = { error: error.message || 'Registration failed' };
+        }
+    })
+
+    // Rename a passkey
+    router.patch('/api/passkeys/:id', async (ctx) => {
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const credentialId = ctx.params.id;
+        const { name } = ctx.request.body;
+
+        if (!name || typeof name !== 'string' || name.length < 1 || name.length > 50) {
+            ctx.status = 400;
+            ctx.body = { error: 'Invalid name (1-50 characters required)' };
+            return;
+        }
+
+        try {
+            await webauthn.renamePasskey(ctx.currentAccount.accountId, credentialId, name);
+            auditLog(ctx, { accountId: ctx.currentAccount.accountId, credentialId, name }, 'Passkey renamed');
+            ctx.body = { success: true };
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to rename passkey');
+            ctx.status = 404;
+            ctx.body = { error: error.message || 'Passkey not found' };
+        }
+    })
+
+    // Delete a passkey
+    router.delete('/api/passkeys/:id', async (ctx) => {
+        const webauthn = new WebAuthnService(ctx.kubeOIDCUserService);
+        const credentialId = ctx.params.id;
+
+        try {
+            await webauthn.removePasskey(ctx.currentAccount.accountId, credentialId);
+            auditLog(ctx, { accountId: ctx.currentAccount.accountId, credentialId }, 'Passkey deleted');
+            ctx.body = { success: true };
+        } catch (error) {
+            globalThis.logger?.error({ error }, 'Failed to delete passkey');
+            ctx.status = 404;
+            ctx.body = { error: error.message || 'Passkey not found' };
         }
     })
 

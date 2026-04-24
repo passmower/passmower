@@ -108,7 +108,9 @@ export class SessionService {
             },
             params: {
                 // do regular full log-out instead of revoking certain client grant
-                logout: true
+                logout: true,
+                // provide a valid redirect URI to prevent Invalid URL error in oidc-provider
+                post_logout_redirect_uri: process.env.ISSUER_URL
             },
         }
         // dirty hack to call out confirm function in oidc-provider/lib/actions/end_session.js

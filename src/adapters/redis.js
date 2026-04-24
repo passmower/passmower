@@ -1,14 +1,119 @@
 // npm i ioredis@^4.0.0
 import Redis from 'ioredis'; // eslint-disable-line import/no-unresolved
 import isEmpty from 'lodash/isEmpty.js';
+import dns from 'node:dns/promises';
 
-const client = new Redis(process.env.REDIS_URI, {
-    keyPrefix: 'oidc:',
-    reconnectOnError(err) {
-        globalThis.logger.error(err)
-        return true
-    },
-});
+// Parse Redis URI to extract host for DNS refresh
+const redisUrl = new URL(process.env.REDIS_URI);
+const redisHost = redisUrl.hostname;
+const isHeadlessService = redisHost.endsWith('.svc.cluster.local') || redisHost.endsWith('.svc');
+
+// Track connection state
+let connectionErrorCount = 0;
+let isReady = false;
+let readyResolve;
+let readyPromise = new Promise(resolve => { readyResolve = resolve; });
+
+const MAX_ERROR_COUNT = 5;
+const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
+
+function createRedisClient(isInitial = false) {
+    const newClient = new Redis(process.env.REDIS_URI, {
+        keyPrefix: 'oidc:',
+        family: parseInt(process.env.REDIS_IP_FAMILY ?? '0'),
+        // Only enable offline queue for initial connection, disable after ready
+        enableOfflineQueue: isInitial,
+        // Shorter timeouts for faster failover detection
+        connectTimeout: 10000,
+        // Retry strategy with backoff
+        retryStrategy(times) {
+            if (times > 10) {
+                globalThis.logger?.warn('Redis: Max retry attempts reached, will keep trying...')
+            }
+            return Math.min(times * 100, 3000);
+        },
+        // Reconnect on READONLY errors (replica promoted to master scenario)
+        reconnectOnError(err) {
+            const targetErrors = ['READONLY', 'MOVED', 'ASK', 'CLUSTERDOWN'];
+            if (targetErrors.some(e => err.message?.includes(e))) {
+                globalThis.logger?.warn(`Redis: Reconnecting due to ${err.message}`)
+                connectionErrorCount++;
+                return true;
+            }
+            return false;
+        },
+    });
+
+    newClient.on('error', (err) => {
+        globalThis.logger?.error({ err }, 'Redis connection error')
+        connectionErrorCount++;
+        isReady = false;
+    });
+
+    newClient.on('connect', () => {
+        globalThis.logger?.info('Redis connected')
+        connectionErrorCount = 0;
+    });
+
+    newClient.on('ready', () => {
+        globalThis.logger?.info('Redis ready')
+        connectionErrorCount = 0;
+        isReady = true;
+        // Disable offline queue after initial connection is ready
+        newClient.options.enableOfflineQueue = false;
+        readyResolve();
+    });
+
+    newClient.on('close', () => {
+        isReady = false;
+    });
+
+    return newClient;
+}
+
+let client = createRedisClient(true);
+
+// For headless services: periodically check if DNS has changed and reconnect if needed
+if (isHeadlessService) {
+    let lastKnownIps = [];
+
+    const checkDnsAndReconnect = async () => {
+        try {
+            const currentIps = await dns.resolve(redisHost);
+            currentIps.sort();
+
+            if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {
+                globalThis.logger?.warn({ oldIps: lastKnownIps, newIps: currentIps }, 'Redis: DNS changed, reconnecting...')
+                client.disconnect();
+                client = createRedisClient(false);
+            }
+            lastKnownIps = currentIps;
+        } catch (err) {
+            globalThis.logger?.error({ err }, 'Redis: DNS lookup failed')
+        }
+    };
+
+    // Initial DNS lookup
+    checkDnsAndReconnect();
+    // Periodic DNS check
+    setInterval(checkDnsAndReconnect, DNS_REFRESH_INTERVAL);
+}
+
+// Force reconnect if too many errors accumulate
+setInterval(() => {
+    if (connectionErrorCount >= MAX_ERROR_COUNT) {
+        globalThis.logger?.warn(`Redis: ${connectionErrorCount} errors accumulated, forcing reconnect...`)
+        connectionErrorCount = 0;
+        client.disconnect();
+        client = createRedisClient(false);
+    }
+}, 10000);
+
+// Export a getter to always use the current client instance
+const getClient = () => client;
+
+// Wait for initial connection to be ready
+export const waitForReady = () => readyPromise;
 
 const grantable = new Set([
     'AccessToken',
@@ -67,7 +172,7 @@ class RedisAdapter {
         const store = consumable.has(this.name)
             ? { payload: JSON.stringify(payload) } : JSON.stringify(payload);
 
-        const multi = client.multi();
+        const multi = getClient().multi();
         multi[consumable.has(this.name) ? 'hmset' : 'set'](key, store);
 
         if (expiresIn) {
@@ -79,7 +184,7 @@ class RedisAdapter {
             multi.rpush(grantKey, key);
             // if you're seeing grant key lists growing out of acceptable proportions consider using LTRIM
             // here to trim the list to an appropriate length
-            const ttl = await client.ttl(grantKey);
+            const ttl = await getClient().ttl(grantKey);
             if (expiresIn > ttl) {
                 multi.expire(grantKey, expiresIn);
             }
@@ -102,30 +207,30 @@ class RedisAdapter {
         if (referencable[this.name]) {
             const owner = payload[referencable[this.name]?.ownerKey] ?? 1
             const key = `${referencable[this.name].listName}:${owner}`;
-            await client.sadd(key, id);
+            await getClient().sadd(key, id);
             if (payload[referencable[this.name]?.expireKey]) {
                 const ttl = Math.floor(payload[referencable[this.name]?.expireKey] - Date.now() / 1000)
-                await client.expire(key, ttl)
+                await getClient().expire(key, ttl)
             }
         }
     }
 
     async appendToSet(id, item) {
-        await client.sadd(this.key(id), item);
+        await getClient().sadd(this.key(id), item);
     }
 
     async removeFromSet(id, item) {
-        await client.srem(this.key(id), item);
+        await getClient().srem(this.key(id), item);
     }
 
     async getSetMembers(id) {
-        return await client.smembers(this.key(id))
+        return await getClient().smembers(this.key(id))
     }
 
     async find(id) {
         const data = consumable.has(this.name)
-            ? await client.hgetall(this.key(id))
-            : await client.get(this.key(id));
+            ? await getClient().hgetall(this.key(id))
+            : await getClient().get(this.key(id));
 
         if (isEmpty(data)) {
             return undefined;
@@ -142,12 +247,12 @@ class RedisAdapter {
     }
 
     async findByUid(uid) {
-        const id = await client.get(uidKeyFor(uid));
+        const id = await getClient().get(uidKeyFor(uid));
         return this.find(id);
     }
 
     async findByUserCode(userCode) {
-        const id = await client.get(userCodeKeyFor(userCode));
+        const id = await getClient().get(userCodeKeyFor(userCode));
         return this.find(id);
     }
 
@@ -155,25 +260,25 @@ class RedisAdapter {
         const key = this.key(id);
         const payload = this.find(id)
 
-        await client.del(key);
+        await getClient().del(key);
 
         if (referencable[this.name]) {
             const owner = payload[referencable[this.name]?.ownerKey] ?? 1
             const key = `${referencable[this.name].listName}:${owner}`;
-            await client.srem(key, id);
+            await getClient().srem(key, id);
         }
     }
 
     async revokeByGrantId(grantId) { // eslint-disable-line class-methods-use-this
-        const multi = client.multi();
-        const tokens = await client.lrange(grantKeyFor(grantId), 0, -1);
+        const multi = getClient().multi();
+        const tokens = await getClient().lrange(grantKeyFor(grantId), 0, -1);
         tokens.forEach((token) => multi.del(token));
         multi.del(grantKeyFor(grantId));
         await multi.exec();
     }
 
     async consume(id) {
-        await client.hset(this.key(id), 'consumed', Math.floor(Date.now() / 1000));
+        await getClient().hset(this.key(id), 'consumed', Math.floor(Date.now() / 1000));
     }
 
     key(id) {

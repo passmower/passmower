@@ -4,6 +4,17 @@
     <p><%= message %></p>
   </div>
 <% } %>
+<div id="passkey-section" style="display: none;">
+  <button type="button" id="passkey-login-btn" class="upstream-button">
+    <span class="upstream-button__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#24292f" d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17v80c0 13.3 10.7 24 24 24h80c13.3 0 24-10.7 24-24V448h40c13.3 0 24-10.7 24-24V384h40c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/></svg>
+    </span>
+    <span class="google-button__text">Sign in with Passkey</span>
+  </button>
+  <div class="login-help">
+    - or -
+  </div>
+</div>
 <form autocomplete="off" action="/interaction/<%= uid %>/federated" method="post">
   <input type="hidden" name="upstream" value="gh">
   <button type="submit" class="upstream-button">
@@ -31,4 +42,163 @@
       <button type="submit" class="login login-submit">End impersonating <%= impersonation.accountId %></button>
     </form>
 <% } %>
+<script nonce="<%= nonce %>">
+(function() {
+  const uid = '<%= uid %>';
+  const passkeySection = document.getElementById('passkey-section');
+  const passkeyBtn = document.getElementById('passkey-login-btn');
+
+  // Check if passkeys are available
+  async function checkPasskeyAvailability() {
+    if (!window.PublicKeyCredential) {
+      console.log('WebAuthn not supported in this browser');
+      return;
+    }
+
+    try {
+      const response = await fetch('/interaction/' + uid + '/passkey/available');
+      const data = await response.json();
+      console.log('Passkey config:', data);
+      console.log('Current origin:', window.location.origin);
+
+      if (data.available) {
+        passkeySection.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Failed to check passkey availability:', error);
+    }
+  }
+
+  // Start passkey authentication (manual button click)
+  async function startPasskeyAuthentication() {
+    passkeyBtn.disabled = true;
+    passkeyBtn.querySelector('.google-button__text').textContent = 'Authenticating...';
+
+    try {
+      // Get authentication options from server
+      console.log('Fetching authentication options...');
+      const startResponse = await fetch('/interaction/' + uid + '/passkey/start', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!startResponse.ok) {
+        const errorData = await startResponse.json().catch(function() { return {}; });
+        throw new Error(errorData.error || 'Failed to start authentication');
+      }
+
+      const options = await startResponse.json();
+      console.log('Authentication options:', JSON.stringify(options, null, 2));
+
+      // Convert base64url to ArrayBuffer
+      options.challenge = base64urlToBuffer(options.challenge);
+      if (options.allowCredentials) {
+        options.allowCredentials = options.allowCredentials.map(function(cred) {
+          return {
+            id: base64urlToBuffer(cred.id),
+            type: cred.type,
+            transports: cred.transports
+          };
+        });
+      }
+
+      // Request credential from authenticator
+      console.log('Requesting credential from authenticator...');
+      console.log('rpId:', options.rpId);
+      console.log('userVerification:', options.userVerification);
+      console.log('allowCredentials:', options.allowCredentials ? options.allowCredentials.length + ' credentials' : 'none (discoverable)');
+
+      const credential = await navigator.credentials.get({
+        publicKey: options
+      });
+
+      console.log('Credential received:', credential.id);
+
+      // Prepare response for server
+      const authResponse = {
+        id: credential.id,
+        rawId: bufferToBase64url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+          authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+          signature: bufferToBase64url(credential.response.signature)
+        }
+      };
+
+      if (credential.response.userHandle) {
+        authResponse.response.userHandle = bufferToBase64url(credential.response.userHandle);
+      }
+
+      // Send response to server to complete authentication
+      console.log('Sending authentication response to server...');
+      const finishResponse = await fetch('/interaction/' + uid + '/passkey/finish', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ response: authResponse })
+      });
+
+      const finishResult = await finishResponse.json();
+
+      if (!finishResponse.ok) {
+        throw new Error(finishResult.error || 'Authentication failed');
+      }
+
+      if (finishResult.success && finishResult.redirectUrl) {
+        console.log('Authentication successful, redirecting to:', finishResult.redirectUrl);
+        window.location.href = finishResult.redirectUrl;
+        return;
+      }
+
+      // If we get here without redirect URL, reload
+      console.log('Authentication successful, reloading...');
+      window.location.reload();
+
+    } catch (error) {
+      console.error('Passkey authentication error:', error.name, error.message);
+      passkeyBtn.disabled = false;
+      passkeyBtn.querySelector('.google-button__text').textContent = 'Sign in with Passkey';
+
+      // Don't show alert for user cancellation
+      if (error.name === 'NotAllowedError') {
+        console.log('User cancelled the request or permission denied');
+        // Could be: user cancelled, timeout, or no matching credential
+      } else {
+        alert('Passkey authentication failed: ' + (error.message || 'Unknown error'));
+      }
+    }
+  }
+
+  // Helper functions for base64url <-> ArrayBuffer conversion
+  function base64urlToBuffer(base64url) {
+    var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    var padding = '='.repeat((4 - base64.length % 4) % 4);
+    var binary = atob(base64 + padding);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  function bufferToBase64url(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  // Initialize
+  passkeyBtn.addEventListener('click', startPasskeyAuthentication);
+  checkPasskeyAvailability();
+})();
+</script>
 

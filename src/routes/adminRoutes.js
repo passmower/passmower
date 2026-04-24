@@ -1,4 +1,4 @@
-import Router from "koa-router";
+import Router from "@koa/router";
 import {koaBody as bodyParser} from "koa-body";
 import Account, {GroupPrefix} from "../models/account.js";
 import {GitHubGroupPrefix} from "../utils/kubernetes/kube-constants.js";
@@ -17,7 +17,7 @@ import {getText} from "../utils/get-text.js";
 export default (provider) => {
     const router = new Router();
     router.use(bodyParser({ json: true }))
-    router.use(validator)
+    router.use(validator())
     router.use(async (ctx, next) => {
         let session = await ctx.sessionService.getAdminSession(ctx)
         if (session) {

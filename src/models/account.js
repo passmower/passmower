@@ -13,6 +13,7 @@ class Account {
     #passmower = null
     #slack = null
     #github = null
+    #webauthn = null
     #conditions = []
     #labels = {}
     #metadata = {}
@@ -24,6 +25,7 @@ class Account {
         this.#passmower = apiResponse.passmower
         this.#slack = apiResponse.slack
         this.#github = apiResponse.github
+        this.#webauthn = apiResponse.webauthn
         this.resourceVersion = apiResponse.metadata.resourceVersion
         this.primaryEmail = apiResponse.status?.primaryEmail
         this.emails = apiResponse.status?.emails ?? []
@@ -119,6 +121,7 @@ class Account {
                 phones: this.#spec?.phones ?? null,
             },
             slackId: this.#slack?.id ?? null,
+            passkeyCount: this.#webauthn?.credentials?.length ?? 0,
             conditions: this.#conditions,
         }
     }
@@ -160,7 +163,18 @@ class Account {
             passmower: this.#passmower,
             slack: this.#slack,
             github: this.#github,
+            webauthn: this.#webauthn,
         }
+    }
+
+    get webauthn() {
+        return this.#webauthn
+    }
+
+    get username() {
+        return process.env.USE_GITHUB_USERNAME === 'true'
+            ? (this.#github?.login || this.accountId)
+            : this.accountId
     }
 
     addCondition(condition) {

@@ -34,7 +34,6 @@ export default async (ctx, provider) => {
         }));
     }
 
-
     if (!token) {
         if (!interactionDetails.result || interactionDetails.result.state !== callbackParams.state) {
             auditLog(ctx, {error: true, interactionDetails}, 'State does not match')
@@ -48,8 +47,7 @@ export default async (ctx, provider) => {
                 resolve(results)
             });
         });
-
-        if (accessToken.error || !accessToken.access_token) {
+        if (accessToken?.error || !accessToken.access_token) {
             auditLog(ctx, {error: accessToken.error, interactionDetails}, 'Error getting access token from GitHub')
             return accessDenied(ctx, provider, 'User aborted login')
         }

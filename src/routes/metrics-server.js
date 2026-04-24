@@ -1,6 +1,6 @@
 import {collectDefaultMetrics, register} from "prom-client";
 import Koa from 'koa';
-import Router from "koa-router";
+import Router from "@koa/router";
 import { setupOidcMetrics } from "../utils/session/handle-oidc-flow-metrics.js";
 import {KubeOIDCUserService} from "../services/kube-oidc-user-service.js";
 import {getSelfOidcClient} from "../utils/session/self-oidc-client.js";
