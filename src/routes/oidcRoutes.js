@@ -29,6 +29,14 @@ import {auditLog} from "../utils/session/audit-log.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
 
+// Which login methods are surfaced on the sign-in page. Each is enabled
+// unless explicitly disabled via env var, preserving previous behaviour.
+const authMethodsEnabled = () => ({
+    webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
+    githubEnabled: process.env.GITHUB_ENABLED !== 'false',
+    emailEnabled: process.env.EMAIL_ENABLED !== 'false',
+});
+
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
     keys.add(key);
@@ -144,7 +152,8 @@ export default (provider) => {
                 }
                 return render(provider, ctx, 'login', 'Sign-in', {
                     impersonation: await ctx.sessionService.getImpersonation(ctx),
-                    message: undefined
+                    message: undefined,
+                    ...authMethodsEnabled(),
                 })
              }
             case 'consent': {
@@ -212,6 +221,9 @@ export default (provider) => {
 
         switch (ctx.request.body.upstream) {
             case 'gh': {
+                if (!authMethodsEnabled().githubEnabled) {
+                    ctx.throw(404, 'GitHub login is disabled');
+                }
                 auditLog(ctx, {}, ctx.request.body.code ? 'GitHub login callback received' : 'GitHub login initiated')
                 return GithubLogin(ctx, provider);
             }
@@ -226,11 +238,15 @@ export default (provider) => {
     });
 
     router.post('/interaction/:uid/email', async (ctx) => {
+        if (!authMethodsEnabled().emailEnabled) {
+            ctx.throw(404, 'Email login is disabled');
+        }
         checkEmail(ctx)
         if (await ctx.validationErrors()) {
             return render(provider, ctx, 'login', 'Sign-in', {
                 impersonation: undefined,
-                message: 'Invalid email'
+                message: 'Invalid email',
+                ...authMethodsEnabled(),
             })
         }
         auditLog(ctx, {email: ctx.request.body.email}, 'Email login initiated')
@@ -277,6 +293,9 @@ export default (provider) => {
 
     // Start passkey authentication
     router.post('/interaction/:uid/passkey/start', async (ctx) => {
+        if (!authMethodsEnabled().webauthnEnabled) {
+            ctx.throw(404, 'Passkey login is disabled');
+        }
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
 
@@ -346,7 +365,7 @@ export default (provider) => {
         // This endpoint allows the login page to check if passkey login is available
         // It doesn't require the user to be identified first
         ctx.body = {
-            available: process.env.WEBAUTHN_ENABLED !== 'false',
+            available: authMethodsEnabled().webauthnEnabled,
             rpId: new URL(process.env.ISSUER_URL).hostname,
         };
     });

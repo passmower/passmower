@@ -4,6 +4,8 @@
     <p><%= message %></p>
   </div>
 <% } %>
+<% let shown = false; %>
+<% if (webauthnEnabled) { %>
 <div id="passkey-section" style="display: none;">
   <button type="button" id="passkey-login-btn" class="upstream-button">
     <span class="upstream-button__icon">
@@ -11,10 +13,15 @@
     </span>
     <span class="google-button__text">Sign in with Passkey</span>
   </button>
+  <% if (githubEnabled || emailEnabled || impersonation) { %>
   <div class="login-help">
     - or -
   </div>
+  <% } %>
 </div>
+<% } %>
+<% if (githubEnabled) { %>
+<% if (shown) { %><div class="login-help">- or -</div><% } %>
 <form autocomplete="off" action="/interaction/<%= uid %>/federated" method="post">
   <input type="hidden" name="upstream" value="gh">
   <button type="submit" class="upstream-button">
@@ -24,17 +31,22 @@
     <span class="google-button__text">Sign in with GitHub</span>
   </button>
 </form>
-<div class="login-help">
-  - or -
-</div>
+<% shown = true; %>
+<% } %>
+<% if (emailEnabled) { %>
+<% if (shown) { %><div class="login-help">- or -</div><% } %>
 <form autocomplete="off" action="/interaction/<%= uid %>/email" method="post">
   <input required type="text" name="email" placeholder="Enter email">
   <button type="submit" class="login login-submit">Send link</button>
 </form>
+<% shown = true; %>
+<% } %>
 <% if (impersonation) { %>
+  <% if (shown) { %>
   <div class="login-help">
     - or -
   </div>
+  <% } %>
   <form autocomplete="off" action="/interaction/<%= uid %>/impersonate" method="post">
     <button type="submit" class="login login-submit">Impersonate <%= impersonation.accountId %></button>
   </form>
@@ -42,6 +54,7 @@
       <button type="submit" class="login login-submit">End impersonating <%= impersonation.accountId %></button>
     </form>
 <% } %>
+<% if (webauthnEnabled) { %>
 <script nonce="<%= nonce %>">
 (function() {
   const uid = '<%= uid %>';
@@ -201,4 +214,5 @@
   checkPasskeyAvailability();
 })();
 </script>
+<% } %>
 

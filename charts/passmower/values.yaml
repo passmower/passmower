@@ -28,6 +28,10 @@ passmower:
   normalize_email_addresses: true
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
   webauthn_enabled: true
+  # Enable GitHub OAuth login. Requires github_client_secretRef to be set.
+  github_enabled: true
+  # Enable email magic-link login. Requires email_credentials_secretRef to be set.
+  email_enabled: true
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   email_credentials_secretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET

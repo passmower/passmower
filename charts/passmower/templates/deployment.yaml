@@ -57,6 +57,10 @@ spec:
               value: {{ .Values.passmower.normalize_email_addresses | quote }}
             - name: WEBAUTHN_ENABLED
               value: {{ .Values.passmower.webauthn_enabled | quote }}
+            - name: GITHUB_ENABLED
+              value: {{ .Values.passmower.github_enabled | quote }}
+            - name: EMAIL_ENABLED
+              value: {{ .Values.passmower.email_enabled | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
             - name: REDIS_URI
