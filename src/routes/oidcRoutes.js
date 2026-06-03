@@ -121,6 +121,12 @@ export default (provider) => {
             }
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
+            // When only a single login method is enabled there is nothing to pick,
+            // so skip the welcome page and go straight to the sign-in interaction.
+            const enabledCount = Object.values(authMethodsEnabled()).filter(Boolean).length
+            if (enabledCount === 1) {
+                return ctx.redirect(url.href)
+            }
             return render(provider, ctx, 'hi', `Welcome to Passmower`, {
                 url: url.href
             })
