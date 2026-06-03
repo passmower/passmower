@@ -91,7 +91,7 @@ class OIDCClient {
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
         this.#conditions = incomingClient.status?.conditions ?? []
-        this.#secretMetadata = incomingClient.spec?.secretMetadata ?? []
+        this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
         this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         return this

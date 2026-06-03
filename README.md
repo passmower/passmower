@@ -150,6 +150,30 @@ To list applications:
 kubectl get oidcclients --all-namespaces -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .spec.uri] | @tsv' | column -t
 ```
 
+### Customizing the generated secret
+
+Use `spec.secretMetadata` to add labels and annotations to the generated
+`oidc-client-<name>-owner-secrets` secret. This is useful when another
+controller needs specific metadata to pick up the secret — for example, ArgoCD
+requires the `app.kubernetes.io/part-of: argocd` label to read it:
+
+```
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCClient
+metadata:
+  name: grafana
+spec:
+  # ... other fields ...
+  secretMetadata:
+    labels:
+      app.kubernetes.io/part-of: argocd
+    annotations:
+      example.com/some-annotation: 'value'
+```
+
+Both `labels` and `annotations` are optional and are reconciled onto the secret
+on every change to the `OIDCClient`.
+
 ## User enrollment
 
 If automatic enrollment is disabled users can be managed GitOps style.

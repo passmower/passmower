@@ -23,3 +23,8 @@ spec:
   tokenEndpointAuthMethod: 'client_secret_basic'
   pkce: true
 #  idTokenSignedResponseAlg: 'RS256'
+#  secretMetadata: # added to the generated oidc-client-*-owner-secrets secret
+#    labels:
+#      app.kubernetes.io/part-of: argocd # e.g. so ArgoCD can read the secret
+#    annotations:
+#      example.com/some-annotation: 'value'
