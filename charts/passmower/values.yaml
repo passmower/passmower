@@ -46,6 +46,9 @@ passmower:
   #   scopes          (optional) defaults to [openid, email, profile]
   #   groupsClaim     (optional) token claim to read group/role membership from
   #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
+  #   icon            (optional) custom sign-in button icon: inline SVG markup or
+  #                   a data: URI. External image URLs are blocked by CSP. Falls
+  #                   back to a built-in logo for well-known keys, else a generic icon.
   #   enabled         (optional) defaults to true
   #   clientSecretRef the Kubernetes secret holding this provider's credentials;
   #                   it MUST contain <KEY>_CLIENT_ID and <KEY>_CLIENT_SECRET

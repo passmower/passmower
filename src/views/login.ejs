@@ -47,6 +47,18 @@
         return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="#24292f" d="M336 32c-97.2 0-176 78.8-176 176 0 18.7 2.9 36.8 8.3 53.7L7 423c-4.5 4.5-7 10.6-7 17v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24v-24h24c13.3 0 24-10.7 24-24v-24h24c6.4 0 12.5-2.5 17-7l25.3-25.3c16.9 5.4 35 8.3 53.7 8.3 97.2 0 176-78.8 176-176S433.2 32 336 32zm40 152a40 40 0 1 1 0-80 40 40 0 0 1 0 80z"/></svg>';
     }
   }
+  // Operator-configured icon wins; otherwise fall back to the built-in logo
+  // for well-known keys, then the generic glyph. The provider config is set at
+  // deploy time (trusted), so inline SVG markup is rendered as-is.
+  function renderProviderIcon(p) {
+    if (p.icon) {
+      var icon = String(p.icon).trim();
+      if (icon.charAt(0) === '<') return icon; // inline SVG / HTML markup
+      // data: URI or URL
+      return '<img style="width:100%;height:100%;object-fit:contain" src="' + icon.replace(/"/g, '&quot;') + '" alt="">';
+    }
+    return oidcProviderIcon(p.key);
+  }
 %>
 <% oidcProviders.forEach(function(p) { %>
 <% if (shown) { %><div class="login-help">- or -</div><% } %>
@@ -54,7 +66,7 @@
   <input type="hidden" name="upstream" value="<%= p.key %>">
   <button type="submit" class="upstream-button">
     <span class="upstream-button__icon">
-      <%- oidcProviderIcon(p.key) %>
+      <%- renderProviderIcon(p) %>
     </span>
     <span class="google-button__text">Sign in with <%= p.displayName %></span>
   </button>

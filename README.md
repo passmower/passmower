@@ -117,7 +117,12 @@ passmower:
 
 Each entry supports: `key` (required), `displayName`, `issuer` (required),
 `scopes` (defaults to `[openid, email, profile]`), `groupsClaim`, `groupPrefix`,
-`enabled` (defaults to `true`), and `clientSecretRef`.
+`enabled` (defaults to `true`), `clientSecretRef`, and `icon`.
+
+Well-known providers (Google, GitLab, Microsoft) get a built-in button logo;
+anything else gets a generic icon. To set a custom one, use `icon` with **inline
+SVG markup or a `data:` URI** — external image URLs are blocked by the
+Content-Security-Policy, so the login page never makes third-party requests.
 
 **Credentials** are never placed in values. The referenced Kubernetes secret
 must contain `<KEY>_CLIENT_ID` and `<KEY>_CLIENT_SECRET`, where `<KEY>` is the
