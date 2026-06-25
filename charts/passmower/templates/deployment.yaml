@@ -61,6 +61,8 @@ spec:
               value: {{ .Values.passmower.github_enabled | quote }}
             - name: EMAIL_ENABLED
               value: {{ .Values.passmower.email_enabled | quote }}
+            - name: OIDC_PROVIDERS
+              value: {{ .Values.passmower.oidcProviders | default list | toJson | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
             - name: REDIS_URI
@@ -89,6 +91,15 @@ spec:
             {{- if .Values.passmower.github_client_secretRef }}
             - secretRef:
                 name: {{ .Values.passmower.github_client_secretRef }}
+            {{- end }}
+            {{- /* One secretRef per distinct OIDC provider credentials secret. */}}
+            {{- $seen := dict }}
+            {{- range .Values.passmower.oidcProviders }}
+            {{- if and .clientSecretRef (not (hasKey $seen .clientSecretRef)) }}
+            {{- $_ := set $seen .clientSecretRef true }}
+            - secretRef:
+                name: {{ .clientSecretRef }}
+            {{- end }}
             {{- end }}
             {{- if .Values.passmower.slack_client_secretRef }}
             - secretRef:

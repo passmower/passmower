@@ -8,6 +8,8 @@ import { koaBody as bodyParser } from 'koa-body';
 import Router from '@koa/router';
 
 import GithubLogin from "../services/login/github-login.js";
+import OidcLogin from "../services/login/oidc-login.js";
+import {getOidcProvider, getOidcProviders} from "../utils/oidc-providers.js";
 import {EmailLogin} from "../services/login/email-login.js";
 import accessDenied from "../utils/session/access-denied.js";
 import getLoginResult from "../utils/user/get-login-result.js";
@@ -35,7 +37,14 @@ const authMethodsEnabled = () => ({
     webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
     githubEnabled: process.env.GITHUB_ENABLED !== 'false',
     emailEnabled: process.env.EMAIL_ENABLED !== 'false',
+    oidcProviders: getOidcProviders(),
 });
+
+// Number of distinct login methods currently surfaced on the sign-in page.
+const enabledAuthMethodCount = () => {
+    const { webauthnEnabled, githubEnabled, emailEnabled, oidcProviders } = authMethodsEnabled();
+    return [webauthnEnabled, githubEnabled, emailEnabled].filter(Boolean).length + oidcProviders.length;
+};
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -123,8 +132,7 @@ export default (provider) => {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
             // When only a single login method is enabled there is nothing to pick,
             // so skip the welcome page and go straight to the sign-in interaction.
-            const enabledCount = Object.values(authMethodsEnabled()).filter(Boolean).length
-            if (enabledCount === 1) {
+            if (enabledAuthMethodCount() === 1) {
                 return ctx.redirect(url.href)
             }
             return render(provider, ctx, 'hi', `Welcome to Passmower`, {
@@ -233,14 +241,24 @@ export default (provider) => {
                 auditLog(ctx, {}, ctx.request.body.code ? 'GitHub login callback received' : 'GitHub login initiated')
                 return GithubLogin(ctx, provider);
             }
-            default:
-                return undefined;
+            default: {
+                const providerConfig = getOidcProvider(ctx.request.body.upstream);
+                if (!providerConfig) {
+                    ctx.throw(404, 'Unknown or disabled login provider');
+                }
+                auditLog(ctx, {}, ctx.request.body.code ? `${providerConfig.displayName} login callback received` : `${providerConfig.displayName} login initiated`)
+                return OidcLogin(ctx, provider, providerConfig);
+            }
         }
     });
 
-    router.get('/interaction/callback/gh', (ctx) => {
+    router.get('/interaction/callback/:upstream', (ctx) => {
+        const { upstream } = ctx.params;
+        if (upstream !== 'gh' && !getOidcProvider(upstream)) {
+            ctx.throw(404, 'Unknown login provider');
+        }
         const nonce = ctx.res.locals.cspNonce;
-        return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
+        return ctx.render('repost', { layout: false, upstream, nonce});
     });
 
     router.post('/interaction/:uid/email', async (ctx) => {
@@ -439,6 +457,12 @@ export default (provider) => {
                 default:
                     throw new Error('not implemented')
             }
+        } else if (interactionDetails?.lastSubmission?.oidc?.provider) {
+            const providerConfig = getOidcProvider(interactionDetails.lastSubmission.oidc.provider)
+            if (!providerConfig) {
+                throw new Error('not implemented')
+            }
+            await OidcLogin(ctx, provider, providerConfig)
         } else {
             return provider.interactionFinished(ctx.req, ctx.res, {
                 login: {

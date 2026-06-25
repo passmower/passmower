@@ -36,6 +36,39 @@ passmower:
   email_credentials_secretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
   github_client_secretRef: "github-client"
+  # Generic OIDC upstream login providers. Add an entry per provider — any
+  # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
+  # Okta, Authentik, Zitadel, ...). Each entry:
+  #   key             unique slug; also the env-var prefix for credentials and
+  #                   the callback path /interaction/callback/<key>
+  #   displayName     label shown on the sign-in button
+  #   issuer          OIDC issuer URL used for discovery
+  #   scopes          (optional) defaults to [openid, email, profile]
+  #   groupsClaim     (optional) token claim to read group/role membership from
+  #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
+  #   enabled         (optional) defaults to true
+  #   clientSecretRef the Kubernetes secret holding this provider's credentials;
+  #                   it MUST contain <KEY>_CLIENT_ID and <KEY>_CLIENT_SECRET
+  #                   (KEY = key upper-cased, e.g. GOOGLE_CLIENT_ID). Several
+  #                   providers may share one secret.
+  # The provider only appears once its credentials are present.
+  oidcProviders: []
+  #  - key: google
+  #    displayName: Google
+  #    issuer: https://accounts.google.com
+  #    clientSecretRef: google-client
+  #  - key: gitlab
+  #    displayName: GitLab
+  #    issuer: https://gitlab.com
+  #    groupsClaim: groups_direct
+  #    groupPrefix: gitlab.com
+  #    clientSecretRef: gitlab-client
+  #  - key: entraid
+  #    displayName: Microsoft
+  #    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+  #    groupsClaim: groups
+  #    groupPrefix: entraid
+  #    clientSecretRef: entraid-client
   # Slack API client secret name. Secret must contain SLACK_TOKEN
   # slack_client_secretRef: "slack-client"
   # Different texts displayed and sent to the user

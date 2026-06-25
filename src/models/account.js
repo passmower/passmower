@@ -1,5 +1,4 @@
 import ShortUniqueId from "short-unique-id";
-import {GitHubGroupPrefix} from "../utils/kubernetes/kube-constants.js";
 import {Approved} from "../conditions/approved.js";
 import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
@@ -13,6 +12,7 @@ class Account {
     #passmower = null
     #slack = null
     #github = null
+    #identities = {}
     #webauthn = null
     #conditions = []
     #labels = {}
@@ -25,6 +25,7 @@ class Account {
         this.#passmower = apiResponse.passmower
         this.#slack = apiResponse.slack
         this.#github = apiResponse.github
+        this.#identities = apiResponse.identities ?? {}
         this.#webauthn = apiResponse.webauthn
         this.resourceVersion = apiResponse.metadata.resourceVersion
         this.primaryEmail = apiResponse.status?.primaryEmail
@@ -90,11 +91,14 @@ class Account {
     }
 
     getIntendedStatus() {
+        const identities = Object.values(this.#identities ?? {})
+        const identityEmails = identities.flatMap(i => i.emails ?? [])
         const emails = [
             this.#spec?.email,
             this.#spec?.companyEmail,
             this.#passmower?.email,
-            ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email)
+            ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email),
+            ...identityEmails.map(e => e.email),
         ].filter(e => e)
         let primaryEmail
         const preferredDomain = process.env.PREFERRED_EMAIL_DOMAIN
@@ -109,15 +113,15 @@ class Account {
             primaryEmail = primaryEmail?.email
         }
         if (!primaryEmail) {
-            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github.emails?.find(ghEmail => ghEmail.email)?.email
+            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email
         }
         return {
             primaryEmail,
             emails,
-            groups: [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? [])],
+            groups: [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...identities.flatMap(i => i.groups ?? [])],
             profile: {
-                name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? null,
-                company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? null,
+                name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? identities.find(i => i.name)?.name ?? null,
+                company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? identities.find(i => i.company)?.company ?? null,
                 phones: this.#spec?.phones ?? null,
             },
             slackId: this.#slack?.id ?? null,
@@ -163,6 +167,7 @@ class Account {
             passmower: this.#passmower,
             slack: this.#slack,
             github: this.#github,
+            identities: this.#identities,
             webauthn: this.#webauthn,
         }
     }
@@ -221,7 +226,9 @@ class Account {
                 name: g.name,
                 prefix: g.prefix,
                 displayName: g.prefix + ':' + g.name,
-                editable: g.prefix !== GitHubGroupPrefix && process.env.DISABLE_FRONTEND_EDIT !== 'true',
+                // Only locally-created groups (under GROUP_PREFIX) are editable;
+                // any group synced from an upstream provider is read-only.
+                editable: g.prefix === GroupPrefix && process.env.DISABLE_FRONTEND_EDIT !== 'true',
             }
         }).sort(g => g.editable ? 1 : -1) : []
     }

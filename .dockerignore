@@ -18,3 +18,5 @@ node_modules/
 *.sln
 *.sw?
 *.kpt-pipeline
+.junie
+.claude

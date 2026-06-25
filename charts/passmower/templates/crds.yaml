@@ -55,6 +55,38 @@ spec:
                   type: string
                 name:
                   type: string
+            identities:
+              # Federated identities from generic OIDC upstream providers
+              # (e.g. google, gitlab, entraid), keyed by provider name.
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  sub:
+                    type: string
+                  name:
+                    type: string
+                  company:
+                    type: string
+                  emails:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        primary:
+                          type: boolean
+                          default: false
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        prefix:
+                          type: string
             passmower:
               type: object
               properties:

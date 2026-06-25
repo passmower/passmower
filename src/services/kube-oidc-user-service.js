@@ -73,7 +73,7 @@ export class KubeOIDCUserService {
         return await this.updateUserStatus(user)
     }
 
-    async updateUserSpecs(accountId, {passmower, slack, github} = {}) {
+    async updateUserSpecs(accountId, {passmower, slack, github, identities} = {}) {
         let account = await this.findUser(accountId)
         let extended = mergeWith(cloneDeep(account.getSpecs()), arguments[1], mergeReplacingArrays)
         const updatedUser = await this.adapter.patchNamespacedCustomObject(
