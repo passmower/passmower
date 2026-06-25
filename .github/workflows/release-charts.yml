@@ -26,12 +26,12 @@ jobs:
 
       - name: Generate default static install
         run: |
-          helm template passmower ./ -n passmower > passmower.yaml
+          helm template passmower ./charts/passmower -n passmower > passmower.yaml
 
       - name: Get chart verison
         id: chart_version
         run: |
-          echo "CHART_VERSION=$(cat Chart.yaml | awk -F"[ ',]+" '/version:/{print $2}')" >> $GITHUB_OUTPUT
+          echo "CHART_VERSION=$(cat charts/passmower/Chart.yaml | awk -F"[ ',]+" '/^version:/{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists
         id: tag_exists
@@ -67,7 +67,7 @@ jobs:
           name: passmower
           repository: passmower/charts
           tag: ${{ steps.chart_version.outputs.CHART_VERSION }}
-          path: ./
+          path: ./charts/passmower
           registry: ghcr.io
           registry_username: ${{ secrets.GHCR_USERNAME }}
           registry_password: ${{ secrets.GHCR_TOKEN }}

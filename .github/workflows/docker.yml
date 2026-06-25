@@ -16,13 +16,13 @@ jobs:
       - name: Get chart verison
         id: chart_version
         run: |
-          echo "CHART_VERSION=$(cat Chart.yaml | awk -F"[ ',]+" '/version:/{print $2}')" >> $GITHUB_OUTPUT
+          echo "CHART_VERSION=$(cat charts/passmower/Chart.yaml | awk -F"[ ',]+" '/^version:/{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Check if tag exists
         id: tag_exists
         run: |
           TAG_EXISTS=true
-          if ! [ $(git tag -l "${{ env.tag_prefix }}${{ steps.chart_version.outputs.CHART_VERSION }}") ]; then
+          if ! [ $(git tag -l "${{ steps.chart_version.outputs.CHART_VERSION }}") ]; then
               TAG_EXISTS=false
           fi
           echo TAG_EXISTS=$TAG_EXISTS >> $GITHUB_OUTPUT
