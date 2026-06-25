@@ -1,5 +1,6 @@
 import RedisAdapter from "../../adapters/redis.js";
 import {checkAccountGroups} from "../user/check-account-groups.js";
+import {renderMarkdown} from "../markdown.js";
 
 // OIDCClient and OIDCMiddlewareClient share the 'Client' redis model and the
 // 'Clients' set, so this returns both kinds of launchable apps (anything with a uri).
@@ -16,6 +17,8 @@ const toApp = (client) => ({
     url: client.uri,
     groups: client.allowedGroups ?? [],
     displayOrder: client.displayOrder ?? 0,
+    // Rendered from the resource's kubernetes.io/description annotation (Markdown -> safe HTML).
+    description: renderMarkdown(client.description),
 })
 
 const byDisplayOrderThenName = (a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name)

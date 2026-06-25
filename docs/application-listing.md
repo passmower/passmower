@@ -30,7 +30,8 @@ client cannot read it):
       "name": "Grafana",
       "url": "https://grafana.example.com",
       "groups": ["github.com:example-org:grafana-users-team"],
-      "displayOrder": 0
+      "displayOrder": 0,
+      "description": "<p>Cluster metrics &amp; dashboards.</p>"
     }
   ]
 }
@@ -39,6 +40,23 @@ client cannot read it):
 Each entry carries the app's `allowedGroups` as `groups`, so a consumer can group
 or filter the list further (and cross-reference it against the user's own
 `groups` claim).
+
+The optional `description` is rendered from the client resource's
+`kubernetes.io/description` annotation (Markdown → sanitized HTML; `null` when the
+annotation is absent). It is also shown on the Passmower apps page. Example:
+
+```yaml
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCMiddlewareClient   # works for OIDCClient too
+metadata:
+  name: foo
+  annotations:
+    kubernetes.io/description: |
+      Development environment for **skaffold** workflows.
+spec:
+  displayName: dev.foo.com
+  uri: https://dev.foo.com
+```
 
 ## `all_applications` — the full catalog (admins)
 
@@ -60,7 +78,8 @@ indicating whether the calling user may open it:
   "apps": [
     { "name": "Grafana", "url": "https://grafana.example.com",
       "groups": ["github.com:example-org:grafana-users-team"],
-      "displayOrder": 0, "accessible": true }
+      "displayOrder": 0, "description": "<p>Cluster metrics &amp; dashboards.</p>",
+      "accessible": true }
   ]
 }
 ```

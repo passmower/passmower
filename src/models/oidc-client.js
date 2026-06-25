@@ -47,6 +47,7 @@ class OIDCClient {
     #secretMetadata = null
     #secretRefreshPod = null
     #displayOrder = 0
+    #description = null
 
     constructor() {
     }
@@ -71,6 +72,7 @@ class OIDCClient {
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
             displayOrder: this.#displayOrder,
+            description: this.#description,
         }
     }
 
@@ -97,6 +99,7 @@ class OIDCClient {
         this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
+        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
         return this
     }
 

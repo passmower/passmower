@@ -4,6 +4,7 @@ import Router from '@koa/router';
 import {signedInToSelf} from "../utils/session/signed-in.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
 import {getEnrolledApps, listAllApps} from "../utils/apps/list-apps.js";
+import {renderMarkdown} from "../utils/markdown.js";
 import {accountFromBearer} from "../utils/session/bearer-account.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
@@ -107,6 +108,7 @@ export default (provider) => {
                 name: c.displayName ?? c.client_name,
                 url: c.uri,
                 displayOrder: c.displayOrder ?? 0,
+                description: renderMarkdown(c.description),
                 metadata: await ctx.sessionService.getLastSessionInfoPerClient(ctx.currentSession.accountId, c.client_id)
             }
         }))

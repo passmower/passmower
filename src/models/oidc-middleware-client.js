@@ -24,6 +24,7 @@ export default class OIDCMiddlewareClient {
     #uid = null
     #conditions = []
     #displayOrder = 0
+    #description = null
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -37,6 +38,7 @@ export default class OIDCMiddlewareClient {
         this.#uid = incomingClient.metadata.uid
         this.#conditions = incomingClient.status?.conditions ?? []
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
+        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
         return this
     }
 
@@ -54,6 +56,7 @@ export default class OIDCMiddlewareClient {
             uri: this.#uri,
             displayName: this.#displayName,
             displayOrder: this.#displayOrder,
+            description: this.#description,
             kind: OIDCMiddlewareClientCrd
         }
     }
