@@ -3,6 +3,7 @@ import {Approved} from "../conditions/approved.js";
 import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator from "validator";
+import {listMyApps} from "../utils/apps/list-apps.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -85,6 +86,11 @@ class Account {
         }
         if (scope.includes(' groups')) {
             response.groups = groups
+        }
+        // Apps the user can access. userinfo only — keeps id_tokens small
+        // (conformIdTokenClaims is false, so any claim here would land in the id_token too).
+        if (use === 'userinfo' && scope.split(' ').includes('applications')) {
+            response.applications = await listMyApps(this)
         }
 
         return response

@@ -300,6 +300,8 @@ spec:
                       - offline_access
                       - groups
                       - allowed_groups
+                      - applications
+                      - all_applications
                 displayName:
                   type: string
                 grantTypes:
@@ -358,6 +360,9 @@ spec:
                     - none
                 uri:
                   type: string
+                displayOrder:
+                  type: integer
+                  default: 0
             status:
               type: object
               properties:
@@ -436,6 +441,9 @@ spec:
                       type: string
                 uri:
                   type: string
+                displayOrder:
+                  type: integer
+                  default: 0
             status:
               type: object
               properties:

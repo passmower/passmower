@@ -23,6 +23,7 @@ export default class OIDCMiddlewareClient {
     }
     #uid = null
     #conditions = []
+    #displayOrder = 0
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -35,6 +36,7 @@ export default class OIDCMiddlewareClient {
         this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
         this.#conditions = incomingClient.status?.conditions ?? []
+        this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         return this
     }
 
@@ -51,6 +53,7 @@ export default class OIDCMiddlewareClient {
             headerMapping: this.#headerMapping,
             uri: this.#uri,
             displayName: this.#displayName,
+            displayOrder: this.#displayOrder,
             kind: OIDCMiddlewareClientCrd
         }
     }

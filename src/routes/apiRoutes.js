@@ -2,8 +2,9 @@
 import { koaBody as bodyParser } from 'koa-body';
 import Router from '@koa/router';
 import {signedInToSelf} from "../utils/session/signed-in.js";
-import RedisAdapter from "../adapters/redis.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
+import {getEnrolledApps, listAllApps} from "../utils/apps/list-apps.js";
+import {accountFromBearer} from "../utils/session/bearer-account.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
     checkCompanyName, checkDisableFrontendEdit,
@@ -15,6 +16,25 @@ import {WebAuthnService} from "../services/webauthn/index.js";
 
 export default (provider) => {
     const router = new Router();
+
+    // Catalog of every enrolled app, for cluster-overview apps (e.g. Driftmower).
+    // Registered before the site-session gate below so it is authenticated by a
+    // Bearer access token instead. Gated twice: the token must carry the
+    // `all_applications` scope, and the user must be an admin.
+    router.get('/api/apps/all', async (ctx) => {
+        const {account, status} = await accountFromBearer(ctx, provider, 'all_applications')
+        if (status) {
+            ctx.status = status
+            return
+        }
+        if (!account.isAdmin) {
+            ctx.status = 403
+            return
+        }
+        ctx.body = {
+            apps: await listAllApps(account)
+        }
+    })
 
     router.use(bodyParser({ json: true }))
     router.use(validator())
@@ -80,20 +100,17 @@ export default (provider) => {
     })
 
     router.get('/api/apps', async (ctx, next) => {
-        const clientsRedis = new RedisAdapter('Clients')
-        const clientRedis = new RedisAdapter('Client')
-        let apps = await clientsRedis.getSetMembers(1)
-        apps = await Promise.all(apps.map(app => {
-            return clientRedis.find(app)
-        })).then(r => r.filter(c => c?.uri))
-            .then(r => r.filter(c => checkAccountGroups(c, ctx.currentAccount)))
-        apps = await Promise.all(apps.map(async c => {
+        const clients = (await getEnrolledApps())
+            .filter(c => checkAccountGroups(c, ctx.currentAccount))
+        let apps = await Promise.all(clients.map(async c => {
             return {
                 name: c.displayName ?? c.client_name,
                 url: c.uri,
+                displayOrder: c.displayOrder ?? 0,
                 metadata: await ctx.sessionService.getLastSessionInfoPerClient(ctx.currentSession.accountId, c.client_id)
             }
-        })).then(apps => apps.sort((a, b) => a.name.localeCompare(b.name)))
+        }))
+        apps.sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name))
         ctx.body = {
             apps
         }

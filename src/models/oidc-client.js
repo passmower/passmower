@@ -46,6 +46,7 @@ class OIDCClient {
     #allowedCORSOrigins = null
     #secretMetadata = null
     #secretRefreshPod = null
+    #displayOrder = 0
 
     constructor() {
     }
@@ -69,6 +70,7 @@ class OIDCClient {
             pkce: this.#pkce,
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
+            displayOrder: this.#displayOrder,
         }
     }
 
@@ -94,6 +96,7 @@ class OIDCClient {
         this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
         this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
+        this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         return this
     }
 
