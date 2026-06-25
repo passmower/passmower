@@ -249,6 +249,11 @@ admin-only catalog at `GET /api/apps/all`. See
 
 ## User enrollment
 
+How usernames are assigned at enrollment (system-generated, user-prompted, or derived from the
+upstream provider) is controlled by `USERNAME_SOURCE`. See
+[docs/username-configuration.md](docs/username-configuration.md) — note it replaces the deprecated
+`USE_GITHUB_USERNAME` / `REQUIRE_CUSTOM_USERNAME` flags.
+
 If automatic enrollment is disabled users can be managed GitOps style.
 
 ```

@@ -12,7 +12,14 @@ passmower:
   required_group: ""
   # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
   github_organization: "passmower"
-  # Attempt to use GH username in OIDC response instead of regular username (OIDCUser CRD name).
+  # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
+  #   generated - random system-generated id (u<...>)
+  #   prompt    - user must pick a custom username via a form
+  #   upstream  - derived from the upstream provider (GitHub login, OIDC preferred_username),
+  #               falling back to the prompt form when unavailable/taken/invalid
+  # `sub` always equals the stored accountId regardless of this setting.
+  username_source: prompt
+  # DEPRECATED, no longer wired by this chart — use username_source (upstream) instead.
   use_github_username: false
   # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
   enroll_users: true
@@ -22,7 +29,7 @@ passmower:
   namespace_selector: "*"
   # Domain which will be preferred for determining primary emails.
   preferred_email_domain: "gmail.com"
-  # Require users to set a custom username instead of system generated one. Will be used as OIDCUser CRD name and OIDC username claim.
+  # DEPRECATED, no longer wired by this chart — use username_source (prompt) instead.
   require_custom_username: true
   # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
   normalize_email_addresses: true

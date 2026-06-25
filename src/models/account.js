@@ -4,9 +4,28 @@ import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator from "validator";
 import {listMyApps} from "../utils/apps/list-apps.js";
+import {getUsernameSource} from "../utils/username-source.js";
+import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
+
+// Stash the upstream identity in the interaction and halt the flow so the user
+// can pick a username via the enter-username form.
+async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername}) {
+    const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+    await provider.interactionResult(ctx.req, ctx.res, {
+        requireCustomUsername: true,
+        email,
+        githubEmails,
+        preferredUsername,
+        ...interactionDetails.result
+    }, {
+        mergeWithLastSubmission: true,
+    })
+    auditLog(ctx, {email, githubEmails, preferredUsername}, 'Requiring custom username')
+    return undefined
+}
 
 class Account {
     #spec = null
@@ -69,7 +88,7 @@ class Account {
      *   want to skip loading some claims from external resources or through db projection
      */
     async claims(use, scope, claims, rejected) { // eslint-disable-line no-unused-vars
-        const username = process.env.USE_GITHUB_USERNAME === 'true' ? (this.#github.login || this.accountId) : this.accountId
+        const username = this.accountId
         const groups = await Promise.all(this.groups.map(g => g.prefix + ':' + g.name))
         let response = {
             sub: username, // it is essential to always return a sub claim
@@ -188,9 +207,7 @@ class Account {
     }
 
     get username() {
-        return process.env.USE_GITHUB_USERNAME === 'true'
-            ? (this.#github?.login || this.accountId)
-            : this.accountId
+        return this.accountId
     }
 
     addCondition(condition) {
@@ -271,22 +288,26 @@ class Account {
         let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
             auditLog(ctx, {emails, email, githubEmails, username}, 'User not found')
-            if (!username && process.env.ENROLL_USERS === 'false') {
-                auditLog(ctx, {emails, email, githubEmails, username}, 'User enrollment disabled')
-                return undefined
-            } else if (!username && process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
-                const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
-                await provider.interactionResult(ctx.req, ctx.res, {
-                    requireCustomUsername: true,
-                    email,
-                    githubEmails,
-                    preferredUsername,
-                    ...interactionDetails.result
-                },{
-                    mergeWithLastSubmission: true,
-                })
-                auditLog(ctx, {emails, email, githubEmails, username, interactionDetails}, 'Requiring custom username')
-                return undefined
+            // `username` is set explicitly only by the admin invite path; otherwise
+            // USERNAME_SOURCE decides how the new accountId is determined.
+            if (!username) {
+                if (process.env.ENROLL_USERS === 'false') {
+                    auditLog(ctx, {emails, email, githubEmails, username}, 'User enrollment disabled')
+                    return undefined
+                }
+                const source = getUsernameSource()
+                if (source === 'prompt') {
+                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername})
+                } else if (source === 'upstream') {
+                    const candidate = sanitizeUsername(preferredUsername)
+                    if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
+                        username = candidate
+                    } else {
+                        // No usable upstream username — fall back to the prompt form.
+                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername})
+                    }
+                }
+                // source === 'generated' → leave username unset; getUid() below.
             }
             user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
             if (user) {

@@ -41,8 +41,8 @@ spec:
               value: {{ .Values.passmower.required_group | quote }}
             - name: GITHUB_ORGANIZATION
               value: {{ .Values.passmower.github_organization | quote }}
-            - name: USE_GITHUB_USERNAME
-              value: {{ .Values.passmower.use_github_username | quote }}
+            - name: USERNAME_SOURCE
+              value: {{ .Values.passmower.username_source | quote }}
             - name: ENROLL_USERS
               value: {{ .Values.passmower.enroll_users | quote }}
             - name: DISABLE_FRONTEND_EDIT
@@ -51,8 +51,6 @@ spec:
               value: {{ .Values.passmower.namespace_selector | quote }}
             - name: PREFERRED_EMAIL_DOMAIN
               value: {{ .Values.passmower.preferred_email_domain | quote }}
-            - name: REQUIRE_CUSTOM_USERNAME
-              value: {{ .Values.passmower.require_custom_username | quote }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalize_email_addresses | quote }}
             - name: WEBAUTHN_ENABLED
