@@ -33,6 +33,8 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Upstream Identity Sources**: The OIDC Identity Provider supports multiple upstream identity sources, including GitHub OAuth2, standards-compliant OIDC providers (Google, GitLab, Microsoft EntraID), magic links via email, and Slack bot integration.
 
+- **Application Listing**: Dashboards and launchers can fetch the list of applications a signed-in user is allowed to open via the `applications` userinfo claim, or the full admin-only catalog via `GET /api/apps/all`. See [docs/application-listing.md](docs/application-listing.md).
+
 ## Supported Applications
 
 Passmower has been tested and supports the following applications:
@@ -232,6 +234,13 @@ spec:
 
 Both `labels` and `annotations` are optional and are reconciled onto the secret
 on every change to the `OIDCClient`.
+
+## Listing a user's applications
+
+Dashboards, launchers and shared navbars can fetch the applications a signed-in
+user is allowed to open — via the `applications` userinfo claim, or the full
+admin-only catalog at `GET /api/apps/all`. See
+[docs/application-listing.md](docs/application-listing.md).
 
 ## User enrollment
 
