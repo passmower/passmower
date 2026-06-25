@@ -444,6 +444,16 @@ export default (provider) => {
         }
 
         const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        // The Kubernetes create is the authoritative uniqueness check; the
+        // pre-validation can miss a taken name on a transient API error. If
+        // creation failed, re-render the form instead of crashing on a null account.
+        if (!account) {
+            auditLog(ctx, {interactionDetails, username, error: true}, 'Username unavailable')
+            return render(provider, ctx, 'enter-username', 'Enter username', {
+                errors: [{param: 'username', msg: 'Username is taken or unavailable, please choose another'}],
+                preferredUsername: username,
+            }, true)
+        }
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
         account.addCondition(condition)

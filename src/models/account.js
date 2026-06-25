@@ -26,7 +26,11 @@ class Account {
         this.#passmower = apiResponse.passmower
         this.#slack = apiResponse.slack
         this.#github = apiResponse.github
-        this.#identities = apiResponse.identities ?? {}
+        // Read raw (like the other provider fields) — do NOT default to {}.
+        // getSpecs() feeds a JSON-patch diff; synthesizing an empty object here
+        // makes the diff emit `add /identities/<key>` against a parent that
+        // doesn't exist on the stored object, which the API rejects (422).
+        this.#identities = apiResponse.identities
         this.#webauthn = apiResponse.webauthn
         this.resourceVersion = apiResponse.metadata.resourceVersion
         this.primaryEmail = apiResponse.status?.primaryEmail
@@ -99,13 +103,13 @@ class Account {
     getIntendedStatus() {
         const identities = Object.values(this.#identities ?? {})
         const identityEmails = identities.flatMap(i => i.emails ?? [])
-        const emails = [
+        const emails = [...new Set([
             this.#spec?.email,
             this.#spec?.companyEmail,
             this.#passmower?.email,
             ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email),
             ...identityEmails.map(e => e.email),
-        ].filter(e => e)
+        ].filter(e => e))]
         let primaryEmail
         const preferredDomain = process.env.PREFERRED_EMAIL_DOMAIN
         if (preferredDomain) {
@@ -121,10 +125,11 @@ class Account {
         if (!primaryEmail) {
             primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email
         }
+        const groups = [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...identities.flatMap(i => i.groups ?? [])]
         return {
             primaryEmail,
             emails,
-            groups: [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...identities.flatMap(i => i.groups ?? [])],
+            groups: [...new Map(groups.map(g => [`${g.prefix}:${g.name}`, g])).values()],
             profile: {
                 name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? identities.find(i => i.name)?.name ?? null,
                 company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? identities.find(i => i.company)?.company ?? null,
