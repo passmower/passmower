@@ -2,6 +2,7 @@ import usernameBlacklist from "../user/username-blacklist.js";
 import Account from "../../models/account.js";
 import validatorLib from "validator";
 import {getText} from "../get-text.js";
+import {USERNAME_RULES} from "../user/username.js";
 
 // Custom validators
 const customValidators = {
@@ -91,6 +92,15 @@ class ValidationChain {
     isLowercase() {
         this.checks.push({
             validator: () => validatorLib.isLowercase(String(this.value || '')),
+            message: this.errorMessage
+        })
+        return this
+    }
+
+    // Generic custom check (used to share rules with utils/user/username.js)
+    custom(fn) {
+        this.checks.push({
+            validator: () => fn(this.value),
             message: this.errorMessage
         })
         return this
@@ -237,12 +247,11 @@ export async function restValidationErrors(ctx)
 }
 
 export function checkUsername(ctx) {
-    ctx.checkBody('username', 'Username must be 3-15 characters').isLength({min: 3, max: 15})
-    ctx.checkBody('username', 'Username must be alphanumeric').isAlphanumeric()
-    ctx.checkBody('username', 'Prohibited username').isBlackListed()
-    ctx.checkBody('username', 'Username must start with a letter').startsWithLetter()
+    // Format/blacklist rules are shared with the `upstream` enrollment path.
+    for (const rule of USERNAME_RULES) {
+        ctx.checkBody('username', rule.message).custom(rule.test)
+    }
     ctx.checkBody('username', 'Username is taken').usernameExists()
-    ctx.checkBody('username', 'Username must be lowercase').isLowercase()
 }
 
 export function checkEmail(ctx) {

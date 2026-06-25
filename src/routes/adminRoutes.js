@@ -13,6 +13,7 @@ import validator, {
 } from "../utils/session/validator.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import {getText} from "../utils/get-text.js";
+import {getUsernameSource} from "../utils/username-source.js";
 
 export default (provider) => {
     const router = new Router();
@@ -43,7 +44,7 @@ export default (provider) => {
     router.get('/admin/api/metadata', async (ctx, next) => {
         ctx.body = {
             groupPrefix: GroupPrefix,
-            requireUsername: process.env.REQUIRE_CUSTOM_USERNAME === 'true',
+            requireUsername: getUsernameSource() !== 'generated',
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
             disableEditingText: getText('disable_frontend_edit'),
         }
@@ -128,7 +129,9 @@ export default (provider) => {
         const email = ctx.request.body.email
         let username = ctx.request.body.username
 
-        if (process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
+        // Admin invites have no upstream identity, so anything but 'generated'
+        // requires the admin to supply a username.
+        if (getUsernameSource() !== 'generated') {
             checkUsername(ctx)
         } else {
             username = Account.getUid()

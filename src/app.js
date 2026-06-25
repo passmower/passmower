@@ -13,6 +13,7 @@ import {setupLogger} from "./providers/setup-logger.js";
 import {KubeOIDCMiddlewareClientOperator} from "./operators/kube-oidc-middleware-client-operator.js";
 import KubeOidcUserOperator from "./operators/kube-oidc-user-operator.js";
 import metricsServer from "./routes/metrics-server.js";
+import {getUsernameSource} from "./utils/username-source.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -22,6 +23,7 @@ let server;
 
 try {
     setupLogger()
+    getUsernameSource() // validate USERNAME_SOURCE (and warn on deprecated flags) at boot
     const provider = await setupProvider()
     render(provider.app, {
         cache: false,

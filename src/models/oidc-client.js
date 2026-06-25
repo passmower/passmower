@@ -16,7 +16,8 @@ import {
     OIDCClientSecretResponseTypesKey,
     OIDCClientSecretTokenEndpointAuthMethodKey,
     OIDCClientSecretTokenUriKey,
-    OIDCClientSecretUserInfoUriKey
+    OIDCClientSecretUserInfoUriKey,
+    OIDCClientSecretWellKnownUriKey
 } from "../utils/kubernetes/kube-constants.js";
 import {KubeOwnerMetadata} from "../utils/kubernetes/kube-owner-metadata.js";
 import sortObject from "../utils/sort-object.js";
@@ -46,6 +47,8 @@ class OIDCClient {
     #allowedCORSOrigins = null
     #secretMetadata = null
     #secretRefreshPod = null
+    #displayOrder = 0
+    #description = null
 
     constructor() {
     }
@@ -69,6 +72,8 @@ class OIDCClient {
             pkce: this.#pkce,
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
+            displayOrder: this.#displayOrder,
+            description: this.#description,
         }
     }
 
@@ -91,9 +96,11 @@ class OIDCClient {
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
         this.#conditions = incomingClient.status?.conditions ?? []
-        this.#secretMetadata = incomingClient.spec?.secretMetadata ?? []
+        this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
         this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
+        this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
+        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
         return this
     }
 
@@ -107,6 +114,7 @@ class OIDCClient {
             [OIDCClientSecretIdTokenSignedResponseAlgKey]: this.#idTokenSignedResponseAlg,
             [OIDCClientSecretRedirectUrisKey]: this.#redirectUris.join(','),
             [OIDCClientSecretIdpUriKey]: this.#instanceUri,
+            [OIDCClientSecretWellKnownUriKey]: new URL('.well-known/openid-configuration', this.#instanceUri).href,
             [OIDCClientSecretAvailableScopesKey]: this.#availableScopes.join(','),
             [OIDCClientSecretAuthUriKey]: provider.urlFor('authorization'),
             [OIDCClientSecretTokenUriKey]: provider.urlFor('token'),

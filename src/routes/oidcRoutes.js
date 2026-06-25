@@ -8,6 +8,8 @@ import { koaBody as bodyParser } from 'koa-body';
 import Router from '@koa/router';
 
 import GithubLogin from "../services/login/github-login.js";
+import OidcLogin from "../services/login/oidc-login.js";
+import {getOidcProvider, getOidcProviders} from "../utils/oidc-providers.js";
 import {EmailLogin} from "../services/login/email-login.js";
 import accessDenied from "../utils/session/access-denied.js";
 import getLoginResult from "../utils/user/get-login-result.js";
@@ -28,6 +30,21 @@ import {clientId, responseType, scope} from "../utils/session/self-oidc-client.j
 import {auditLog} from "../utils/session/audit-log.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
+
+// Which login methods are surfaced on the sign-in page. Each is enabled
+// unless explicitly disabled via env var, preserving previous behaviour.
+const authMethodsEnabled = () => ({
+    webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
+    githubEnabled: process.env.GITHUB_ENABLED !== 'false',
+    emailEnabled: process.env.EMAIL_ENABLED !== 'false',
+    oidcProviders: getOidcProviders(),
+});
+
+// Number of distinct login methods currently surfaced on the sign-in page.
+const enabledAuthMethodCount = () => {
+    const { webauthnEnabled, githubEnabled, emailEnabled, oidcProviders } = authMethodsEnabled();
+    return [webauthnEnabled, githubEnabled, emailEnabled].filter(Boolean).length + oidcProviders.length;
+};
 
 const keys = new Set();
 const debug = (obj) => querystring.stringify(Object.entries(obj).reduce((acc, [key, value]) => {
@@ -113,6 +130,11 @@ export default (provider) => {
             }
         } else {
             const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
+            // When only a single login method is enabled there is nothing to pick,
+            // so skip the welcome page and go straight to the sign-in interaction.
+            if (enabledAuthMethodCount() === 1) {
+                return ctx.redirect(url.href)
+            }
             return render(provider, ctx, 'hi', `Welcome to Passmower`, {
                 url: url.href
             })
@@ -144,7 +166,8 @@ export default (provider) => {
                 }
                 return render(provider, ctx, 'login', 'Sign-in', {
                     impersonation: await ctx.sessionService.getImpersonation(ctx),
-                    message: undefined
+                    message: undefined,
+                    ...authMethodsEnabled(),
                 })
              }
             case 'consent': {
@@ -212,25 +235,42 @@ export default (provider) => {
 
         switch (ctx.request.body.upstream) {
             case 'gh': {
+                if (!authMethodsEnabled().githubEnabled) {
+                    ctx.throw(404, 'GitHub login is disabled');
+                }
                 auditLog(ctx, {}, ctx.request.body.code ? 'GitHub login callback received' : 'GitHub login initiated')
                 return GithubLogin(ctx, provider);
             }
-            default:
-                return undefined;
+            default: {
+                const providerConfig = getOidcProvider(ctx.request.body.upstream);
+                if (!providerConfig) {
+                    ctx.throw(404, 'Unknown or disabled login provider');
+                }
+                auditLog(ctx, {}, ctx.request.body.code ? `${providerConfig.displayName} login callback received` : `${providerConfig.displayName} login initiated`)
+                return OidcLogin(ctx, provider, providerConfig);
+            }
         }
     });
 
-    router.get('/interaction/callback/gh', (ctx) => {
+    router.get('/interaction/callback/:upstream', (ctx) => {
+        const { upstream } = ctx.params;
+        if (upstream !== 'gh' && !getOidcProvider(upstream)) {
+            ctx.throw(404, 'Unknown login provider');
+        }
         const nonce = ctx.res.locals.cspNonce;
-        return ctx.render('repost', { layout: false, upstream: 'gh', nonce});
+        return ctx.render('repost', { layout: false, upstream, nonce});
     });
 
     router.post('/interaction/:uid/email', async (ctx) => {
+        if (!authMethodsEnabled().emailEnabled) {
+            ctx.throw(404, 'Email login is disabled');
+        }
         checkEmail(ctx)
         if (await ctx.validationErrors()) {
             return render(provider, ctx, 'login', 'Sign-in', {
                 impersonation: undefined,
-                message: 'Invalid email'
+                message: 'Invalid email',
+                ...authMethodsEnabled(),
             })
         }
         auditLog(ctx, {email: ctx.request.body.email}, 'Email login initiated')
@@ -277,6 +317,9 @@ export default (provider) => {
 
     // Start passkey authentication
     router.post('/interaction/:uid/passkey/start', async (ctx) => {
+        if (!authMethodsEnabled().webauthnEnabled) {
+            ctx.throw(404, 'Passkey login is disabled');
+        }
         const { prompt: { name } } = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(name, 'login');
 
@@ -346,7 +389,7 @@ export default (provider) => {
         // This endpoint allows the login page to check if passkey login is available
         // It doesn't require the user to be identified first
         ctx.body = {
-            available: process.env.WEBAUTHN_ENABLED !== 'false',
+            available: authMethodsEnabled().webauthnEnabled,
             rpId: new URL(process.env.ISSUER_URL).hostname,
         };
     });
@@ -401,6 +444,16 @@ export default (provider) => {
         }
 
         const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        // The Kubernetes create is the authoritative uniqueness check; the
+        // pre-validation can miss a taken name on a transient API error. If
+        // creation failed, re-render the form instead of crashing on a null account.
+        if (!account) {
+            auditLog(ctx, {interactionDetails, username, error: true}, 'Username unavailable')
+            return render(provider, ctx, 'enter-username', 'Enter username', {
+                errors: [{param: 'username', msg: 'Username is taken or unavailable, please choose another'}],
+                preferredUsername: username,
+            }, true)
+        }
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
         account.addCondition(condition)
@@ -414,6 +467,12 @@ export default (provider) => {
                 default:
                     throw new Error('not implemented')
             }
+        } else if (interactionDetails?.lastSubmission?.oidc?.provider) {
+            const providerConfig = getOidcProvider(interactionDetails.lastSubmission.oidc.provider)
+            if (!providerConfig) {
+                throw new Error('not implemented')
+            }
+            await OidcLogin(ctx, provider, providerConfig)
         } else {
             return provider.interactionFinished(ctx.req, ctx.res, {
                 login: {

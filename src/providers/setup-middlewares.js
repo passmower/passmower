@@ -16,6 +16,10 @@ export default async (provider) => {
     const directives = helmet.contentSecurityPolicy.getDefaultDirectives();
     delete directives['form-action'];
     directives['script-src'] = ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`];
+    // Keep image loading tight: only same-origin and data: URIs. Operator-configured
+    // provider icons must be inline SVG or data: URIs (no external image hosts), so
+    // the login page never makes third-party requests.
+    directives['img-src'] = ["'self'", 'data:'];
 
     const pHelmet = promisify(helmet({
         contentSecurityPolicy: {

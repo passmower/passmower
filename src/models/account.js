@@ -1,18 +1,38 @@
 import ShortUniqueId from "short-unique-id";
-import {GitHubGroupPrefix} from "../utils/kubernetes/kube-constants.js";
 import {Approved} from "../conditions/approved.js";
 import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator from "validator";
+import {listMyApps} from "../utils/apps/list-apps.js";
+import {getUsernameSource} from "../utils/username-source.js";
+import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
+
+// Stash the upstream identity in the interaction and halt the flow so the user
+// can pick a username via the enter-username form.
+async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername}) {
+    const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+    await provider.interactionResult(ctx.req, ctx.res, {
+        requireCustomUsername: true,
+        email,
+        githubEmails,
+        preferredUsername,
+        ...interactionDetails.result
+    }, {
+        mergeWithLastSubmission: true,
+    })
+    auditLog(ctx, {email, githubEmails, preferredUsername}, 'Requiring custom username')
+    return undefined
+}
 
 class Account {
     #spec = null
     #passmower = null
     #slack = null
     #github = null
+    #identities = {}
     #webauthn = null
     #conditions = []
     #labels = {}
@@ -25,6 +45,11 @@ class Account {
         this.#passmower = apiResponse.passmower
         this.#slack = apiResponse.slack
         this.#github = apiResponse.github
+        // Read raw (like the other provider fields) — do NOT default to {}.
+        // getSpecs() feeds a JSON-patch diff; synthesizing an empty object here
+        // makes the diff emit `add /identities/<key>` against a parent that
+        // doesn't exist on the stored object, which the API rejects (422).
+        this.#identities = apiResponse.identities
         this.#webauthn = apiResponse.webauthn
         this.resourceVersion = apiResponse.metadata.resourceVersion
         this.primaryEmail = apiResponse.status?.primaryEmail
@@ -63,7 +88,7 @@ class Account {
      *   want to skip loading some claims from external resources or through db projection
      */
     async claims(use, scope, claims, rejected) { // eslint-disable-line no-unused-vars
-        const username = process.env.USE_GITHUB_USERNAME === 'true' ? (this.#github.login || this.accountId) : this.accountId
+        const username = this.accountId
         const groups = await Promise.all(this.groups.map(g => g.prefix + ':' + g.name))
         let response = {
             sub: username, // it is essential to always return a sub claim
@@ -85,17 +110,25 @@ class Account {
         if (scope.includes(' groups')) {
             response.groups = groups
         }
+        // Apps the user can access. userinfo only — keeps id_tokens small
+        // (conformIdTokenClaims is false, so any claim here would land in the id_token too).
+        if (use === 'userinfo' && scope.split(' ').includes('applications')) {
+            response.applications = await listMyApps(this)
+        }
 
         return response
     }
 
     getIntendedStatus() {
-        const emails = [
+        const identities = Object.values(this.#identities ?? {})
+        const identityEmails = identities.flatMap(i => i.emails ?? [])
+        const emails = [...new Set([
             this.#spec?.email,
             this.#spec?.companyEmail,
             this.#passmower?.email,
-            ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email)
-        ].filter(e => e)
+            ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email),
+            ...identityEmails.map(e => e.email),
+        ].filter(e => e))]
         let primaryEmail
         const preferredDomain = process.env.PREFERRED_EMAIL_DOMAIN
         if (preferredDomain) {
@@ -109,15 +142,16 @@ class Account {
             primaryEmail = primaryEmail?.email
         }
         if (!primaryEmail) {
-            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github.emails?.find(ghEmail => ghEmail.email)?.email
+            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email
         }
+        const groups = [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...identities.flatMap(i => i.groups ?? [])]
         return {
             primaryEmail,
             emails,
-            groups: [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? [])],
+            groups: [...new Map(groups.map(g => [`${g.prefix}:${g.name}`, g])).values()],
             profile: {
-                name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? null,
-                company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? null,
+                name: this.#spec?.name ?? this.#passmower?.name ?? this.#github?.name ?? identities.find(i => i.name)?.name ?? null,
+                company: this.#spec?.company ?? this.#passmower?.company ?? this.#github?.company ?? identities.find(i => i.company)?.company ?? null,
                 phones: this.#spec?.phones ?? null,
             },
             slackId: this.#slack?.id ?? null,
@@ -163,6 +197,7 @@ class Account {
             passmower: this.#passmower,
             slack: this.#slack,
             github: this.#github,
+            identities: this.#identities,
             webauthn: this.#webauthn,
         }
     }
@@ -172,9 +207,7 @@ class Account {
     }
 
     get username() {
-        return process.env.USE_GITHUB_USERNAME === 'true'
-            ? (this.#github?.login || this.accountId)
-            : this.accountId
+        return this.accountId
     }
 
     addCondition(condition) {
@@ -221,7 +254,9 @@ class Account {
                 name: g.name,
                 prefix: g.prefix,
                 displayName: g.prefix + ':' + g.name,
-                editable: g.prefix !== GitHubGroupPrefix && process.env.DISABLE_FRONTEND_EDIT !== 'true',
+                // Only locally-created groups (under GROUP_PREFIX) are editable;
+                // any group synced from an upstream provider is read-only.
+                editable: g.prefix === GroupPrefix && process.env.DISABLE_FRONTEND_EDIT !== 'true',
             }
         }).sort(g => g.editable ? 1 : -1) : []
     }
@@ -253,22 +288,26 @@ class Account {
         let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
         if (!user) {
             auditLog(ctx, {emails, email, githubEmails, username}, 'User not found')
-            if (!username && process.env.ENROLL_USERS === 'false') {
-                auditLog(ctx, {emails, email, githubEmails, username}, 'User enrollment disabled')
-                return undefined
-            } else if (!username && process.env.REQUIRE_CUSTOM_USERNAME === 'true') {
-                const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
-                await provider.interactionResult(ctx.req, ctx.res, {
-                    requireCustomUsername: true,
-                    email,
-                    githubEmails,
-                    preferredUsername,
-                    ...interactionDetails.result
-                },{
-                    mergeWithLastSubmission: true,
-                })
-                auditLog(ctx, {emails, email, githubEmails, username, interactionDetails}, 'Requiring custom username')
-                return undefined
+            // `username` is set explicitly only by the admin invite path; otherwise
+            // USERNAME_SOURCE decides how the new accountId is determined.
+            if (!username) {
+                if (process.env.ENROLL_USERS === 'false') {
+                    auditLog(ctx, {emails, email, githubEmails, username}, 'User enrollment disabled')
+                    return undefined
+                }
+                const source = getUsernameSource()
+                if (source === 'prompt') {
+                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername})
+                } else if (source === 'upstream') {
+                    const candidate = sanitizeUsername(preferredUsername)
+                    if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
+                        username = candidate
+                    } else {
+                        // No usable upstream username — fall back to the prompt form.
+                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername})
+                    }
+                }
+                // source === 'generated' → leave username unset; getUid() below.
             }
             user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
             if (user) {

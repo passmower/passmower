@@ -12,7 +12,14 @@ passmower:
   required_group: ""
   # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
   github_organization: "passmower"
-  # Attempt to use GH username in OIDC response instead of regular username (OIDCUser CRD name).
+  # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
+  #   generated - random system-generated id (u<...>)
+  #   prompt    - user must pick a custom username via a form
+  #   upstream  - derived from the upstream provider (GitHub login, OIDC preferred_username),
+  #               falling back to the prompt form when unavailable/taken/invalid
+  # `sub` always equals the stored accountId regardless of this setting.
+  username_source: prompt
+  # DEPRECATED, no longer wired by this chart — use username_source (upstream) instead.
   use_github_username: false
   # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
   enroll_users: true
@@ -22,16 +29,56 @@ passmower:
   namespace_selector: "*"
   # Domain which will be preferred for determining primary emails.
   preferred_email_domain: "gmail.com"
-  # Require users to set a custom username instead of system generated one. Will be used as OIDCUser CRD name and OIDC username claim.
+  # DEPRECATED, no longer wired by this chart — use username_source (prompt) instead.
   require_custom_username: true
   # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
   normalize_email_addresses: true
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
   webauthn_enabled: true
+  # Enable GitHub OAuth login. Requires github_client_secretRef to be set.
+  github_enabled: true
+  # Enable email magic-link login. Requires email_credentials_secretRef to be set.
+  email_enabled: true
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   email_credentials_secretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
   github_client_secretRef: "github-client"
+  # Generic OIDC upstream login providers. Add an entry per provider — any
+  # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
+  # Okta, Authentik, Zitadel, ...). Each entry:
+  #   key             unique slug; also the env-var prefix for credentials and
+  #                   the callback path /interaction/callback/<key>
+  #   displayName     label shown on the sign-in button
+  #   issuer          OIDC issuer URL used for discovery
+  #   scopes          (optional) defaults to [openid, email, profile]
+  #   groupsClaim     (optional) token claim to read group/role membership from
+  #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
+  #   icon            (optional) custom sign-in button icon: inline SVG markup or
+  #                   a data: URI. External image URLs are blocked by CSP. Falls
+  #                   back to a built-in logo for well-known keys, else a generic icon.
+  #   enabled         (optional) defaults to true
+  #   clientSecretRef the Kubernetes secret holding this provider's credentials;
+  #                   it MUST contain <KEY>_CLIENT_ID and <KEY>_CLIENT_SECRET
+  #                   (KEY = key upper-cased, e.g. GOOGLE_CLIENT_ID). Several
+  #                   providers may share one secret.
+  # The provider only appears once its credentials are present.
+  oidcProviders: []
+  #  - key: google
+  #    displayName: Google
+  #    issuer: https://accounts.google.com
+  #    clientSecretRef: google-client
+  #  - key: gitlab
+  #    displayName: GitLab
+  #    issuer: https://gitlab.com
+  #    groupsClaim: groups_direct
+  #    groupPrefix: gitlab.com
+  #    clientSecretRef: gitlab-client
+  #  - key: entraid
+  #    displayName: Microsoft
+  #    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+  #    groupsClaim: groups
+  #    groupPrefix: entraid
+  #    clientSecretRef: entraid-client
   # Slack API client secret name. Secret must contain SLACK_TOKEN
   # slack_client_secretRef: "slack-client"
   # Different texts displayed and sent to the user

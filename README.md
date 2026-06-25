@@ -31,7 +31,9 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Legacy Application Support**: Legacy applications are supported via the `Remote-*` header middleware option, which uses the forwardAuth protocol used by Traefik.
 
-- **Upstream Identity Sources**: The OIDC Identity Provider supports multiple upstream identity sources, including GitHub OAuth2, magic links via email, and Slack bot integration.
+- **Upstream Identity Sources**: The OIDC Identity Provider supports multiple upstream identity sources, including GitHub OAuth2, standards-compliant OIDC providers (Google, GitLab, Microsoft EntraID), magic links via email, and Slack bot integration.
+
+- **Application Listing**: Dashboards and launchers can fetch the list of applications a signed-in user is allowed to open via the `applications` userinfo claim, or the full admin-only catalog via `GET /api/apps/all`. See [docs/application-listing.md](docs/application-listing.md).
 
 ## Supported Applications
 
@@ -80,6 +82,70 @@ spec:
 ```
 
 See and use [values.yaml](values.yaml) for customizations.
+
+## Upstream login providers
+
+Passmower authenticates users against GitHub (a dedicated handler), email
+magic-links, and any number of **standards-compliant OIDC providers** through a
+single generic connector (discovery + PKCE + `id_token` validation). Users are
+linked across providers by verified email.
+
+OIDC providers are configured entirely at deploy time — adding Google, GitLab,
+EntraID, Keycloak, Okta, Authentik, Zitadel, etc. requires no code change, just
+a `passmower.oidcProviders` list entry:
+
+```yaml
+passmower:
+  oidcProviders:
+    - key: google                       # slug; also the callback path & env prefix
+      displayName: Google                # label on the sign-in button
+      issuer: https://accounts.google.com
+      clientSecretRef: google-client     # k8s secret with GOOGLE_CLIENT_ID/SECRET
+    - key: gitlab
+      displayName: GitLab
+      issuer: https://gitlab.com         # set your host for self-hosted GitLab
+      groupsClaim: groups_direct         # token claim to read groups from
+      groupPrefix: gitlab.com            # optional; defaults to the issuer host
+      clientSecretRef: gitlab-client
+    - key: entraid
+      displayName: Microsoft
+      issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+      groupsClaim: groups
+      groupPrefix: entraid
+      clientSecretRef: entraid-client
+```
+
+Each entry supports: `key` (required), `displayName`, `issuer` (required),
+`scopes` (defaults to `[openid, email, profile]`), `groupsClaim`, `groupPrefix`,
+`enabled` (defaults to `true`), `clientSecretRef`, and `icon`.
+
+Well-known providers (Google, GitLab, Microsoft) get a built-in button logo;
+anything else gets a generic icon. To set a custom one, use `icon` with **inline
+SVG markup or a `data:` URI** — external image URLs are blocked by the
+Content-Security-Policy, so the login page never makes third-party requests.
+
+**Credentials** are never placed in values. The referenced Kubernetes secret
+must contain `<KEY>_CLIENT_ID` and `<KEY>_CLIENT_SECRET`, where `<KEY>` is the
+provider key upper-cased with non-alphanumerics replaced by `_` (e.g. key
+`google` → `GOOGLE_CLIENT_ID`, key `entra-id` → `ENTRA_ID_CLIENT_ID`). Several
+providers may share one secret. A provider only appears on the sign-in page once
+its credentials are present.
+
+When registering the OAuth/OIDC application with each provider, set the redirect
+(callback) URI to:
+
+```
+https://<your-passmower-host>/interaction/callback/<key>
+```
+
+**Group/role sync:** when `groupsClaim` is set, its values are mapped into the
+user's groups with `groupPrefix`. EntraID may emit group **object IDs** unless
+the app manifest is configured to emit group names; Google personal accounts do
+not expose groups over OIDC. Synced upstream groups are read-only in the UI;
+only locally-created groups (under `GROUP_PREFIX`) are editable.
+
+Federated identities are persisted on the `OIDCUser` resource under the
+`identities.<key>` map.
 
 
 # Usage
@@ -150,7 +216,43 @@ To list applications:
 kubectl get oidcclients --all-namespaces -o json | jq -r '.items[] | [.metadata.namespace, .metadata.name, .spec.uri] | @tsv' | column -t
 ```
 
+### Customizing the generated secret
+
+Use `spec.secretMetadata` to add labels and annotations to the generated
+`oidc-client-<name>-owner-secrets` secret. This is useful when another
+controller needs specific metadata to pick up the secret — for example, ArgoCD
+requires the `app.kubernetes.io/part-of: argocd` label to read it:
+
+```
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCClient
+metadata:
+  name: grafana
+spec:
+  # ... other fields ...
+  secretMetadata:
+    labels:
+      app.kubernetes.io/part-of: argocd
+    annotations:
+      example.com/some-annotation: 'value'
+```
+
+Both `labels` and `annotations` are optional and are reconciled onto the secret
+on every change to the `OIDCClient`.
+
+## Listing a user's applications
+
+Dashboards, launchers and shared navbars can fetch the applications a signed-in
+user is allowed to open — via the `applications` userinfo claim, or the full
+admin-only catalog at `GET /api/apps/all`. See
+[docs/application-listing.md](docs/application-listing.md).
+
 ## User enrollment
+
+How usernames are assigned at enrollment (system-generated, user-prompted, or derived from the
+upstream provider) is controlled by `USERNAME_SOURCE`. See
+[docs/username-configuration.md](docs/username-configuration.md) — note it replaces the deprecated
+`USE_GITHUB_USERNAME` / `REQUIRE_CUSTOM_USERNAME` flags.
 
 If automatic enrollment is disabled users can be managed GitOps style.
 

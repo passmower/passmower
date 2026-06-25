@@ -43,8 +43,12 @@ export default {
         email: ['email', 'email_verified'],
         groups: ['groups'],
         allowed_groups: ['groups'],
+        applications: ['applications'],
         sid: null,
     },
+    // Scopes not backed by a claim. `all_applications` gates the admin-only
+    // catalog endpoint; the apps list itself is delivered via REST, not a claim.
+    scopes: ['openid', 'offline_access', 'all_applications'],
     features: {
         devInteractions: { enabled: false }, // defaults to true
         deviceFlow: { enabled: true }, // defaults to false

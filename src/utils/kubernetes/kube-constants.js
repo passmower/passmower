@@ -21,6 +21,7 @@ export const OIDCClientSecretTokenEndpointAuthMethodKey = 'OIDC_TOKEN_ENDPOINT_A
 export const OIDCClientSecretIdTokenSignedResponseAlgKey = 'OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG'
 export const OIDCClientSecretRedirectUrisKey = 'OIDC_REDIRECT_URIS'
 export const OIDCClientSecretIdpUriKey = 'OIDC_IDP_URI'
+export const OIDCClientSecretWellKnownUriKey = 'OIDC_IDP_WELL_KNOWN_URI'
 export const OIDCClientSecretAvailableScopesKey = 'OIDC_AVAILABLE_SCOPES'
 export const OIDCClientSecretAuthUriKey = 'OIDC_IDP_AUTH_URI'
 export const OIDCClientSecretTokenUriKey = 'OIDC_IDP_TOKEN_URI'

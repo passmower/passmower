@@ -70,11 +70,20 @@ export class KubeOIDCUserService {
             undefined,
             (new ClaimedBy(this.adapter.instance)).setStatus(true).toLabels(),
         )
+        // Create can fail (e.g. the name is already taken) — the adapter
+        // swallows the error and returns null. Don't try to set status on a
+        // user that wasn't created; let the caller handle the failure.
+        if (!user) {
+            return null
+        }
         return await this.updateUserStatus(user)
     }
 
-    async updateUserSpecs(accountId, {passmower, slack, github} = {}) {
+    async updateUserSpecs(accountId, {passmower, slack, github, identities} = {}) {
         let account = await this.findUser(accountId)
+        if (!account) {
+            throw new Error(`updateUserSpecs: user "${accountId}" not found`)
+        }
         let extended = mergeWith(cloneDeep(account.getSpecs()), arguments[1], mergeReplacingArrays)
         const updatedUser = await this.adapter.patchNamespacedCustomObject(
             OIDCUserCrd,
@@ -84,6 +93,11 @@ export class KubeOIDCUserService {
             account.getSpecs(),
             (apiResponse) => (new Account()).fromKubernetes(apiResponse)
         )
+        // The adapter swallows API errors and returns null. Surface that as a
+        // clear error instead of NPE-ing later in updateUserStatus.
+        if (!updatedUser) {
+            throw new Error(`updateUserSpecs: Kubernetes rejected the spec patch for user "${accountId}"`)
+        }
         return await this.updateUserStatus(updatedUser)
     }
 
@@ -107,6 +121,9 @@ export class KubeOIDCUserService {
     }
 
     async updateUserStatus(account) {
+        if (!account) {
+            throw new Error('updateUserStatus: account is null (user creation or spec patch failed upstream)')
+        }
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCUserCrd,
             this.adapter.namespace,
