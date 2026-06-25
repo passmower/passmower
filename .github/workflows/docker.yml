@@ -34,7 +34,7 @@ jobs:
 
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
 
       -
