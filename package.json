@@ -19,10 +19,10 @@
     "base64-arraybuffer": "^1.0.2",
     "desm": "^1.3.1",
     "ejs": "^6.0.1",
-    "helmet": "^7.1.0",
+    "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "jsondiffpatch": "0.7.6",
-    "koa": "^2.15.2",
+    "koa": "^3.2.1",
     "koa-body": "^8.0.0",
     "koa-pino-logger": "^4.0.0",
     "koa-static": "^5.0.0",
@@ -41,7 +41,7 @@
     "query-string": "^9.4.0",
     "short-unique-id": "^5.0.3",
     "ua-parser-js": "^2.0.10",
-    "uuid": "^9.0.1",
+    "uuid": "^14.0.1",
     "validator": "^13.15.35"
   },
   "devDependencies": {
