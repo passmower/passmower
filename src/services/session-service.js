@@ -137,13 +137,13 @@ export class SessionService {
     }
 
     async setAdminSession(ctx, session) {
-        await this.adminSessionRedis.upsert(session.jti, session, instance(this.provider).configuration('ttl.AdminSession'))
+        await this.adminSessionRedis.upsert(session.jti, session, instance(this.provider).configuration.ttl.AdminSession)
         ctx.cookies.set(
             this.provider.cookieName('admin_session'),
             session.jti,
             {
-                ...instance(this.provider).configuration('cookies.long'),
-                maxAge: instance(this.provider).configuration('ttl.AdminSession') * 1000,
+                ...instance(this.provider).configuration.cookies.long,
+                maxAge: instance(this.provider).configuration.ttl.AdminSession * 1000,
             },
         );
         return true
@@ -171,13 +171,13 @@ export class SessionService {
             actor: ctx.adminSession.accountId,
             accountId,
         }
-        await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration('ttl.Impersonation'))
+        await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
         ctx.cookies.set(
             this.provider.cookieName('impersonation'),
             impersonation.jti,
             {
-                ...instance(this.provider).configuration('cookies.long'),
-                maxAge: instance(this.provider).configuration('ttl.Impersonation') * 1000,
+                ...instance(this.provider).configuration.cookies.long,
+                maxAge: instance(this.provider).configuration.ttl.Impersonation * 1000,
             },
         );
         return impersonation
@@ -202,14 +202,14 @@ export class SessionService {
             this.provider.cookieName('session'),
             ctx.cookies.get(this.provider.cookieName('admin_session')),
             {
-                ...instance(this.provider).configuration('cookies.long'),
+                ...instance(this.provider).configuration.cookies.long,
             }
         );
         ctx.cookies.set(
             this.provider.cookieName('session') + '.legacy',
             ctx.cookies.get(this.provider.cookieName('admin_session')),
             {
-                ...instance(this.provider).configuration('cookies.long'),
+                ...instance(this.provider).configuration.cookies.long,
             }
         );
     }
