@@ -8,12 +8,12 @@ import {KubeOIDCUserService} from "../services/kube-oidc-user-service.js";
 import {ClaimedBy} from "../conditions/claimed-by.js";
 
 export class KubeOIDCUserOperator {
-    constructor(provider) {
+    constructor(provider, adapter = new KubernetesAdapter()) {
         // this.redisAdapter = new RedisAdapter('Client')
         this.provider = provider
-        this.adapter = new KubernetesAdapter()
+        this.adapter = adapter
         this.instance = this.adapter.instance
-        this.userService = new KubeOIDCUserService();
+        this.userService = new KubeOIDCUserService(this.adapter);
     }
 
     async watchUsers() {

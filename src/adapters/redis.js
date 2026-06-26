@@ -3,11 +3,6 @@ import Redis from 'ioredis'; // eslint-disable-line import/no-unresolved
 import isEmpty from 'lodash/isEmpty.js';
 import dns from 'node:dns/promises';
 
-// Parse Redis URI to extract host for DNS refresh
-const redisUrl = new URL(process.env.REDIS_URI);
-const redisHost = redisUrl.hostname;
-const isHeadlessService = redisHost.endsWith('.svc.cluster.local') || redisHost.endsWith('.svc');
-
 // Track connection state
 let connectionErrorCount = 0;
 let isReady = false;
@@ -16,6 +11,13 @@ let readyPromise = new Promise(resolve => { readyResolve = resolve; });
 
 const MAX_ERROR_COUNT = 5;
 const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
+
+// The single shared client and the timers that keep it healthy. These are
+// created lazily by connect() rather than at import time so that importing a
+// module that transitively pulls in this adapter does NOT open a Redis
+// connection or pin the event loop (important for tests and tooling).
+let client;
+let timers = [];
 
 function createRedisClient(isInitial = false) {
     const newClient = new Redis(process.env.REDIS_URI, {
@@ -71,49 +73,78 @@ function createRedisClient(isInitial = false) {
     return newClient;
 }
 
-let client = createRedisClient(true);
+// Open the connection and start the health timers. Idempotent: safe to call
+// more than once. Called lazily on first use (getClient/waitForReady) and
+// explicitly at app boot via waitForReady().
+export function connect() {
+    if (client) {
+        return client;
+    }
 
-// For headless services: periodically check if DNS has changed and reconnect if needed
-if (isHeadlessService) {
-    let lastKnownIps = [];
+    const redisHost = new URL(process.env.REDIS_URI).hostname;
+    const isHeadlessService = redisHost.endsWith('.svc.cluster.local') || redisHost.endsWith('.svc');
 
-    const checkDnsAndReconnect = async () => {
-        try {
-            const currentIps = await dns.resolve(redisHost);
-            currentIps.sort();
+    client = createRedisClient(true);
 
-            if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {
-                globalThis.logger?.warn({ oldIps: lastKnownIps, newIps: currentIps }, 'Redis: DNS changed, reconnecting...')
-                client.disconnect();
-                client = createRedisClient(false);
+    // For headless services: periodically check if DNS has changed and reconnect if needed
+    if (isHeadlessService) {
+        let lastKnownIps = [];
+
+        const checkDnsAndReconnect = async () => {
+            try {
+                const currentIps = await dns.resolve(redisHost);
+                currentIps.sort();
+
+                if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {
+                    globalThis.logger?.warn({ oldIps: lastKnownIps, newIps: currentIps }, 'Redis: DNS changed, reconnecting...')
+                    client.disconnect();
+                    client = createRedisClient(false);
+                }
+                lastKnownIps = currentIps;
+            } catch (err) {
+                globalThis.logger?.error({ err }, 'Redis: DNS lookup failed')
             }
-            lastKnownIps = currentIps;
-        } catch (err) {
-            globalThis.logger?.error({ err }, 'Redis: DNS lookup failed')
-        }
-    };
+        };
 
-    // Initial DNS lookup
-    checkDnsAndReconnect();
-    // Periodic DNS check
-    setInterval(checkDnsAndReconnect, DNS_REFRESH_INTERVAL);
+        // Initial DNS lookup
+        checkDnsAndReconnect();
+        // Periodic DNS check
+        timers.push(setInterval(checkDnsAndReconnect, DNS_REFRESH_INTERVAL).unref());
+    }
+
+    // Force reconnect if too many errors accumulate
+    timers.push(setInterval(() => {
+        if (connectionErrorCount >= MAX_ERROR_COUNT) {
+            globalThis.logger?.warn(`Redis: ${connectionErrorCount} errors accumulated, forcing reconnect...`)
+            connectionErrorCount = 0;
+            client.disconnect();
+            client = createRedisClient(false);
+        }
+    }, 10000).unref());
+
+    return client;
 }
 
-// Force reconnect if too many errors accumulate
-setInterval(() => {
-    if (connectionErrorCount >= MAX_ERROR_COUNT) {
-        globalThis.logger?.warn(`Redis: ${connectionErrorCount} errors accumulated, forcing reconnect...`)
-        connectionErrorCount = 0;
-        client.disconnect();
-        client = createRedisClient(false);
+// Tear down the connection and timers (for test teardown / graceful shutdown).
+export async function disconnect() {
+    timers.forEach(clearInterval);
+    timers = [];
+    if (client) {
+        await client.quit().catch(() => client.disconnect());
+        client = undefined;
     }
-}, 10000);
+    isReady = false;
+    readyPromise = new Promise(resolve => { readyResolve = resolve; });
+}
 
-// Export a getter to always use the current client instance
-const getClient = () => client;
+// Export a getter to always use the current client instance. Connects on first use.
+const getClient = () => client ?? connect();
 
-// Wait for initial connection to be ready
-export const waitForReady = () => readyPromise;
+// Wait for initial connection to be ready (connecting if necessary).
+export const waitForReady = () => {
+    connect();
+    return readyPromise;
+};
 
 const grantable = new Set([
     'AccessToken',

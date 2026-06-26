@@ -14,8 +14,8 @@ function mergeReplacingArrays(objValue, srcValue) {
 }
 
 export class KubeOIDCUserService {
-    constructor() {
-        this.adapter = new KubernetesAdapter()
+    constructor(adapter = new KubernetesAdapter()) {
+        this.adapter = adapter
     }
 
     async listUsers() {

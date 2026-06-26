@@ -9,10 +9,10 @@ import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {Claimed} from "../conditions/claimed.js";
 
 export class KubeOIDCMiddlewareClientOperator {
-    constructor(provider) {
+    constructor(provider, adapter = new KubernetesAdapter()) {
         this.redisAdapter = new RedisAdapter('Client')
         this.provider = provider
-        this.adapter = new KubernetesAdapter()
+        this.adapter = adapter
         this.instance = this.adapter.instance
     }
 

@@ -12,8 +12,18 @@ export class KubernetesAdapter {
     constructor() {
         const kc = new k8s.KubeConfig();
         this.kc = kc
-        kc.loadFromCluster()
-        this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
+        // In-cluster by default; fall back to the local kubeconfig (KUBECONFIG or
+        // ~/.kube/config) when not running inside a pod. This lets the operator run
+        // against an out-of-cluster API server for local development and tests
+        // (e.g. envtest), without changing in-cluster behaviour.
+        if (process.env.KUBERNETES_SERVICE_HOST) {
+            kc.loadFromCluster()
+        } else {
+            kc.loadFromDefault()
+        }
+        this.namespace = kc.getContextObject(kc.getCurrentContext())?.namespace
+            ?? process.env.POD_NAMESPACE
+            ?? 'default';
         this.deployment = process.env.DEPLOYMENT_NAME
         this.instance = this.namespace + '-' + this.deployment
         const userAgentMiddleware = setHeaderMiddleware('User-Agent', this.instance)
