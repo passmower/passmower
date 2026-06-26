@@ -53,7 +53,7 @@ export default async (provider) => {
                 iat: session.iat ?? (Math.floor(Date.now() / 1000)),
                 exp: session?.exp,
                 ts: Math.floor(Date.now() / 1000),
-            }, (session.exp ? (session.exp - Math.floor(Date.now() / 1000)) : undefined) ?? instance(provider).configuration('ttl.Session'))
+            }, (session.exp ? (session.exp - Math.floor(Date.now() / 1000)) : undefined) ?? instance(provider).configuration.ttl.Session)
             await ctx.sessionService.cleanupSessions(session.accountId)
         }
     });

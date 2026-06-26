@@ -16,9 +16,9 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         getFullSiteSessionCookieName(client.clientId),
         siteWideCookie,
         {
-            ...instance(provider).configuration('cookies.long'),
+            ...instance(provider).configuration.cookies.long,
             domain,
-            maxAge: instance(provider).configuration('ttl.SiteSession') * 1000,
+            maxAge: instance(provider).configuration.ttl.SiteSession * 1000,
         }
     )
     siteWideCookie = {
@@ -27,7 +27,7 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         accountId,
         domain,
     }
-    await redis.upsert(siteWideCookie.jti, siteWideCookie, instance(provider).configuration('ttl.SiteSession'));
+    await redis.upsert(siteWideCookie.jti, siteWideCookie, instance(provider).configuration.ttl.SiteSession);
     return siteWideCookie
 }
 

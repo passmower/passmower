@@ -31,7 +31,7 @@
     "micromatch": "^4.0.7",
     "nodemailer": "9.0.1",
     "oauth": "^0.10.0",
-    "oidc-provider": "^8.5.1",
+    "oidc-provider": "^9.8.5",
     "openid-client": "^5.7.1",
     "original-url": "^1.2.3",
     "parse-domain": "^8.3.1",
