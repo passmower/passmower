@@ -1,0 +1,19 @@
+# Supporting services for the e2e login test: Redis (oidc-provider storage) and
+# Dex (the upstream OIDC IdP). The Kubernetes API and passmower itself are
+# started by test/e2e/run-local.sh (locally) / the CI workflow, so they can use
+# the host-built frontend and a KUBECONFIG pointing at the test cluster.
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      # ":Z" relabels for SELinux hosts (e.g. podman/Fedora); a no-op on others.
+      - ./test/e2e/dex/config.yaml:/etc/dex/config.yaml:ro,Z
+    ports:
+      - "5556:5556"

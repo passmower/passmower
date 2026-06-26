@@ -1,0 +1,28 @@
+# Dex acts as the generic upstream OIDC IdP for the e2e login test.
+# The mockCallback connector returns a fixed identity with no login form, so the
+# browser flow exercises passmower's upstream-OIDC path (discovery + PKCE + JWKS
+# + userinfo) without us having to script a third-party login UI.
+issuer: http://127.0.0.1:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+staticClients:
+  - id: passmower
+    name: Passmower
+    secret: passmower-dex-secret
+    redirectURIs:
+      - http://127.0.0.1:3000/interaction/callback/dex
+
+enablePasswordDB: false
+
+connectors:
+  - type: mockCallback
+    id: mock
+    name: Example

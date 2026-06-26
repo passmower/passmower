@@ -51,6 +51,7 @@
     "validator": "^13.15.35"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^4.1.9",
     "nodemon": "^3.1.14",
     "npm-run-all": "^4.1.5",
