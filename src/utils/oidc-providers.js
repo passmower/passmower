@@ -1,4 +1,4 @@
-import { Issuer } from "openid-client";
+import * as client from "openid-client";
 
 // Generic OIDC upstream providers. GitHub is intentionally NOT here — its API
 // is not standards-compliant OIDC and keeps its own handler (github-login.js).
@@ -76,20 +76,24 @@ export const getOidcProvider = (key) => getOidcProviders().find(p => p.key === k
 // Redirect URI registered with the upstream provider's OAuth application.
 export const oidcRedirectUri = (key) => `${process.env.ISSUER_URL}interaction/callback/${key}`;
 
-// Discovery is network I/O, so the configured Client is memoized per provider.
-const clientCache = new Map();
+// Discovery is network I/O, so the configured openid-client Configuration is
+// memoized per provider.
+const configCache = new Map();
 
+// Resolve a provider into an openid-client v6 `Configuration`. We pin
+// client_secret_basic to preserve the upstream auth method used under v5
+// (`new issuer.Client(...)` defaulted to basic; v6 `discovery()` would
+// otherwise default to client_secret_post).
 export const getOidcClient = async (providerConfig) => {
-    if (clientCache.has(providerConfig.key)) {
-        return clientCache.get(providerConfig.key);
+    if (configCache.has(providerConfig.key)) {
+        return configCache.get(providerConfig.key);
     }
-    const issuer = await Issuer.discover(providerConfig.issuer);
-    const client = new issuer.Client({
-        client_id: providerConfig.clientId,
-        client_secret: providerConfig.clientSecret,
-        redirect_uris: [oidcRedirectUri(providerConfig.key)],
-        response_types: ['code'],
-    });
-    clientCache.set(providerConfig.key, client);
-    return client;
+    const config = await client.discovery(
+        new URL(providerConfig.issuer),
+        providerConfig.clientId,
+        providerConfig.clientSecret,
+        client.ClientSecretBasic(providerConfig.clientSecret),
+    );
+    configCache.set(providerConfig.key, config);
+    return config;
 };
