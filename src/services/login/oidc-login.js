@@ -1,4 +1,4 @@
-import { generators } from "openid-client";
+import * as client from "openid-client";
 import Account from "../../models/account.js";
 import accessDenied from "../../utils/session/access-denied.js";
 import getLoginResult from "../../utils/user/get-login-result.js";
@@ -45,25 +45,25 @@ export default async (ctx, provider, providerConfig) => {
 
     // Phase 1 — start the authorization-code flow.
     if (!identity && !Object.keys(callbackParams).length) {
-        const client = await getOidcClient(providerConfig);
-        const codeVerifier = generators.codeVerifier();
-        const codeChallenge = generators.codeChallenge(codeVerifier);
-        const nonce = generators.nonce();
+        const config = await getOidcClient(providerConfig);
+        const codeVerifier = client.randomPKCECodeVerifier();
+        const codeChallenge = await client.calculatePKCECodeChallenge(codeVerifier);
+        const nonce = client.randomNonce();
         // Keep the `uid|random` state shape so repost.ejs can recover the uid.
-        const state = `${ctx.params.uid}|${generators.state()}`;
+        const state = `${ctx.params.uid}|${client.randomState()}`;
         await provider.interactionResult(ctx.req, ctx.res, {
             oidcFlow: { provider: key, state, codeVerifier, nonce },
         });
         ctx.status = 302;
         auditLog(ctx, { interactionDetails, state }, `Redirecting user to ${displayName}`);
-        return ctx.redirect(client.authorizationUrl({
+        return ctx.redirect(client.buildAuthorizationUrl(config, {
             redirect_uri: redirectUri,
             scope: providerConfig.scopes.join(' '),
             state,
             nonce,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
-        }));
+        }).href);
     }
 
     // Phase 2 — handle the callback: validate state, exchange the code (PKCE),
@@ -75,23 +75,31 @@ export default async (ctx, provider, providerConfig) => {
             return accessDenied(ctx, provider, 'State does not match');
         }
 
-        const client = await getOidcClient(providerConfig);
+        const config = await getOidcClient(providerConfig);
+        // v6 reads the callback parameters from a full URL; reconstruct it from
+        // the registered redirect URI plus the posted-back query parameters.
+        const callbackUrl = new URL(redirectUri);
+        for (const [param, value] of Object.entries(callbackParams)) {
+            if (value !== undefined && value !== null) {
+                callbackUrl.searchParams.set(param, String(value));
+            }
+        }
         let tokenSet;
         try {
-            tokenSet = await client.callback(redirectUri, callbackParams, {
-                state: flow.state,
-                code_verifier: flow.codeVerifier,
-                nonce: flow.nonce,
+            tokenSet = await client.authorizationCodeGrant(config, callbackUrl, {
+                expectedState: flow.state,
+                pkceCodeVerifier: flow.codeVerifier,
+                expectedNonce: flow.nonce,
             });
         } catch (error) {
             auditLog(ctx, { error: error.message, interactionDetails }, `Error getting tokens from ${displayName}`);
             return accessDenied(ctx, provider, 'User aborted login');
         }
 
-        const claims = tokenSet.claims();
+        const claims = tokenSet.claims() ?? {};
         let userinfo = {};
         try {
-            userinfo = await client.userinfo(tokenSet);
+            userinfo = await client.fetchUserInfo(config, tokenSet.access_token, claims.sub);
         } catch (error) {
             // userinfo is best-effort — the id_token already carries sub/email.
             auditLog(ctx, { error: error.message, interactionDetails }, `Error getting userinfo from ${displayName}`);
