@@ -31,7 +31,9 @@ export function getText(name) {
 }
 
 const renderer = {
-    link(href, title, text) {
-        return `<a target="_blank" href="${href}">${text}</a>`;
+    // marked v5+ passes a token object; the link text is rendered from its
+    // child tokens via the bound parser.
+    link({ href, tokens }) {
+        return `<a target="_blank" href="${href}">${this.parser.parseInline(tokens)}</a>`;
     }
 };
