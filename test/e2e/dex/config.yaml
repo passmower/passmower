@@ -18,7 +18,7 @@ staticClients:
     name: Passmower
     secret: passmower-dex-secret
     redirectURIs:
-      - http://passmower.localtest.me:3000/interaction/callback/dex
+      - https://passmower.localtest.me:8443/interaction/callback/dex
 
 enablePasswordDB: false
 

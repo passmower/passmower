@@ -90,7 +90,13 @@ jobs:
             sleep 1
           done
 
-      - name: Start passmower
+      - name: Install Caddy (TLS terminator)
+        run: |
+          curl -fsSL https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin caddy
+          caddy version
+
+      - name: Start passmower (http) behind Caddy (https)
         run: |
           set -a; . test/e2e/passmower.env; set +a
           export KUBECONFIG="$HOME/.kube/config"
@@ -98,17 +104,24 @@ jobs:
           export OIDC_JWKS="$(node -e "const {generateKeyPairSync}=require('crypto');const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const j=privateKey.export({format:'jwk'});j.use='sig';j.alg='RS256';j.kid='e2e';console.log(JSON.stringify([j]))")"
           node src/app.js > passmower-e2e.log 2>&1 &
           for i in $(seq 1 30); do
-            curl -sf http://passmower.localtest.me:3000/.well-known/openid-configuration && break
+            curl -sf http://127.0.0.1:3000/.well-known/openid-configuration && break
             sleep 1
           done
-          # Fail fast (with logs) if passmower never came up.
-          curl -sf http://passmower.localtest.me:3000/.well-known/openid-configuration > /dev/null || {
+          curl -sf http://127.0.0.1:3000/.well-known/openid-configuration > /dev/null || {
             echo "::error::passmower did not start"; cat passmower-e2e.log; exit 1;
+          }
+          caddy start --config test/e2e/Caddyfile
+          for i in $(seq 1 20); do
+            curl -ksf https://passmower.localtest.me:8443/.well-known/openid-configuration && break
+            sleep 1
+          done
+          curl -ksf https://passmower.localtest.me:8443/.well-known/openid-configuration > /dev/null || {
+            echo "::error::TLS endpoint not reachable"; cat passmower-e2e.log; exit 1;
           }
 
       - name: Run Playwright e2e
         env:
-          PASSMOWER_URL: http://passmower.localtest.me:3000
+          PASSMOWER_URL: https://passmower.localtest.me:8443
         run: npx playwright test
 
       - name: Upload Playwright report
