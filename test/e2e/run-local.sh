@@ -44,9 +44,9 @@ node src/app.js & APP_PID=$!
 
 echo "==> Wait for passmower"
 for i in $(seq 1 30); do
-    curl -sf http://127.0.0.1:3000/.well-known/openid-configuration >/dev/null && break
+    curl -sf http://passmower.localtest.me:3000/.well-known/openid-configuration >/dev/null && break
     sleep 1
 done
 
 echo "==> Playwright"
-npx playwright test
+PASSMOWER_URL=http://passmower.localtest.me:3000 npx playwright test

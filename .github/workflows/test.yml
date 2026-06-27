@@ -54,6 +54,9 @@ jobs:
           cache: npm
       - run: npm ci
 
+      - name: Pin passmower hostname to localhost
+        run: echo "127.0.0.1 passmower.localtest.me" | sudo tee -a /etc/hosts
+
       - name: Start Redis + Dex
         run: docker compose -f docker-compose.test.yml up -d
 
@@ -88,11 +91,17 @@ jobs:
           export OIDC_JWKS="$(node -e "const {generateKeyPairSync}=require('crypto');const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const j=privateKey.export({format:'jwk'});j.use='sig';j.alg='RS256';j.kid='e2e';console.log(JSON.stringify([j]))")"
           node src/app.js > passmower-e2e.log 2>&1 &
           for i in $(seq 1 30); do
-            curl -sf http://127.0.0.1:3000/.well-known/openid-configuration && break
+            curl -sf http://passmower.localtest.me:3000/.well-known/openid-configuration && break
             sleep 1
           done
+          # Fail fast (with logs) if passmower never came up.
+          curl -sf http://passmower.localtest.me:3000/.well-known/openid-configuration > /dev/null || {
+            echo "::error::passmower did not start"; cat passmower-e2e.log; exit 1;
+          }
 
       - name: Run Playwright e2e
+        env:
+          PASSMOWER_URL: http://passmower.localtest.me:3000
         run: npx playwright test
 
       - name: Upload Playwright report
