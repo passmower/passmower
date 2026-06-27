@@ -5,7 +5,12 @@ export const setupLogger = () => {
         level: process.env.NODE_ENV === 'production' ? 'info' : 'trace',
         redact: [
             'ctx.request.header.cookie',
-            'ctx.response.header["set-cookie"].*',
+            // NOTE: do NOT redact 'ctx.response.header["set-cookie"]'. Koa's
+            // ctx.response.header is a getter returning a fresh object each
+            // access, which breaks pino/fast-redact's mutate-then-restore for
+            // array-wildcard paths: it mutates the *live* Set-Cookie array in
+            // place but restores into a throwaway copy, leaving "[Redacted]" on
+            // the actual response and corrupting every cookie (breaks login).
             'interaction.session.cookie',
             '*.jti',
             'interaction.result.token',
