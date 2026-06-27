@@ -12,17 +12,22 @@ test('logs in through the Dex upstream OIDC provider', async ({ page }) => {
     //    identity (kilgore@kilgore.trout / "Kilgore Trout") with no login form.
     await page.getByRole('button', { name: /Sign in with Dex/i }).click()
 
-    // 3. First login for a new user requires accepting the Terms of Service.
-    const tosContinue = page.getByRole('button', { name: 'Continue' })
-    await tosContinue.waitFor({ state: 'visible' })
-    await tosContinue.click()
+    // 3. First-time login requires accepting the Terms of Service; a returning
+    //    user (e.g. on a retry, since the OIDCUser persists in the cluster)
+    //    skips it — so the ToS step is optional.
+    try {
+        await page.getByRole('button', { name: 'Continue' }).click({ timeout: 15_000 })
+    } catch {
+        // ToS already accepted on a previous run — continue.
+    }
 
-    // 4. Land on the authenticated dashboard.
-    await expect(page.locator('#app')).toBeVisible()
-
-    // 5. The session is real: the profile API returns the upstream identity.
-    const me = await page.request.get('/api/me')
-    expect(me.ok()).toBeTruthy()
-    const body = await me.json()
-    expect(JSON.stringify(body)).toContain('kilgore@kilgore.trout')
+    // 4. Logged in: the profile API returns the upstream identity. This is the
+    //    definitive signed-in signal (depends only on the session cookie).
+    await expect.poll(
+        async () => {
+            const res = await page.request.get('/api/me')
+            return res.ok() ? await res.text() : ''
+        },
+        { timeout: 20_000, message: 'waiting for an authenticated /api/me' },
+    ).toContain('kilgore@kilgore.trout')
 })

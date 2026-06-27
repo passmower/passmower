@@ -46,13 +46,6 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    # Non-blocking for now: the browser login goes through the dashboard's
-    # implicit-flow self-client, and oidc-provider v9 requires https redirect
-    # URIs for implicit. Running this stack over plain http therefore can't
-    # complete the dashboard login. Finishing the e2e needs a TLS terminator in
-    # front of passmower (or reworking the test to a loopback code-flow client).
-    # The harness, Dex, kind+CRDs and passmower boot are all exercised regardless.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
