@@ -272,7 +272,11 @@ class Account {
         const uid = new ShortUniqueId({
             dictionary: 'alphanum_lower',
         });
-        return 'u' + uid.stamp(10);
+        // rnd() not stamp(): stamp() embeds the creation timestamp, leaving only a
+        // couple of random chars, so two accounts created in the same millisecond can
+        // collide (the CR create then silently fails) and the creation time leaks from
+        // the id (#13). A fully random 10-char id over 36 symbols avoids both.
+        return 'u' + uid.rnd(10);
     }
 
     static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username, preferredUsername) {
