@@ -96,8 +96,8 @@ export default (provider) => {
             return
         }
         const accountId = ctx.request.body.accountId
-        const impersonation = await ctx.sessionService.impersonate(ctx, accountId)
-        auditLog(ctx, {accountId}, 'Admin enabled impersonation')
+        const impersonation = await ctx.sessionService.createImpersonation(ctx, accountId)
+        auditLog(ctx, {accountId}, 'Admin created impersonation link')
         ctx.body = {
             impersonation
         }
