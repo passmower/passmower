@@ -5,12 +5,12 @@ import OidcClient from '../../src/models/oidc-client.js'
 import RedisAdapter from '../../src/adapters/redis.js'
 
 // Reconciliation coverage for the OIDCClient operator (previously untested):
-// claim -> secret -> Redis, updates, the secretRefreshPod hook (#69) and delete.
+// claim -> secret -> Redis, updates, the secretRefreshJob hook (#69/#70) and delete.
 describe('KubeOIDCClientOperator reconciliation', () => {
     let provider, adapter, operator
     const clientRedis = () => new RedisAdapter('Client')
 
-    function rawClient(name, { secretRefreshPod } = {}) {
+    function rawClient(name, { secretRefreshJobSpec } = {}) {
         return {
             metadata: { name, namespace: 'apps', resourceVersion: '1', uid: `uid-${name}`, annotations: {} },
             spec: {
@@ -19,11 +19,12 @@ describe('KubeOIDCClientOperator reconciliation', () => {
                 redirectUris: ['https://app.example.com/cb'],
                 availableScopes: ['openid'],
                 tokenEndpointAuthMethod: 'client_secret_basic',
-                ...(secretRefreshPod ? { secretRefreshPod } : {}),
+                ...(secretRefreshJobSpec ? { secretRefreshJobSpec } : {}),
             },
             status: {}, // unclaimed
         }
     }
+    const refreshJobSpec = { template: { spec: { containers: [{ name: 'refresh', image: 'busybox' }] } } }
     const idOf = (name) => new OidcClient().fromIncomingClient(rawClient(name)).getClientId()
 
     beforeAll(async () => {
@@ -58,26 +59,28 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         expect(cached.client_secret).toBeTruthy()
     })
 
-    it('creates the secretRefreshPod when configured (#69)', async () => {
-        adapter.seed('OIDCClient', rawClient('app-b', {
-            secretRefreshPod: { spec: { containers: [{ name: 'refresh', image: 'busybox' }] } },
-        }))
+    it('creates the secretRefreshJob when configured (#69/#70)', async () => {
+        adapter.seed('OIDCClient', rawClient('app-b', { secretRefreshJobSpec: refreshJobSpec }))
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-b')
 
-        expect(adapter.pods).toHaveLength(1)
-        expect(adapter.pods[0].podSpec.spec.containers[0].image).toBe('busybox')
-        // owner reference back to the OIDCClient so the pod is GC'd with it
-        expect(adapter.pods[0].podSpec.metadata.ownerReferences[0].name).toBe('app-b')
+        expect(adapter.jobs).toHaveLength(1)
+        const job = adapter.jobs[0].jobManifest
+        expect(job.kind).toBe('Job')
+        expect(job.spec.template.spec.containers[0].image).toBe('busybox')
+        // Job gets a restartPolicy (so failures are retried) and alerting labels
+        expect(job.spec.template.spec.restartPolicy).toBe('OnFailure')
+        expect(job.metadata.labels['app.kubernetes.io/component']).toBe('secret-refresh')
+        expect(job.metadata.labels['codemowers.cloud/oidc-client']).toBe('app-b')
+        // owner reference back to the OIDCClient so the Job is GC'd with it
+        expect(job.metadata.ownerReferences[0].name).toBe('app-b')
     })
 
-    it('fires the refresh pod again on update', async () => {
-        adapter.seed('OIDCClient', rawClient('app-c', {
-            secretRefreshPod: { spec: { containers: [{ name: 'refresh', image: 'busybox' }] } },
-        }))
+    it('fires the refresh job again on update', async () => {
+        adapter.seed('OIDCClient', rawClient('app-c', { secretRefreshJobSpec: refreshJobSpec }))
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-c')
-        const afterCreate = adapter.pods.length
+        const afterCreate = adapter.jobs.length
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-c')
-        expect(adapter.pods.length).toBe(afterCreate + 1)
+        expect(adapter.jobs.length).toBe(afterCreate + 1)
     })
 
     it('removes the client from Redis on delete', async () => {

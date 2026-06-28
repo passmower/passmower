@@ -15,7 +15,7 @@ export class FakeKubernetesAdapter {
         this.instance = instance
         this.store = new Map()       // `${kind}/${name}` -> stored CR object
         this.secrets = new Map()     // `${namespace}/${name}` -> { data, metadata }
-        this.pods = []               // pods created via createPod (e.g. secretRefreshPod)
+        this.jobs = []               // jobs created via createJob (e.g. secret-refresh)
         this.watchHandlers = []      // for operator tests
         this.watchParameters = null  // set by setWatchParameters()
         this._rv = 0
@@ -84,7 +84,7 @@ export class FakeKubernetesAdapter {
     async createSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async patchSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async deleteSecret(namespace, id) { this.secrets.delete(`${namespace}/${id}`) }
-    async createPod(namespace, podSpec) { this.pods.push({ namespace, podSpec: structuredClone(podSpec) }); return { phase: 'Pending' } }
+    async createJob(namespace, jobManifest) { this.jobs.push({ namespace, jobManifest: structuredClone(jobManifest) }); return { active: 1 } }
 
     // --- Watch (used by operators) ------------------------------------------
 

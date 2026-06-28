@@ -29,6 +29,7 @@ export class KubernetesAdapter {
         const userAgentMiddleware = setHeaderMiddleware('User-Agent', this.instance)
         this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
+        this.batchV1Api = kc.makeApiClient(k8s.BatchV1Api);
         this.defaultOptions = { middleware: [userAgentMiddleware] }
     }
 
@@ -218,17 +219,17 @@ export class KubernetesAdapter {
         })
     }
 
-    async createPod(namespace, podSpec, dryRun = false) {
-        await this.coreV1Api.createNamespacedPod({
+    async createJob(namespace, jobManifest) {
+        return await this.batchV1Api.createNamespacedJob({
             namespace,
-            body: podSpec
-        }, this.defaultOptions).then(async (r) => {
+            body: jobManifest
+        }, this.defaultOptions).then((r) => {
             return r.status
         }).catch((e) => {
-            if (e.code !== 404) {
-                globalThis.logger.error(e)
-                return null
-            }
+            // Surface failures (not just 404) — a swallowed secret-refresh
+            // failure was a source of "refresh not triggering" confusion (#69).
+            globalThis.logger.error({ err: e, job: jobManifest?.metadata?.name }, 'Failed to create secret-refresh Job')
+            return null
         })
     }
 
