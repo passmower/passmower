@@ -284,6 +284,17 @@ spec:
                   type: array
                   items:
                     type: string
+                applicationType:
+                  type: string
+                  description: >-
+                    OAuth client application type. Use 'native' for mobile/desktop
+                    apps that need custom-scheme or http loopback redirect URIs
+                    (e.g. immich, the Nextcloud Android app); 'web' (the default)
+                    requires https redirect URIs.
+                  enum:
+                    - web
+                    - native
+                  default: web
                 allowedGroups:
                   type: array
                   items:
