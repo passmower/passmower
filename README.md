@@ -58,6 +58,9 @@ Install using helm from ghcr.io, **at least set the hostname**:
 helm install passmower oci://ghcr.io/passmower/charts/passmower --version 1.2.0 --set passmower.host=auth.your.domain
 ```
 
+> Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
+> `OIDCClient` secret-refresh field. See [docs/migrating-to-2.0.md](docs/migrating-to-2.0.md).
+
 Note we commend installing Passmower declaratively either by using
 [ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or
 [Rancher Helm Controller](https://github.com/k3s-io/helm-controller)
