@@ -215,6 +215,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | Env | Purpose |
 |---|---|
 | `ISSUER_URL` | Public base URL of Passmower, **with trailing slash**. |
+| `WELCOME_MESSAGE` | Heading on the welcome/sign-in landing page; defaults to "Welcome to Passmower". |
 | `OIDC_COOKIE_KEYS` | JSON array of cookie-signing keys. |
 | `OIDC_JWKS` | JSON JWKS for token signing. |
 | `REDIS_URI`, `REDIS_IP_FAMILY` | Redis connection. |

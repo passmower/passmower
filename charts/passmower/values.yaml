@@ -4,6 +4,10 @@ fullnameOverride: ""
 passmower:
   # Hostname on which Passmower will be deployed to. Will be used as ingress host.
   host: ""
+  # Heading shown on the welcome / sign-in landing page (only rendered when more
+  # than one login method is enabled; a single method skips straight to sign-in).
+  # Empty falls back to "Welcome to Passmower".
+  welcomeMessage: ""
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
