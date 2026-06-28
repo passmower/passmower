@@ -12,6 +12,12 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v7
+
+      - name: Get chart version
+        id: chart_version
+        run: |
+          echo "CHART_VERSION=$(cat charts/passmower/Chart.yaml | awk -F"[ ',]+" '/^version:/{print $2}')" >> $GITHUB_OUTPUT
+
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -41,12 +47,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ github.repository }}:1.2.0-dev
+            ${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
 
       -
         name: Push Image to GHCR
         uses: akhilerm/tag-push-action@v2.3.0
         with:
-          src: docker.io/${{ github.repository }}:1.2.0-dev
+          src: docker.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
           dst: |
-            ghcr.io/${{ github.repository }}:1.2.0-dev
+            ghcr.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
