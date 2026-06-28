@@ -12,6 +12,17 @@ let readyPromise = new Promise(resolve => { readyResolve = resolve; });
 const MAX_ERROR_COUNT = 5;
 const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
 
+// Resolve a host to its current set of IPs, honoring REDIS_IP_FAMILY
+// (0 = both, 4 = IPv4 only, 6 = IPv6 only) so the DNS-change watcher resolves
+// the same address family the connection itself uses. dns.resolve() only
+// queries A (IPv4) records, so on an IPv6-only Service it threw ENODATA on
+// every check — spamming errors and preventing the change-triggered reconnect
+// from ever running. dns.lookup() respects the family hint (and getaddrinfo).
+export async function resolveHostIps(host, family = parseInt(process.env.REDIS_IP_FAMILY ?? '0')) {
+    const records = await dns.lookup(host, { all: true, family });
+    return records.map(record => record.address).sort();
+}
+
 // The single shared client and the timers that keep it healthy. These are
 // created lazily by connect() rather than at import time so that importing a
 // module that transitively pulls in this adapter does NOT open a Redis
@@ -92,8 +103,7 @@ export function connect() {
 
         const checkDnsAndReconnect = async () => {
             try {
-                const currentIps = await dns.resolve(redisHost);
-                currentIps.sort();
+                const currentIps = await resolveHostIps(redisHost);
 
                 if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {
                     globalThis.logger?.warn({ oldIps: lastKnownIps, newIps: currentIps }, 'Redis: DNS changed, reconnecting...')
