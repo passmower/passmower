@@ -4,6 +4,14 @@ import validatorLib from "validator";
 import {getText} from "../get-text.js";
 import {USERNAME_RULES} from "../user/username.js";
 
+// Display-name / company validation (#64). Upstream IdPs (GitHub, OIDC) legitimately
+// supply names with unicode letters, accents, apostrophes, hyphens, "&", etc. — an
+// en-US alphanumeric allowlist rejected those, so a name pulled from GitHub could not
+// be re-submitted on edit. Accept any printable input and reject only genuinely unsafe
+// characters: angle brackets (HTML/markup injection) and control chars (incl. newlines,
+// which would otherwise allow Remote-* forward-auth header injection).
+export const isSafeDisplayName = (value) => /^[^<>\x00-\x1f\x7f]*$/.test(value ?? '')
+
 // Custom validators
 const customValidators = {
     startsWithLetter: (value) => (new RegExp('^[a-z].*')).test(value),
@@ -35,12 +43,8 @@ const customValidators = {
             }).catch(reject);
         }
     }),
-    isValidName: (value) => validatorLib.isAlphanumeric(value, 'en-US', {
-        ignore: ' ÜÕÖÄüõöä'
-    }),
-    isValidCompanyName: (value) => validatorLib.isAlphanumeric(value, 'en-US', {
-        ignore: ' ÜÕÖÄüõöä'
-    }),
+    isValidName: (value) => isSafeDisplayName(value),
+    isValidCompanyName: (value) => isSafeDisplayName(value),
     disableFrontendEdit: () => process.env.DISABLE_FRONTEND_EDIT !== 'true'
 }
 
