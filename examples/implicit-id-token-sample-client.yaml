@@ -1,5 +1,5 @@
 ---
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: implicit-id-token-sample-client

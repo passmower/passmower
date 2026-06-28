@@ -3,7 +3,7 @@
 # use a custom-scheme or http-loopback redirect URI, which is only valid for
 # clients with applicationType: native. They are public clients (no usable
 # secret), so authenticate with PKCE and tokenEndpointAuthMethod: none.
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: native-app-sample-client

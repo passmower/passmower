@@ -12,11 +12,15 @@ spec:
     listKind: OIDCUserList
   scope: Namespaced
   versions:
-    - name: v1beta1
+    # v1 and v1beta1 are served with the SAME schema (shared via the YAML anchor
+    # below) so conversion strategy None is valid. v1 is the storage version;
+    # v1beta1 is kept served-but-deprecated for one release so existing
+    # `codemowers.cloud/v1beta1` resources keep working while consumers migrate.
+    - name: v1
       served: true
       storage: true
       schema:
-        openAPIV3Schema:
+        openAPIV3Schema: &oidcUserSchema
           type: object
           required:
             - spec
@@ -221,9 +225,9 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 slackId:
                   type: string
-      subresources:
+      subresources: &oidcUserSubresources
         status: {}
-      additionalPrinterColumns:
+      additionalPrinterColumns: &oidcUserPrinterColumns
         - name: Type
           type: string
           jsonPath: .spec.type
@@ -248,6 +252,15 @@ spec:
         - name: Groups
           type: string
           jsonPath: .status.groups
+    - name: v1beta1
+      served: true
+      storage: false
+      deprecated: true
+      deprecationWarning: "codemowers.cloud/v1beta1 OIDCUser is deprecated; use codemowers.cloud/v1"
+      schema:
+        openAPIV3Schema: *oidcUserSchema
+      subresources: *oidcUserSubresources
+      additionalPrinterColumns: *oidcUserPrinterColumns
   conversion:
     strategy: None
 ---
@@ -264,11 +277,11 @@ spec:
     listKind: OIDCClientList
   scope: Namespaced
   versions:
-    - name: v1beta1
+    - name: v1
       served: true
       storage: true
       schema:
-        openAPIV3Schema:
+        openAPIV3Schema: &oidcClientSchema
           type: object
           required:
             - spec
@@ -391,9 +404,9 @@ spec:
                     x-kubernetes-embedded-resource: true
                 instance:
                   type: string
-      subresources:
+      subresources: &oidcClientSubresources
         status: {}
-      additionalPrinterColumns:
+      additionalPrinterColumns: &oidcClientPrinterColumns
         - name: Instance
           type: string
           description: Passmower deployment which manages this client
@@ -406,6 +419,15 @@ spec:
           type: string
           description: Groups allowed to this client
           jsonPath: .spec.allowedGroups
+    - name: v1beta1
+      served: true
+      storage: false
+      deprecated: true
+      deprecationWarning: "codemowers.cloud/v1beta1 OIDCClient is deprecated; use codemowers.cloud/v1"
+      schema:
+        openAPIV3Schema: *oidcClientSchema
+      subresources: *oidcClientSubresources
+      additionalPrinterColumns: *oidcClientPrinterColumns
   conversion:
     strategy: None
 ---
@@ -422,11 +444,11 @@ spec:
     listKind: OIDCMiddlewareClientList
   scope: Namespaced
   versions:
-    - name: v1beta1
+    - name: v1
       served: true
       storage: true
       schema:
-        openAPIV3Schema:
+        openAPIV3Schema: &oidcMiddlewareClientSchema
           type: object
           required:
             - spec
@@ -472,9 +494,9 @@ spec:
                     x-kubernetes-embedded-resource: true
                 instance:
                   type: string
-      subresources:
+      subresources: &oidcMiddlewareClientSubresources
         status: {}
-      additionalPrinterColumns:
+      additionalPrinterColumns: &oidcMiddlewareClientPrinterColumns
         - name: Instance
           type: string
           description: Passmower deployment which manages this client
@@ -487,5 +509,14 @@ spec:
           type: string
           description: Groups allowed to this client
           jsonPath: .spec.allowedGroups
+    - name: v1beta1
+      served: true
+      storage: false
+      deprecated: true
+      deprecationWarning: "codemowers.cloud/v1beta1 OIDCMiddlewareClient is deprecated; use codemowers.cloud/v1"
+      schema:
+        openAPIV3Schema: *oidcMiddlewareClientSchema
+      subresources: *oidcMiddlewareClientSubresources
+      additionalPrinterColumns: *oidcMiddlewareClientPrinterColumns
   conversion:
     strategy: None

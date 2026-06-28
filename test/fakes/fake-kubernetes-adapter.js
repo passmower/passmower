@@ -43,7 +43,7 @@ export class FakeKubernetesAdapter {
         const key = this.#key(kind, name)
         if (this.store.has(key)) return null // name already taken -> real adapter swallows the conflict
         const obj = {
-            apiVersion: 'codemowers.cloud/v1beta1',
+            apiVersion: 'codemowers.cloud/v1',
             kind,
             metadata: { name, labels, resourceVersion: this.#nextRv() },
             status: {},
@@ -123,7 +123,7 @@ export class FakeKubernetesAdapter {
     seed(kind, obj) {
         const name = obj.metadata.name
         this.store.set(this.#key(kind, name), {
-            apiVersion: 'codemowers.cloud/v1beta1',
+            apiVersion: 'codemowers.cloud/v1',
             kind,
             status: {},
             ...structuredClone(obj),

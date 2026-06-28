@@ -12,8 +12,9 @@ It does **not** replace your org IdP (GitHub, Google, EntraID, …) — it bridg
 those upstreams into your Kubernetes ecosystem:
 
 - **Users and enrolled applications are Kubernetes Custom Resources** (`OIDCUser`,
-  `OIDCClient`, `OIDCMiddlewareClient`, all in group `codemowers.cloud/v1beta1`).
-  Passmower is therefore also an **operator** — it watches these CRDs and reconciles.
+  `OIDCClient`, `OIDCMiddlewareClient`, group `codemowers.cloud`, version `v1` —
+  `v1beta1` is still served but deprecated). Passmower is therefore also an
+  **operator** — it watches these CRDs and reconciles.
 - **Session/OIDC runtime state lives in Redis** (the `oidc-provider` storage adapter).
 - **Upstream login** is via GitHub OAuth2, generic standards-compliant OIDC
   (Google/GitLab/EntraID/Dex/…), email magic-links, WebAuthn passkeys, and Slack.
