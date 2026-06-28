@@ -118,7 +118,39 @@ labels.
 
 ---
 
-## 3. RBAC change — automatic
+## 3. CRDs promoted to `codemowers.cloud/v1` — **no immediate action, but migrate your manifests**
+
+The custom resources (`OIDCUser`, `OIDCClient`, `OIDCMiddlewareClient`) are promoted
+from `codemowers.cloud/v1beta1` to **`codemowers.cloud/v1`**. This is done the
+non-breaking way:
+
+- The CRDs serve **both** versions. `v1` is now the **storage** version; `v1beta1` is
+  still **served but marked deprecated** (the API server returns a deprecation warning —
+  e.g. `kubectl` prints "codemowers.cloud/v1beta1 ... is deprecated; use
+  codemowers.cloud/v1"). The two versions share an identical schema, so conversion is
+  `strategy: None` (no conversion webhook needed).
+- **Nothing breaks on upgrade.** Your existing `apiVersion: codemowers.cloud/v1beta1`
+  resources keep working and Passmower reconciles them unchanged. As they are re-applied
+  or updated they are rewritten to `v1` storage.
+
+**What to do (at your own pace):** update the `apiVersion` in your `OIDCUser` /
+`OIDCClient` / `OIDCMiddlewareClient` manifests from `codemowers.cloud/v1beta1` to
+`codemowers.cloud/v1`. The `spec` is unchanged — only the `apiVersion` line moves.
+
+```diff
+- apiVersion: codemowers.cloud/v1beta1
++ apiVersion: codemowers.cloud/v1
+  kind: OIDCClient
+  # spec unchanged
+```
+
+> `v1beta1` will be **removed in a future release**. Migrate your manifests during the
+> 2.0 window so the eventual removal is a no-op for you. (A version can only be dropped
+> once no stored objects remain on it — re-applying your resources as `v1` ensures that.)
+
+---
+
+## 4. RBAC change — automatic
 
 The chart's `ClusterRole` now grants `create` on `batch/jobs` instead of core `pods`
 (the operator creates the refresh **Job** described above). This is applied for you by
@@ -128,7 +160,7 @@ you may drop the old `pods` `create` grant.
 
 ---
 
-## 4. Major dependency upgrades — informational
+## 5. Major dependency upgrades — informational
 
 2.0 upgrades several runtime dependencies across major versions, most notably
 `oidc-provider` 8 → 9, `openid-client` 5 → 6, and `koa` 2 → 3 (also `helmet` 8,
@@ -140,7 +172,7 @@ exists specifically to guard these upgrades.
 
 ---
 
-## 5. What's new (non-breaking)
+## 6. What's new (non-breaking)
 
 You don't have to do anything to get these, but they're the reason to upgrade:
 
@@ -158,7 +190,7 @@ You don't have to do anything to get these, but they're the reason to upgrade:
 
 ---
 
-## 6. Upgrade
+## 7. Upgrade
 
 After editing your values (section 1) and any `OIDCClient`s that used
 `secretRefreshPod` (section 2):

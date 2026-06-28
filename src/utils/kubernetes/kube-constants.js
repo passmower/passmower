@@ -7,7 +7,10 @@ export const OIDCClients = 'oidcclients';
 export const OIDCMiddlewareClientCrd = 'OIDCMiddlewareClient';
 export const OIDCMiddlewareClients = 'oidcmiddlewareclients';
 export const defaultApiGroup = 'codemowers.cloud'
-export const defaultApiGroupVersion = 'v1beta1'
+// v1 is the served + storage version as of 2.0. v1beta1 is still served
+// (deprecated) by the CRDs, so existing v1beta1 objects remain visible through
+// the v1 watch/read path via conversion (strategy None, identical schema).
+export const defaultApiGroupVersion = 'v1'
 export const OIDCClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`
 export const OIDCClientId = (namespace, clientName) => `${namespace}.${clientName}`
 // Dot is chosen as the delimiting character as it is one of the few characters that is not encoded in URL and therefore avoids problematic clients that do not properly encode the client parameters for token endpoint.

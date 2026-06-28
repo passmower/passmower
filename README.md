@@ -165,7 +165,7 @@ authentication, you can use the following Kubernetes manifest:
 
 ```
 ---
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: grafana
@@ -227,7 +227,7 @@ controller needs specific metadata to pick up the secret — for example, ArgoCD
 requires the `app.kubernetes.io/part-of: argocd` label to read it:
 
 ```
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: grafana
@@ -260,7 +260,7 @@ upstream provider) is controlled by `USERNAME_SOURCE`. See
 If automatic enrollment is disabled users can be managed GitOps style.
 
 ```
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCUser
 metadata:
   name: johnsmith
@@ -284,7 +284,7 @@ For legacy applications `forwardAuth` based middleware option is supported.
 
 ```
 ---
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCMiddlewareClient
 metadata:
   name: webmail
