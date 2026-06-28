@@ -7,11 +7,11 @@ passmower:
   # Local groups will be created with given prefix.
   group_prefix: "passmower"
   # Local or remote group which members will automatically become admins.
-  admin_group: "github.com:foo:bar"
+  admin_group: ""
   # If set, require all users to be member of the given local or remote group.
   required_group: ""
   # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
-  github_organization: "passmower"
+  github_organization: ""
   # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
   #   generated - random system-generated id (u<...>)
   #   prompt    - user must pick a custom username via a form
