@@ -104,6 +104,7 @@ spec:
             command: ["kubectl", "rollout", "restart", "deployment/my-app"]
     # any other JobSpec fields are allowed, e.g.:
     # backoffLimit: 4
+    # ttlSecondsAfterFinished: 600   # defaults to 3600 if unset
 ```
 
 Passmower still owns the resulting Job (owner-referenced to the `OIDCClient`, so it is

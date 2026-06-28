@@ -67,8 +67,10 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         const job = adapter.jobs[0].jobManifest
         expect(job.kind).toBe('Job')
         expect(job.spec.template.spec.containers[0].image).toBe('busybox')
-        // Job gets a restartPolicy (so failures are retried) and alerting labels
+        // Job gets a restartPolicy (so failures are retried), a TTL (so finished
+        // Jobs are reaped) and alerting labels
         expect(job.spec.template.spec.restartPolicy).toBe('OnFailure')
+        expect(job.spec.ttlSecondsAfterFinished).toBe(3600)
         expect(job.metadata.labels['app.kubernetes.io/component']).toBe('secret-refresh')
         expect(job.metadata.labels['codemowers.cloud/oidc-client']).toBe('app-b')
         // owner reference back to the OIDCClient so the Job is GC'd with it

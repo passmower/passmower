@@ -73,7 +73,7 @@ frontend/ styles/     # Vue frontend + SCSS (built into the image)
 - **`secretRefreshJobSpec` → a Job (not a Pod).** When a client wants its consuming
   workload restarted after its secret rotates, it sets `spec.secretRefreshJobSpec`
   (a `batch/v1` JobSpec). Passmower wraps it in a `Job` owned by the `OIDCClient`,
-  defaults `restartPolicy: OnFailure`, and stamps
+  defaults `restartPolicy: OnFailure` and `ttlSecondsAfterFinished: 3600`, and stamps
   `app.kubernetes.io/managed-by=passmower`, `app.kubernetes.io/component=secret-refresh`,
   `codemowers.cloud/oidc-client=<name>` labels so the shipped `PrometheusRule`
   (`prometheusRule.enabled`) can alert on `kube_job_failed`.
