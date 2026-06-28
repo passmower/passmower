@@ -199,6 +199,10 @@ class OIDCClient {
         jobSpec.template = jobSpec.template || {}
         jobSpec.template.spec = jobSpec.template.spec || {}
         jobSpec.template.spec.restartPolicy = jobSpec.template.spec.restartPolicy || 'OnFailure'
+        // Reap finished refresh Jobs instead of letting them pile up across
+        // rotations (they're owner-referenced to the client, so only the
+        // client's deletion would otherwise clean them). Overridable per client.
+        jobSpec.ttlSecondsAfterFinished = jobSpec.ttlSecondsAfterFinished ?? 3600
         return {
             apiVersion: 'batch/v1',
             kind: 'Job',
