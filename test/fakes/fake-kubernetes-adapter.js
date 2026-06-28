@@ -14,8 +14,10 @@ export class FakeKubernetesAdapter {
         this.namespace = namespace
         this.instance = instance
         this.store = new Map()       // `${kind}/${name}` -> stored CR object
-        this.secrets = new Map()     // `${namespace}/${name}` -> secret data
+        this.secrets = new Map()     // `${namespace}/${name}` -> { data, metadata }
+        this.pods = []               // pods created via createPod (e.g. secretRefreshPod)
         this.watchHandlers = []      // for operator tests
+        this.watchParameters = null  // set by setWatchParameters()
         this._rv = 0
     }
 
@@ -76,17 +78,40 @@ export class FakeKubernetesAdapter {
         return mapperFunction(structuredClone(stored))
     }
 
-    // --- Secrets (used by the client operator) ------------------------------
+    // --- Secrets + pods (used by the client operator) -----------------------
 
     async getSecret(namespace, id) { return this.secrets.get(`${namespace}/${id}`) }
-    async createSecret(namespace, id, data) { this.secrets.set(`${namespace}/${id}`, data); return data }
-    async replaceSecret(namespace, id, data) { this.secrets.set(`${namespace}/${id}`, data); return data }
+    async createSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
+    async patchSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
+    async deleteSecret(namespace, id) { this.secrets.delete(`${namespace}/${id}`) }
+    async createPod(namespace, podSpec) { this.pods.push({ namespace, podSpec: structuredClone(podSpec) }); return { phase: 'Pending' } }
 
     // --- Watch (used by operators) ------------------------------------------
 
-    // Operators call setWatchParameters(...) then watchObjects(); for tests we
-    // expose a hook to push synthetic events through whatever the operator
-    // registered. Operators that don't use this can ignore it.
+    setWatchParameters(kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback) {
+        this.watchParameters = { kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback }
+    }
+
+    // Real adapter opens a long-lived watch here; tests drive events explicitly
+    // via fireWatch() instead.
+    async watchObjects() { /* no-op for tests */ }
+
+    /**
+     * Drive a synthetic watch event for a seeded resource, mirroring what the
+     * real watch stream would deliver. Returns the reconcile callback's result.
+     */
+    async fireWatch(type, kind, name) {
+        const stored = this.store.get(this.#key(kind, name))
+        if (!stored) throw new Error(`fireWatch: ${kind}/${name} not seeded`)
+        const mapped = this.watchParameters.mapperFunction(structuredClone(stored))
+        const cb = {
+            ADDED: this.watchParameters.addedCallback,
+            MODIFIED: this.watchParameters.modifiedCallback,
+            DELETED: this.watchParameters.deletedCallback,
+        }[type]
+        return cb(mapped)
+    }
+
     onWatch(handler) { this.watchHandlers.push(handler) }
     #emit(type, kind, obj) {
         for (const h of this.watchHandlers) h(type, kind, structuredClone(obj))
