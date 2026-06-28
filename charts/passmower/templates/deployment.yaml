@@ -37,46 +37,46 @@ spec:
                    commented-out/empty value falls back to the app default
                    instead of being forced to "" (#67). Booleans are always
                    emitted because `false` is meaningful. */}}
-            {{- with .Values.passmower.group_prefix }}
+            {{- with .Values.passmower.groupPrefix }}
             - name: GROUP_PREFIX
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.passmower.admin_group }}
+            {{- with .Values.passmower.adminGroup }}
             - name: ADMIN_GROUP
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.passmower.required_group }}
+            {{- with .Values.passmower.requiredGroup }}
             - name: REQUIRED_GROUP
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.passmower.github_organization }}
+            {{- with .Values.passmower.githubOrganization }}
             - name: GITHUB_ORGANIZATION
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.passmower.username_source }}
+            {{- with .Values.passmower.usernameSource }}
             - name: USERNAME_SOURCE
               value: {{ . | quote }}
             {{- end }}
             - name: ENROLL_USERS
-              value: {{ .Values.passmower.enroll_users | quote }}
+              value: {{ .Values.passmower.enrollUsers | quote }}
             - name: DISABLE_FRONTEND_EDIT
-              value: {{ .Values.passmower.disable_frontend_edit | quote }}
-            {{- with .Values.passmower.namespace_selector }}
+              value: {{ .Values.passmower.disableFrontendEdit | quote }}
+            {{- with .Values.passmower.namespaceSelector }}
             - name: NAMESPACE_SELECTOR
               value: {{ . | quote }}
             {{- end }}
-            {{- with .Values.passmower.preferred_email_domain }}
+            {{- with .Values.passmower.preferredEmailDomain }}
             - name: PREFERRED_EMAIL_DOMAIN
               value: {{ . | quote }}
             {{- end }}
             - name: NORMALIZE_EMAIL_ADDRESSES
-              value: {{ .Values.passmower.normalize_email_addresses | quote }}
+              value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
             - name: WEBAUTHN_ENABLED
-              value: {{ .Values.passmower.webauthn_enabled | quote }}
+              value: {{ .Values.passmower.webauthnEnabled | quote }}
             - name: GITHUB_ENABLED
-              value: {{ .Values.passmower.github_enabled | quote }}
+              value: {{ .Values.passmower.githubEnabled | quote }}
             - name: EMAIL_ENABLED
-              value: {{ .Values.passmower.email_enabled | quote }}
+              value: {{ .Values.passmower.emailEnabled | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default list | toJson | quote }}
             - name: REDIS_IP_FAMILY
@@ -100,13 +100,13 @@ spec:
           envFrom:
             - secretRef:
                 name: oidc-keys
-            {{- if .Values.passmower.email_credentials_secretRef }}
+            {{- if .Values.passmower.emailCredentialsSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.email_credentials_secretRef }}
+                name: {{ .Values.passmower.emailCredentialsSecretRef }}
             {{- end }}
-            {{- if .Values.passmower.github_client_secretRef }}
+            {{- if .Values.passmower.githubClientSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.github_client_secretRef }}
+                name: {{ .Values.passmower.githubClientSecretRef }}
             {{- end }}
             {{- /* One secretRef per distinct OIDC provider credentials secret. */}}
             {{- $seen := dict }}
@@ -117,9 +117,9 @@ spec:
                 name: {{ .clientSecretRef }}
             {{- end }}
             {{- end }}
-            {{- if .Values.passmower.slack_client_secretRef }}
+            {{- if .Values.passmower.slackClientSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.slack_client_secretRef }}
+                name: {{ .Values.passmower.slackClientSecretRef }}
             {{- end }}
           readinessProbe:
             httpGet:
@@ -172,8 +172,8 @@ spec:
       volumes:
         - name: tos
           configMap:
-            {{- if .Values.passmower.texts.terms_of_service.configMapRef }}
-            name: {{ .Values.passmower.texts.terms_of_service.configMapRef.name }}
+            {{- if .Values.passmower.texts.termsOfService.configMapRef }}
+            name: {{ .Values.passmower.texts.termsOfService.configMapRef.name }}
             {{- else }}
             name: {{ include "passmower.fullname" . }}-tos
             {{- end }}
@@ -186,8 +186,8 @@ spec:
             {{- end }}
         - name: disable-frontend-edit
           configMap:
-            {{- if .Values.passmower.texts.disable_frontend_edit.configMapRef }}
-            name: {{ .Values.passmower.texts.disable_frontend_edit.configMapRef.name }}
+            {{- if .Values.passmower.texts.disableFrontendEdit.configMapRef }}
+            name: {{ .Values.passmower.texts.disableFrontendEdit.configMapRef.name }}
             {{- else }}
             name: {{ include "passmower.fullname" . }}-disable-frontend-edit
             {{- end }}

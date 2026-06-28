@@ -14,7 +14,7 @@ A single setting controls how the username is chosen when a **new** user is enro
 | `prompt` | The user must pick a custom username via a form. The username is validated (3–15 chars, lowercase alphanumeric, starts with a letter, not blacklisted) and must be unique. |
 | `upstream` | Derived from the upstream provider's username — GitHub `login`, or the OIDC `preferred_username`/`nickname`. It is sanitized and run through the same validation/uniqueness checks; if it is missing, invalid, or already taken, Passmower **falls back to the `prompt` form** (pre-filled with the candidate). Email magic-link logins have no upstream username and therefore always fall back to `prompt`. |
 
-Default (Helm `passmower.username_source`): `prompt`.
+Default (Helm `passmower.usernameSource`): `prompt`.
 
 `sub` always equals the stored `accountId` regardless of this setting — it is stable and unique.
 This is intentional: relying parties key off `sub`.
@@ -41,7 +41,7 @@ These two flags are replaced by `USERNAME_SOURCE`:
 
 If `USERNAME_SOURCE` is unset, Passmower still derives it from the old env vars and logs a
 deprecation warning (both-true resolves to `prompt`). The Helm chart no longer wires the old
-values — set `passmower.username_source` instead.
+values — set `passmower.usernameSource` instead.
 
 > **Breaking change for `USE_GITHUB_USERNAME=true` deployments.** Previously `sub` was the GitHub
 > login while the stored `accountId` was a random id, so `sub` and `accountId` differed (and `sub`
