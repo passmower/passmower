@@ -156,6 +156,29 @@ export default (provider) => {
         }
     });
 
+    // One-time impersonation link (#51). The admin generates it from the admin
+    // panel and opens it in a private/incognito window or another device, so
+    // their own and downstream apps' cookies are never mixed with the
+    // impersonated user's session. If any cookies are already present the link
+    // refuses to activate and tells the admin to use a clean window.
+    router.get('/impersonate/:jti', async (ctx) => {
+        const messagePage = (title, message) => ctx.render('message', {
+            title, message, wide: false, uid: null, dbg: undefined, nonce: ctx.res.locals.cspNonce,
+        })
+        if (ctx.headers.cookie) {
+            auditLog(ctx, {}, 'Impersonation link opened with existing cookies, refused')
+            return messagePage('Open in a private window',
+                'Existing cookies were detected. To impersonate safely, open this link in a private/incognito window (or another browser) so your own and applications’ sessions are not mixed with the impersonated user’s.')
+        }
+        const impersonation = await ctx.sessionService.activateImpersonation(ctx, ctx.params.jti)
+        if (!impersonation) {
+            return messagePage('Impersonation link invalid',
+                'This impersonation link is invalid or has already been used. Generate a new one from the admin panel.')
+        }
+        auditLog(ctx, {impersonation}, 'Impersonation link activated')
+        return ctx.redirect(process.env.ISSUER_URL)
+    });
+
     router.get('/interaction/:uid', async (ctx, next) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         const { prompt, session, params, grantId } = interactionDetails

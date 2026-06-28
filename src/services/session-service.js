@@ -156,32 +156,42 @@ export class SessionService {
         return true
     }
 
-    async impersonate(ctx, accountId) {
-        let account = await Account.findAccount(ctx, accountId)
+    // Create a one-time impersonation link instead of activating impersonation
+    // in the admin's own browser. The admin opens the link in a private/incognito
+    // window (or another device) so their own and downstream apps' cookies never
+    // mix with the impersonated user's session (#51). No cookies are touched here.
+    async createImpersonation(ctx, accountId) {
+        const account = await Account.findAccount(ctx, accountId)
         if (!account) {
             ctx.statusCode = 404
-            return
+            return null
         }
-        // Remove the session cookie but keep the session itself intact - admin can later return to it.
-        // TODO: would back-channel log-out be required?
-        ctx.cookies.set(
-            this.provider.cookieName('session'),
-            null,
-        );
-        ctx.cookies.set(
-            this.provider.cookieName('session') + '.legacy',
-            null,
-        );
-
         const impersonation = {
             jti: nanoid(),
             actor: ctx.adminSession.accountId,
             accountId,
+            activated: false,
         }
         await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
+        return {
+            accountId,
+            link: `${process.env.ISSUER_URL}impersonate/${impersonation.jti}`,
+        }
+    }
+
+    // Consume a one-time impersonation link in the (clean) browser that opened
+    // it: set the impersonation cookie so the next login prompt offers to act as
+    // the target user. One-time: a link can only be activated once.
+    async activateImpersonation(ctx, jti) {
+        const impersonation = await this.impersonationRedis.find(jti)
+        if (!impersonation || impersonation.activated) {
+            return null
+        }
+        impersonation.activated = true
+        await this.impersonationRedis.upsert(jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
         ctx.cookies.set(
             this.provider.cookieName('impersonation'),
-            impersonation.jti,
+            jti,
             {
                 ...instance(this.provider).configuration.cookies.long,
                 maxAge: instance(this.provider).configuration.ttl.Impersonation * 1000,
