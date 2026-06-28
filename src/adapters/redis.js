@@ -130,8 +130,22 @@ export async function disconnect() {
     timers.forEach(clearInterval);
     timers = [];
     if (client) {
-        await client.quit().catch(() => client.disconnect());
+        const c = client;
         client = undefined;
+        // Let scheduled async work (e.g. fire-and-forget event listeners that
+        // do Redis I/O) run, then wait for the command queue to be *stably*
+        // empty before closing — otherwise ioredis rejects still-queued (or
+        // about-to-be-issued) commands with "Connection is closed" as an
+        // unhandled rejection. The stability check covers the gaps between a
+        // listener's sequential awaited commands.
+        const deadline = Date.now() + 2000;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        let emptyStreak = 0;
+        while (emptyStreak < 3 && Date.now() < deadline) {
+            emptyStreak = c.commandQueue?.length ? 0 : emptyStreak + 1;
+            await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        await c.quit().catch(() => c.disconnect());
     }
     isReady = false;
     readyPromise = new Promise(resolve => { readyResolve = resolve; });

@@ -30,6 +30,7 @@ class OIDCClient {
     #responseTypes = null
     #tokenEndpointAuthMethod = null
     #idTokenSignedResponseAlg = null
+    #applicationType = null
     #redirectUris = null
     #allowedGroups = null
     #overrideIncomingScopes = null
@@ -62,6 +63,7 @@ class OIDCClient {
             grant_types: this.#grantTypes,
             token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
             id_token_signed_response_alg: this.#idTokenSignedResponseAlg,
+            application_type: this.#applicationType,
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
@@ -84,6 +86,7 @@ class OIDCClient {
         this.#responseTypes = incomingClient.spec.responseTypes
         this.#tokenEndpointAuthMethod = incomingClient.spec.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
+        this.#applicationType = incomingClient.spec.applicationType || configuration.clientDefaults.application_type
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes

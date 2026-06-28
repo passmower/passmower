@@ -1,0 +1,25 @@
+---
+# Native/mobile app client (e.g. immich, the Nextcloud Android app). Such apps
+# use a custom-scheme or http-loopback redirect URI, which is only valid for
+# clients with applicationType: native. They are public clients (no usable
+# secret), so authenticate with PKCE and tokenEndpointAuthMethod: none.
+apiVersion: codemowers.cloud/v1beta1
+kind: OIDCClient
+metadata:
+  name: native-app-sample-client
+spec:
+  applicationType: native
+  redirectUris:
+    - 'app.immich:///oauth-callback'   # custom scheme
+    - 'http://localhost:8080/callback' # or an http loopback URI
+  grantTypes:
+    - 'authorization_code'
+    - 'refresh_token'
+  responseTypes:
+    - 'code'
+  availableScopes:
+    - 'openid'
+    - 'profile'
+    - 'offline_access'
+  tokenEndpointAuthMethod: 'none' # public client
+  pkce: true

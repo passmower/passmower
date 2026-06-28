@@ -109,7 +109,11 @@ export default {
         response_types: [
             'code'
         ],
-        token_endpoint_auth_method: 'client_secret_basic'
+        token_endpoint_auth_method: 'client_secret_basic',
+        // 'web' (default) requires https redirect URIs. Native/mobile apps
+        // (custom-scheme or http loopback redirect URIs, e.g. immich, the
+        // Nextcloud Android app) must set application_type: 'native'.
+        application_type: 'web'
     },
     extraClientMetadata: {
         properties: [
