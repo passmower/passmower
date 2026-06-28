@@ -33,24 +33,42 @@ spec:
               value: {{ include "passmower.url" . }}
             - name: DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
+            {{- /* Optional string settings: only emit when set & non-empty so a
+                   commented-out/empty value falls back to the app default
+                   instead of being forced to "" (#67). Booleans are always
+                   emitted because `false` is meaningful. */}}
+            {{- with .Values.passmower.group_prefix }}
             - name: GROUP_PREFIX
-              value: {{ .Values.passmower.group_prefix | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.admin_group }}
             - name: ADMIN_GROUP
-              value: {{ .Values.passmower.admin_group | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.required_group }}
             - name: REQUIRED_GROUP
-              value: {{ .Values.passmower.required_group | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.github_organization }}
             - name: GITHUB_ORGANIZATION
-              value: {{ .Values.passmower.github_organization | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.username_source }}
             - name: USERNAME_SOURCE
-              value: {{ .Values.passmower.username_source | quote }}
+              value: {{ . | quote }}
+            {{- end }}
             - name: ENROLL_USERS
               value: {{ .Values.passmower.enroll_users | quote }}
             - name: DISABLE_FRONTEND_EDIT
               value: {{ .Values.passmower.disable_frontend_edit | quote }}
+            {{- with .Values.passmower.namespace_selector }}
             - name: NAMESPACE_SELECTOR
-              value: {{ .Values.passmower.namespace_selector | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.preferred_email_domain }}
             - name: PREFERRED_EMAIL_DOMAIN
-              value: {{ .Values.passmower.preferred_email_domain | quote }}
+              value: {{ . | quote }}
+            {{- end }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalize_email_addresses | quote }}
             - name: WEBAUTHN_ENABLED
