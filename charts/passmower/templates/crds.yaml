@@ -357,10 +357,16 @@ spec:
                     labels:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
-                secretRefreshPod:
+                secretRefreshJobSpec:
                   type: object
+                  description: >-
+                    A Kubernetes JobSpec (the .spec of a batch/v1 Job) run after
+                    the client's owner Secret is created or updated — e.g. to
+                    restart/redeploy the consuming workload. Passmower wraps it in
+                    a Job owned by this OIDCClient, with labels for alerting. Use a
+                    Job (not a bare Pod) so failed refreshes are retried and
+                    surfaced via the kube_job_failed metric.
                   x-kubernetes-preserve-unknown-fields: true
-                  x-kubernetes-embedded-resource: true
                 tokenEndpointAuthMethod:
                   type: string
                   enum:

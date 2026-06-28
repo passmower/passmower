@@ -1,0 +1,35 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "passmower.fullname" . }}-secret-refresh
+  labels:
+    {{- include "passmower.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: passmower-secret-refresh
+      rules:
+        # Alerts when an OIDCClient secret-refresh Job (spec.secretRefreshJobSpec)
+        # has exhausted its retries and failed. Relies on kube-state-metrics
+        # (kube_job_failed + kube_job_labels). The secret-refresh Jobs carry
+        # app.kubernetes.io/component=secret-refresh and the oidc-client label.
+        - alert: PassmowerSecretRefreshJobFailed
+          expr: >-
+            kube_job_failed{condition="true"}
+            * on(namespace, job_name) group_left(label_codemowers_cloud_oidc_client)
+            kube_job_labels{label_app_kubernetes_io_managed_by="passmower", label_app_kubernetes_io_component="secret-refresh"}
+            > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Passmower secret-refresh Job failed
+            description: >-
+              The secret-refresh Job {{ "{{ $labels.namespace }}/{{ $labels.job_name }}" }}
+              for OIDCClient {{ "{{ $labels.label_codemowers_cloud_oidc_client }}" }}
+              has failed. The consuming workload may not have picked up the new
+              client secret.
+{{- end }}

@@ -135,6 +135,13 @@ podMonitor:
   # Scrape interval
   interval: 30s
 
+prometheusRule:
+  # Enable a PrometheusRule alerting on failed secret-refresh Jobs (requires
+  # kube-state-metrics). See OIDCClient spec.secretRefreshJobSpec.
+  enabled: false
+  # Additional labels for the PrometheusRule (e.g. to match your Prometheus ruleSelector)
+  labels: {}
+
 service:
   type: ClusterIP
   port: 80

@@ -47,7 +47,7 @@ class OIDCClient {
     #conditions = {}
     #allowedCORSOrigins = null
     #secretMetadata = null
-    #secretRefreshPod = null
+    #secretRefreshJobSpec = null
     #displayOrder = 0
     #description = null
 
@@ -100,7 +100,7 @@ class OIDCClient {
         this.#pkce = incomingClient.spec.pkce ?? true
         this.#conditions = incomingClient.status?.conditions ?? []
         this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
-        this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
+        this.#secretRefreshJobSpec = incomingClient.spec?.secretRefreshJobSpec ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
@@ -186,22 +186,35 @@ class OIDCClient {
         return this.#resourceVersion
     }
 
-    getSecretRefreshPod() {
-        let podSpec = this.#secretRefreshPod
-        if (!podSpec) {
+    // Build the secret-refresh Job from the user-supplied JobSpec. Using a Job
+    // (instead of a bare Pod) gets Kubernetes scheduler retries and a
+    // kube_job_failed metric for alerting; labels make alert rules specific and
+    // the ownerReference garbage-collects the Job with its OIDCClient (#70).
+    getSecretRefreshJob() {
+        const jobSpec = this.#secretRefreshJobSpec
+        if (!jobSpec) {
             return undefined
         }
-        podSpec.metadata = podSpec.metadata || {}
-        podSpec.metadata.name = podSpec.metadata.name || `${this.getClientName()}-${this.getResourceVersion()}`
-        podSpec.metadata.ownerReferences = [
-            new KubeOwnerMetadata(
-                OIDCClientCrd,
-                this.getClientName(),
-                this.#uid
-            )
-        ];
-        podSpec.spec.restartPolicy = podSpec.spec.restartPolicy || 'Never'
-        return podSpec
+        // Jobs require restartPolicy Never|OnFailure on the pod template.
+        jobSpec.template = jobSpec.template || {}
+        jobSpec.template.spec = jobSpec.template.spec || {}
+        jobSpec.template.spec.restartPolicy = jobSpec.template.spec.restartPolicy || 'OnFailure'
+        return {
+            apiVersion: 'batch/v1',
+            kind: 'Job',
+            metadata: {
+                name: `${this.getClientName()}-secret-refresh-${this.getResourceVersion()}`,
+                ownerReferences: [
+                    new KubeOwnerMetadata(OIDCClientCrd, this.getClientName(), this.#uid)
+                ],
+                labels: {
+                    'app.kubernetes.io/managed-by': 'passmower',
+                    'app.kubernetes.io/component': 'secret-refresh',
+                    'codemowers.cloud/oidc-client': this.getClientName(),
+                },
+            },
+            spec: jobSpec,
+        }
     }
 }
 

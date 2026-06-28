@@ -99,10 +99,10 @@ export class KubeOIDCClientOperator {
             OIDCClient.toClientSecret(this.provider),
             OIDCClient.toClientSecretMetadata(),
         )
-        if (OIDCClient.getSecretRefreshPod()) {
-            await this.adapter.createPod(
+        if (OIDCClient.getSecretRefreshJob()) {
+            await this.adapter.createJob(
                 OIDCClient.getClientNamespace(),
-                OIDCClient.getSecretRefreshPod()
+                OIDCClient.getSecretRefreshJob()
             )
         }
     }
@@ -115,10 +115,10 @@ export class KubeOIDCClientOperator {
             OIDCClient.toClientSecretMetadata(),
             existingSecret
         )
-        if (OIDCClient.getSecretRefreshPod()) {
-            await this.adapter.createPod(
+        if (OIDCClient.getSecretRefreshJob()) {
+            await this.adapter.createJob(
                 OIDCClient.getClientNamespace(),
-                OIDCClient.getSecretRefreshPod()
+                OIDCClient.getSecretRefreshJob()
             )
         }
     }
