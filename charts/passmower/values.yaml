@@ -5,44 +5,40 @@ passmower:
   # Hostname on which Passmower will be deployed to. Will be used as ingress host.
   host: ""
   # Local groups will be created with given prefix.
-  group_prefix: "passmower"
+  groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
-  admin_group: ""
+  adminGroup: ""
   # If set, require all users to be member of the given local or remote group.
-  required_group: ""
+  requiredGroup: ""
   # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
-  github_organization: ""
+  githubOrganization: ""
   # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
   #   generated - random system-generated id (u<...>)
   #   prompt    - user must pick a custom username via a form
   #   upstream  - derived from the upstream provider (GitHub login, OIDC preferred_username),
   #               falling back to the prompt form when unavailable/taken/invalid
   # `sub` always equals the stored accountId regardless of this setting.
-  username_source: prompt
-  # DEPRECATED, no longer wired by this chart — use username_source (upstream) instead.
-  use_github_username: false
-  # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
-  enroll_users: true
+  usernameSource: prompt
+  # Allow enrolling new users automatically. Actual access will be based on requiredGroup parameter. Disable to only manually provision users.
+  enrollUsers: true
   # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
-  disable_frontend_edit: false
+  disableFrontendEdit: false
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.
-  namespace_selector: "*"
+  namespaceSelector: "*"
   # Domain which will be preferred for determining primary emails.
-  preferred_email_domain: "gmail.com"
-  # DEPRECATED, no longer wired by this chart — use username_source (prompt) instead.
-  require_custom_username: true
+  preferredEmailDomain: "gmail.com"
   # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
-  normalize_email_addresses: true
+  normalizeEmailAddresses: true
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
-  webauthn_enabled: true
-  # Enable GitHub OAuth login. Requires github_client_secretRef to be set.
-  github_enabled: true
-  # Enable email magic-link login. Requires email_credentials_secretRef to be set.
-  email_enabled: true
+  webauthnEnabled: true
+  # Enable GitHub OAuth login. Requires githubClientSecretRef to be set.
+  githubEnabled: true
+  # Enable email magic-link login. Requires emailCredentialsSecretRef to be set.
+  emailEnabled: true
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
-  email_credentials_secretRef: "email-credentials"
+  emailCredentialsSecretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
-  github_client_secretRef: "github-client"
+  githubClientSecretRef: "github-client"
   # Generic OIDC upstream login providers. Add an entry per provider — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:
@@ -80,7 +76,7 @@ passmower:
   #    groupPrefix: entraid
   #    clientSecretRef: entraid-client
   # Slack API client secret name. Secret must contain SLACK_TOKEN
-  # slack_client_secretRef: "slack-client"
+  # slackClientSecretRef: "slack-client"
   # Different texts displayed and sent to the user
   texts:
     approval:
@@ -90,19 +86,19 @@ passmower:
     emails:
       #configMapRef:
       #  name: ""
-      login_link:
+      loginLink:
         subject: "Passmower login link"
         text: "Open the following link to log in: <%= url %>"
         body: ""
-      terms_of_service:
+      termsOfService:
         subject: "Terms of Service agreement confirmation"
         text: ""
         body: ""
-    terms_of_service:
+    termsOfService:
         #configMapRef:
         #  name: ""
         content: ""
-    disable_frontend_edit:
+    disableFrontendEdit:
         #configMapRef:
         #  name: ""
         content: "Editing profile is disabled. Please see [our Git](https://github.com)"
@@ -120,6 +116,8 @@ redis:
   # Deploys a simple, non persistent Redis deployment.
   internal:
     enabled: true
+    # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
+    image: redis:7-alpine
   # Use your own implementation - just provide a secret with a valid Redis URL.
   external:
     enabled: false
@@ -159,7 +157,7 @@ ingress:
 image:
   repository: ghcr.io/passmower/passmower
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
+  # Overrides the image tag whose default is the chart version.
   # tag: "develop"
 
 podSecurityContext: {}
