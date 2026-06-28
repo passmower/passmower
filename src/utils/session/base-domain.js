@@ -3,7 +3,13 @@ import microMatch from "micromatch";
 
 export const getBaseDomainFromUrl = (url) => {
     url = new URL(url)
-    let domain = parseDomain(url.hostname);
+    const domain = parseDomain(url.hostname);
+    // Non-registrable hosts (IP addresses, "localhost", single labels) have no
+    // domain/topLevelDomains. Fall back to the hostname itself so the app still
+    // boots in local/dev/test setups instead of throwing at import.
+    if (!domain.domain || !domain.topLevelDomains?.length) {
+        return url.hostname
+    }
     return [
         domain.domain,
         domain.topLevelDomains.join('.')

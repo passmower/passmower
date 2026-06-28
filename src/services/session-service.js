@@ -72,11 +72,18 @@ export class SessionService {
 
     async endOIDCSession(sessionToDelete, ctx, next) {
         sessionToDelete = await this.sessionRedis.find(sessionToDelete)
+        // Only touch the browser's cookies when ending the *current* session;
+        // otherwise use a no-op so ending another session (or cleaning up after
+        // an authorization error, where ctx has no cookies at all) doesn't clear
+        // the live cookie or throw.
+        const cookies = (sessionToDelete?.jti === ctx.currentSession?.jti && ctx.cookies)
+            ? ctx.cookies
+            : { set: () => {} }
+        // oidc-provider v9's end_session action reads ctx.cookies (v8 read
+        // ctx.oidc.cookies), so set both for the "dirty hack" call below.
+        ctx.cookies = cookies
         ctx.oidc = {
-            // don't clear cookies when it's not current session
-            cookies: sessionToDelete?.jti === ctx.currentSession?.jti && ctx.cookies ? ctx.cookies : {
-                set: () => {}
-            },
+            cookies,
             urlFor: () => {
                 // don't redirect when ending other sessions in frontpage
                 return process.env.ISSUER_URL

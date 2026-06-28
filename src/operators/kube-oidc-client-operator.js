@@ -8,10 +8,10 @@ import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 
 export class KubeOIDCClientOperator {
-    constructor(provider) {
+    constructor(provider, adapter = new KubernetesAdapter()) {
         this.redisAdapter = new RedisAdapter('Client')
         this.provider = provider
-        this.adapter = new KubernetesAdapter()
+        this.adapter = adapter
         this.instance = this.adapter.instance
     }
 

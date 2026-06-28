@@ -52,7 +52,7 @@ export default {
           let message
           try {
             message = await response.json()
-          } catch (e) {}
+          } catch { /* no/!JSON body — leave message undefined */ }
           if (message?.errors) {
             message.errors.forEach(e => {
               const $toast = useToast();

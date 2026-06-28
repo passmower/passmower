@@ -88,11 +88,19 @@ export const getOidcClient = async (providerConfig) => {
     if (configCache.has(providerConfig.key)) {
         return configCache.get(providerConfig.key);
     }
+    // Opt-in escape hatch for local/CI testing against an http upstream IdP
+    // (e.g. a Dex container). Never enable this in production. Passing
+    // allowInsecureRequests in the discovery options also relaxes the resulting
+    // Configuration's token/userinfo requests.
+    const options = process.env.OIDC_ALLOW_INSECURE_UPSTREAM === 'true'
+        ? { execute: [client.allowInsecureRequests] }
+        : undefined;
     const config = await client.discovery(
         new URL(providerConfig.issuer),
         providerConfig.clientId,
         providerConfig.clientSecret,
         client.ClientSecretBasic(providerConfig.clientSecret),
+        options,
     );
     configCache.set(providerConfig.key, config);
     return config;

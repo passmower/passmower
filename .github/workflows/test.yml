@@ -1,0 +1,130 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [develop, master]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Frontend lint + build
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run lint:check
+          npm --prefix frontend run build
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 5
+    env:
+      REDIS_URI: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Integration tests (real Redis + fake kube + mock IdP)
+        run: npm run test:integration
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Pin passmower hostname to localhost
+        run: echo "127.0.0.1 passmower.localtest.me" | sudo tee -a /etc/hosts
+
+      - name: Start Redis + Dex
+        run: docker compose -f docker-compose.test.yml up -d
+
+      - name: Create kind cluster + apply CRDs
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: passmower-e2e
+      - run: |
+          kubectl apply -f charts/passmower/templates/crds.yaml
+          kubectl create namespace passmower-test --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Build frontend + styles
+        run: |
+          npm --prefix frontend ci && npm --prefix frontend run build
+          npm --prefix styles ci && npm --prefix styles run sass-prod
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for Dex
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5556/dex/.well-known/openid-configuration && break
+            sleep 1
+          done
+
+      - name: Install Caddy (TLS terminator)
+        run: |
+          curl -fsSL https://github.com/caddyserver/caddy/releases/download/v2.8.4/caddy_2.8.4_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin caddy
+          caddy version
+
+      - name: Start passmower (http) behind Caddy (https)
+        run: |
+          set -a; . test/e2e/passmower.env; set +a
+          export KUBECONFIG="$HOME/.kube/config"
+          export OIDC_COOKIE_KEYS='["e2e-cookie-secret-0123456789abcdef0123456789"]'
+          export OIDC_JWKS="$(node -e "const {generateKeyPairSync}=require('crypto');const {privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});const j=privateKey.export({format:'jwk'});j.use='sig';j.alg='RS256';j.kid='e2e';console.log(JSON.stringify([j]))")"
+          node src/app.js > passmower-e2e.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/.well-known/openid-configuration && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3000/.well-known/openid-configuration > /dev/null || {
+            echo "::error::passmower did not start"; cat passmower-e2e.log; exit 1;
+          }
+          caddy start --config test/e2e/Caddyfile
+          for i in $(seq 1 20); do
+            curl -ksf https://passmower.localtest.me:8443/.well-known/openid-configuration && break
+            sleep 1
+          done
+          curl -ksf https://passmower.localtest.me:8443/.well-known/openid-configuration > /dev/null || {
+            echo "::error::TLS endpoint not reachable"; cat passmower-e2e.log; exit 1;
+          }
+
+      - name: Run Playwright e2e
+        env:
+          PASSMOWER_URL: https://passmower.localtest.me:8443
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: passmower logs on failure
+        if: failure()
+        run: cat passmower-e2e.log || true

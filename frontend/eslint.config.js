@@ -26,4 +26,13 @@ export default [
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
   skipFormatting,
+  {
+    name: 'app/rules',
+    rules: {
+      // This app's components are top-level views (Profile, Apps, Admin) and
+      // single-glyph icon components (Key, Plus, …) where single-word names are
+      // intentional and clearer than forced two-word names.
+      'vue/multi-word-component-names': 'off',
+    },
+  },
 ]

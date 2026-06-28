@@ -9,15 +9,15 @@
         <p><strong>Primary email: </strong> {{ account.email }}</p>
         <p><strong>Emails: </strong></p>
         <ul>
-            <li v-for="email in account.emails">{{ email }}</li>
+            <li v-for="email in account.emails" :key="email">{{ email }}</li>
         </ul>
         <p><strong>Phones: </strong></p>
         <ul>
-          <li v-for="phone in account.phones">{{ phone }}</li>
+          <li v-for="phone in account.phones" :key="phone">{{ phone }}</li>
         </ul>
         <p><strong>Groups: </strong></p>
         <ul>
-            <li v-for="group in account.groups">{{ group.displayName }}</li>
+            <li v-for="group in account.groups" :key="group.displayName">{{ group.displayName }}</li>
         </ul>
         <br/>
         <p v-if="account.tos_accepted_at"><a target="_blank" href="/terms-of-service">Terms of Service</a> accepted at {{account.tos_accepted_at}}</p>
@@ -42,7 +42,7 @@ export default {
     },
     methods: {
         ...mapActions(useAccountStore, ['setAccount']),
-        async editProfile(e) {
+        async editProfile() {
             const modal = await openModal(EditProfile);
             modal.onclose = () => {
                 this.setAccount(this.originalAccount)

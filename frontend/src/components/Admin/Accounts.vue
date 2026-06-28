@@ -9,7 +9,7 @@
         <div class="profile-section-header">
             <h2>Users</h2>
         </div>
-        <div class="item" v-for="account in accounts">
+        <div class="item" v-for="account in accounts" :key="account.accountId">
             <div class="item-details">
                 <h3>{{ account.accountId }}</h3>
                 <p>Name: {{ account.name }}</p>
