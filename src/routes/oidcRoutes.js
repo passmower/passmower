@@ -322,16 +322,37 @@ export default (provider) => {
             const success = ctx.request.query[q] === 'true'
             return success ? (q === 'email' ? 'e-mail' : 'Slack') : null;
         }).filter(a => a);
-        return render(provider, ctx, 'message', 'Link sent', {
+        // The 'link-sent' view polls /email-status and continues automatically on
+        // this (original) device once the link is opened — possibly on another
+        // device/browser.
+        return render(provider, ctx, 'link-sent', 'Link sent', {
             message: `Login link sent to ${recipients.join(' and ')}`
         })
     });
 
-    router.get('/interaction/:uid/verify-email/:token', (ctx) => {
+    // Opened from the email — on any device/browser. Marks the email verified
+    // (and finishes immediately if opened in the original browser).
+    router.get('/interaction/:uid/verify-email/:token', async (ctx) => {
         const emailLogin = new EmailLogin()
-        const result = emailLogin.verifyLink(ctx, provider)
-        auditLog(ctx, {params: ctx.request.params, result}, 'Login link used')
-        return result
+        auditLog(ctx, {params: ctx.request.params}, 'Login link used')
+        return await emailLogin.verifyLink(ctx, provider)
+    });
+
+    // Polled by the original device's "link sent" page.
+    router.get('/interaction/:uid/email-status', async (ctx) => {
+        ctx.body = { verified: await new EmailLogin().isVerified(provider, ctx.params.uid) }
+    });
+
+    // Completes the login on the original device once the email is verified.
+    router.get('/interaction/:uid/email-complete', async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+        if (!interactionDetails.result?.emailVerified) {
+            return render(provider, ctx, 'message', 'Not verified yet', {
+                message: 'Open the link sent to your email to continue signing in.'
+            })
+        }
+        auditLog(ctx, {uid: ctx.params.uid}, 'Completing email login on original device')
+        return new EmailLogin().completeLogin(ctx, provider, interactionDetails.result.email)
     });
 
     // ============================================

@@ -1,0 +1,17 @@
+<% if (message) { %>
+<p><%= message %></p>
+<% } %>
+<p id="waiting">Open the link to continue. You can open it on this or another device — this page will continue automatically once you do.</p>
+<script nonce="<%= nonce %>">
+  (function () {
+    var uid = '<%= uid %>';
+    function poll() {
+      fetch('/interaction/' + uid + '/email-status', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.verified) { window.location = '/interaction/' + uid + '/email-complete'; } })
+        .catch(function () { /* keep polling */ });
+    }
+    setInterval(poll, 2000);
+    poll();
+  })();
+</script>
