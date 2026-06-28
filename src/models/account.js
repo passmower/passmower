@@ -210,6 +210,12 @@ class Account {
         return this.accountId
     }
 
+    // OIDCUser spec.type: person | org | service | banned | group (may be unset
+    // for accounts created before the field was populated — treated as person).
+    get type() {
+        return this.#spec?.type ?? null
+    }
+
     addCondition(condition) {
         return condition.add(this)
     }
