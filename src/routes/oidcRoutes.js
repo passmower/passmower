@@ -135,7 +135,7 @@ export default (provider) => {
             if (enabledAuthMethodCount() === 1) {
                 return ctx.redirect(url.href)
             }
-            return render(provider, ctx, 'hi', `Welcome to Passmower`, {
+            return render(provider, ctx, 'hi', process.env.WELCOME_MESSAGE || 'Welcome to Passmower', {
                 url: url.href
             })
         }

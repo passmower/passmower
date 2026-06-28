@@ -37,6 +37,10 @@ spec:
                    commented-out/empty value falls back to the app default
                    instead of being forced to "" (#67). Booleans are always
                    emitted because `false` is meaningful. */}}
+            {{- with .Values.passmower.welcomeMessage }}
+            - name: WELCOME_MESSAGE
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.passmower.groupPrefix }}
             - name: GROUP_PREFIX
               value: {{ . | quote }}
