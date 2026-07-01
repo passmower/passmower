@@ -14,6 +14,26 @@ export default {
         policy: setupPolicies()
     },
     conformIdTokenClaims: false, // https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#id-token-does-not-include-claims-other-than-sub
+    // Include the user's groups in JWT access tokens when the `groups` scope
+    // was granted, so resource servers can authorize without an extra userinfo
+    // call. Only applies to self-contained (JWT) access tokens; see
+    // features.resourceIndicators.
+    async extraTokenClaims(ctx, token) {
+        if (token.kind !== 'AccessToken') {
+            return undefined;
+        }
+        const scopes = token.scope ? token.scope.split(' ') : [];
+        if (!scopes.includes('groups')) {
+            return undefined;
+        }
+        const account = await Account.findAccount(ctx, token.accountId);
+        if (!account) {
+            return undefined;
+        }
+        return {
+            groups: (account.groups || []).map(g => `${g.prefix}:${g.name}`),
+        };
+    },
     cookies: {
         keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
         names: {
@@ -59,6 +79,30 @@ export default {
             allowedPolicy: async function introspectionAllowedPolicy(ctx, client, token) {
                 return !(client.clientAuthMethod === 'none' && token.clientId !== ctx.oidc.client.clientId);
             }
+        },
+        // RFC 8707 Resource Indicators. When a client requests a `resource`,
+        // the issued access token is a self-contained JWT (audience-bound to
+        // that resource) instead of an opaque reference, so resource servers
+        // can validate it against the JWKS endpoint without introspection.
+        // Clients that do not request a resource keep getting opaque tokens.
+        resourceIndicators: {
+            enabled: true,
+            // Use the resource granted at authorization even when the token
+            // request omits an explicit `resource` parameter.
+            useGrantedResource: () => true,
+            getResourceServerInfo(ctx, resourceIndicator, client) {
+                return {
+                    audience: resourceIndicator,
+                    accessTokenTTL: 60 * 60,
+                    accessTokenFormat: 'jwt',
+                    // Scope the resource server to whatever the client may
+                    // request; keeps this generic with no app-specific config.
+                    scope: (client.availableScopes || ['openid', 'profile', 'groups', 'offline_access']).join(' '),
+                    jwt: {
+                        sign: { alg: 'RS256' },
+                    },
+                };
+            },
         },
     },
     ttl: {
