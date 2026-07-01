@@ -1,4 +1,5 @@
 import * as k8s from "@kubernetes/client-node";
+import net from 'node:net';
 import {
     defaultApiGroup,
     defaultApiGroupVersion,
@@ -7,6 +8,33 @@ import {
 import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
+
+// loadFromCluster() builds the API server URL straight from KUBERNETES_SERVICE_HOST,
+// which on IPv6-only / dual-stack clusters is a bare IPv6 literal — so the client
+// connects to https://[fd00::1]:443. The kube-apiserver serving cert always lists
+// the DNS names (kubernetes.default.svc, ...) but not necessarily every ClusterIP as
+// an IP SAN, so connecting by literal IP fails TLS verification with
+// "Hostname/IP does not match certificate's altnames" on some clusters. The in-cluster
+// DNS name kubernetes.default.svc is always present in the cert SANs, so we rewrite the
+// server to use it and let the pod resolver pick the right address family.
+//
+// Gated by KUBERNETES_API_SERVICE_DNS: 'auto' (default) only rewrites when the host is
+// an IPv6 literal (IPv4 clusters that work today are untouched); 'always' forces it;
+// 'never' disables it. Returns the replacement server URL, or null to leave it as-is.
+export function apiServerUrlViaServiceDns({
+    host = process.env.KUBERNETES_SERVICE_HOST,
+    port = process.env.KUBERNETES_SERVICE_PORT,
+    mode = process.env.KUBERNETES_API_SERVICE_DNS ?? 'auto',
+} = {}) {
+    if (!host || mode === 'never') {
+        return null
+    }
+    if (mode !== 'always' && !net.isIPv6(host)) {
+        return null
+    }
+    const scheme = (port === '80' || port === '8080' || port === '8001') ? 'http' : 'https'
+    return `${scheme}://kubernetes.default.svc:${port}`
+}
 
 export class KubernetesAdapter {
     constructor() {
@@ -18,6 +46,18 @@ export class KubernetesAdapter {
         // (e.g. envtest), without changing in-cluster behaviour.
         if (process.env.KUBERNETES_SERVICE_HOST) {
             kc.loadFromCluster()
+            // Must run before makeApiClient(), which captures cluster.server eagerly.
+            const dnsServer = apiServerUrlViaServiceDns()
+            if (dnsServer) {
+                const cluster = kc.getCurrentCluster()
+                if (cluster) {
+                    globalThis.logger?.info(
+                        { from: cluster.server, to: dnsServer },
+                        'Kubernetes: using service DNS for the API server to avoid IPv6 TLS SAN mismatch'
+                    )
+                    cluster.server = dnsServer
+                }
+            }
         } else {
             kc.loadFromDefault()
         }
