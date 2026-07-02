@@ -14,7 +14,10 @@ passmower:
   adminGroup: ""
   # If set, require all users to be member of the given local or remote group.
   requiredGroup: ""
-  # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
+  # GitHub organization whose team memberships are mapped into groups (named "<org>:<team>") on GitHub login.
+  # This enriches users with group memberships only — it does NOT restrict who may log in; users outside the
+  # organization simply sign in with no GitHub groups. To actually gate access, pair this with requiredGroup.
+  # Scoping to a single organization also keeps the user's memberships in other organizations private from Passmower.
   githubOrganization: ""
   # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
   #   generated - random system-generated id (u<...>)
