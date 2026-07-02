@@ -16,7 +16,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@codemowers/oidc-key-manager": "^1.2.0",
+    "@codemowers/oidc-key-manager": "^1.2.1",
     "@koa/ejs": "^5.1.0",
     "@koa/router": "^15.6.0",
     "@kubernetes/client-node": "^1.4.0",
