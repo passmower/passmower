@@ -94,6 +94,27 @@ describe('Account.claims', () => {
         expect(claims.company).toBe('Acme')
         expect(claims.emails).toEqual([{ email: 'a@x.com', primary: true }])
     })
+
+    it('omits namespaces when the enrichment webhook is not configured', async () => {
+        const a = account({ status: { primaryEmail: 'a@x.com', groups: [], profile: {} } })
+        const claims = await a.claims('id_token', 'openid namespaces', {}, [])
+        expect(claims['codemowers.io/namespaces']).toBeUndefined()
+    })
+
+    it('merges the namespaces claim from the enrichment webhook when granted', async () => {
+        vi.stubEnv('EXTRA_CLAIMS_WEBHOOK_URL', 'http://webhook.test/enrich')
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ 'codemowers.io/namespaces': ['tenant-demo'] }),
+        })
+        vi.stubGlobal('fetch', fetchMock)
+
+        const a = account({ status: { primaryEmail: 'a@x.com', groups: [], profile: {} } })
+        const claims = await a.claims('id_token', 'openid namespaces', {}, [])
+
+        expect(claims['codemowers.io/namespaces']).toEqual(['tenant-demo'])
+        expect(fetchMock).toHaveBeenCalledOnce()
+    })
 })
 
 describe('Account.getRemoteHeaders', () => {

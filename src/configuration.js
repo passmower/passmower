@@ -3,6 +3,7 @@ import renderError from "./utils/render-error.js";
 import setupPolicies from "./providers/setup-policies.js";
 import {errors} from "oidc-provider";
 import isOrigin from "./utils/session/is-origin.js";
+import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
 
 export default {
     findAccount: Account.findAccount,
@@ -14,25 +15,40 @@ export default {
         policy: setupPolicies()
     },
     conformIdTokenClaims: false, // https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#id-token-does-not-include-claims-other-than-sub
-    // Include the user's groups in JWT access tokens when the `groups` scope
-    // was granted, so resource servers can authorize without an extra userinfo
-    // call. Only applies to self-contained (JWT) access tokens; see
-    // features.resourceIndicators.
+    // Include the user's groups (and, via the enrichment webhook, namespaces)
+    // in JWT access tokens when the matching scope was granted, so resource
+    // servers can authorize without an extra userinfo call. Only applies to
+    // self-contained (JWT) access tokens; see features.resourceIndicators.
     async extraTokenClaims(ctx, token) {
         if (token.kind !== 'AccessToken') {
             return undefined;
         }
         const scopes = token.scope ? token.scope.split(' ') : [];
-        if (!scopes.includes('groups')) {
+        const wantsGroups = scopes.includes('groups');
+        const wantsNamespaces = scopes.includes('namespaces');
+        if (!wantsGroups && !wantsNamespaces) {
             return undefined;
         }
         const account = await Account.findAccount(ctx, token.accountId);
         if (!account) {
             return undefined;
         }
-        return {
-            groups: (account.groups || []).map(g => `${g.prefix}:${g.name}`),
-        };
+        const groups = (account.groups || []).map(g => `${g.prefix}:${g.name}`);
+        const claims = {};
+        if (wantsGroups) {
+            claims.groups = groups;
+        }
+        // Small, stable external signals (e.g. namespaces from the billing
+        // service). Fail-open: fetchExtraClaims returns {} on any error.
+        if (wantsNamespaces) {
+            Object.assign(claims, await fetchExtraClaims({
+                sub: token.accountId,
+                groups,
+                client_id: token.clientId,
+                scope: token.scope,
+            }));
+        }
+        return Object.keys(claims).length ? claims : undefined;
     },
     cookies: {
         keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
@@ -64,11 +80,15 @@ export default {
         groups: ['groups'],
         allowed_groups: ['groups'],
         applications: ['applications'],
+        // Namespaces the caller may access, supplied by the external
+        // enrichment webhook (EXTRA_CLAIMS_WEBHOOK_URL). Prefixed claim key
+        // matches the codemowers.io/* label convention driftmower consumes.
+        namespaces: ['codemowers.io/namespaces'],
         sid: null,
     },
     // Scopes not backed by a claim. `all_applications` gates the admin-only
     // catalog endpoint; the apps list itself is delivered via REST, not a claim.
-    scopes: ['openid', 'offline_access', 'all_applications'],
+    scopes: ['openid', 'offline_access', 'all_applications', 'namespaces'],
     features: {
         devInteractions: { enabled: false }, // defaults to true
         deviceFlow: { enabled: true }, // defaults to false
