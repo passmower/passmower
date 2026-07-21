@@ -92,7 +92,16 @@ export default async (ctx, provider, providerConfig) => {
                 expectedNonce: flow.nonce,
             });
         } catch (error) {
-            auditLog(ctx, { error: error.message, interactionDetails }, `Error getting tokens from ${displayName}`);
+            // openid-client error classes carry the OAuth error body/params
+            // (ResponseBodyError from the token endpoint, AuthorizationResponseError
+            // from an error= callback) — surface them, error.message alone is generic.
+            auditLog(ctx, {
+                error: error.message,
+                oauthError: error.error,
+                oauthErrorDescription: error.error_description,
+                cause: error.cause,
+                interactionDetails,
+            }, `Error getting tokens from ${displayName}`);
             return accessDenied(ctx, provider, 'User aborted login');
         }
 

@@ -60,6 +60,10 @@ passmower:
   #                   a data: URI. External image URLs are blocked by CSP. Falls
   #                   back to a built-in logo for well-known keys, else a generic icon.
   #   enabled         (optional) defaults to true
+  #   tokenEndpointAuthMethod (optional) client_secret_post (default) or
+  #                   client_secret_basic. Note: basic sends RFC 6749 §2.3.1
+  #                   form-urlencoded credentials, which some providers
+  #                   (notably Google) reject with invalid_client.
   #   clientSecretRef the Kubernetes secret holding this provider's credentials;
   #                   it MUST contain <KEY>_CLIENT_ID and <KEY>_CLIENT_SECRET
   #                   (KEY = key upper-cased, e.g. GOOGLE_CLIENT_ID). Several

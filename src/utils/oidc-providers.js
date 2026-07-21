@@ -10,6 +10,7 @@ import * as client from "openid-client";
 //      "scopes": ["openid","email","profile"],   // optional
 //      "groupsClaim": "groups",                    // optional
 //      "groupPrefix": "google.com",                // optional, defaults to issuer host
+//      "tokenEndpointAuthMethod": "client_secret_post", // optional, or client_secret_basic
 //      "enabled": true }]                          // optional, defaults to true
 //
 // Client credentials are NEVER part of that JSON — they are read from
@@ -61,6 +62,13 @@ const buildProvider = (def) => {
         scopes: Array.isArray(def.scopes) && def.scopes.length ? def.scopes : DEFAULT_SCOPES,
         groupsClaim: def.groupsClaim || null,
         groupPrefix,
+        // client_secret_post is the default: oauth4webapi's client_secret_basic
+        // form-urlencodes credentials per RFC 6749 §2.3.1, which several major
+        // providers (notably Google) do not decode — they reject the encoded
+        // client_id with invalid_client "OAuth client was not found".
+        tokenEndpointAuthMethod: def.tokenEndpointAuthMethod === 'client_secret_basic'
+            ? 'client_secret_basic'
+            : 'client_secret_post',
         // Optional custom button icon: inline SVG markup, a data: URI, or a URL.
         // Falls back to a built-in logo for well-known keys, else a generic glyph.
         icon: def.icon || null,
@@ -80,10 +88,10 @@ export const oidcRedirectUri = (key) => `${process.env.ISSUER_URL}interaction/ca
 // memoized per provider.
 const configCache = new Map();
 
-// Resolve a provider into an openid-client v6 `Configuration`. We pin
-// client_secret_basic to preserve the upstream auth method used under v5
-// (`new issuer.Client(...)` defaulted to basic; v6 `discovery()` would
-// otherwise default to client_secret_post).
+// Resolve a provider into an openid-client v6 `Configuration`. The client
+// authentication method comes from the provider definition and defaults to
+// client_secret_post — see the note on tokenEndpointAuthMethod in
+// buildProvider for why basic is not the default.
 export const getOidcClient = async (providerConfig) => {
     if (configCache.has(providerConfig.key)) {
         return configCache.get(providerConfig.key);
@@ -95,11 +103,14 @@ export const getOidcClient = async (providerConfig) => {
     const options = process.env.OIDC_ALLOW_INSECURE_UPSTREAM === 'true'
         ? { execute: [client.allowInsecureRequests] }
         : undefined;
+    const clientAuth = providerConfig.tokenEndpointAuthMethod === 'client_secret_basic'
+        ? client.ClientSecretBasic(providerConfig.clientSecret)
+        : client.ClientSecretPost(providerConfig.clientSecret);
     const config = await client.discovery(
         new URL(providerConfig.issuer),
         providerConfig.clientId,
         providerConfig.clientSecret,
-        client.ClientSecretBasic(providerConfig.clientSecret),
+        clientAuth,
         options,
     );
     configCache.set(providerConfig.key, config);

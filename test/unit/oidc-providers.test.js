@@ -38,6 +38,21 @@ describe('getOidcProviders', () => {
         expect(p.scopes).toEqual(['openid', 'email', 'profile'])
     })
 
+    it('defaults tokenEndpointAuthMethod to client_secret_post and only allows basic as the alternative', () => {
+        vi.stubEnv('GOOGLE_CLIENT_ID', 'id')
+        vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret')
+
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify([{ key: 'google', issuer: 'https://accounts.google.com' }]))
+        expect(getOidcProvider('google').tokenEndpointAuthMethod).toBe('client_secret_post')
+
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify([{ key: 'google', issuer: 'https://accounts.google.com', tokenEndpointAuthMethod: 'client_secret_basic' }]))
+        expect(getOidcProvider('google').tokenEndpointAuthMethod).toBe('client_secret_basic')
+
+        // Anything unrecognized falls back to the safe default.
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify([{ key: 'google', issuer: 'https://accounts.google.com', tokenEndpointAuthMethod: 'private_key_jwt' }]))
+        expect(getOidcProvider('google').tokenEndpointAuthMethod).toBe('client_secret_post')
+    })
+
     it('maps a provider key with non-alphanumerics to an underscored env prefix', () => {
         vi.stubEnv('OIDC_PROVIDERS', JSON.stringify([{ key: 'entra-id', issuer: 'https://login.microsoftonline.com' }]))
         vi.stubEnv('ENTRA_ID_CLIENT_ID', 'id')
