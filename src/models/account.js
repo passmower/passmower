@@ -6,6 +6,7 @@ import validator from "validator";
 import {listMyApps} from "../utils/apps/list-apps.js";
 import {getUsernameSource} from "../utils/username-source.js";
 import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
+import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -114,6 +115,18 @@ class Account {
         // (conformIdTokenClaims is false, so any claim here would land in the id_token too).
         if (use === 'userinfo' && scope.split(' ').includes('applications')) {
             response.applications = await listMyApps(this)
+        }
+        // Kubernetes namespaces the caller may access, from the external
+        // enrichment webhook. Mirrors the JWT-access-token path in
+        // configuration.js so the same claim reaches id_token/userinfo
+        // consumers. Fail-open: fetchExtraClaims returns {} on any error.
+        if (scope.split(' ').includes('namespaces')) {
+            Object.assign(response, await fetchExtraClaims({
+                sub: username,
+                groups,
+                client_id: this.#ctx?.oidc?.client?.clientId,
+                scope,
+            }))
         }
 
         return response

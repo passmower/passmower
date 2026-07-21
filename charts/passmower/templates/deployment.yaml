@@ -73,6 +73,10 @@ spec:
             - name: PREFERRED_EMAIL_DOMAIN
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.passmower.extraClaimsWebhookUrl }}
+            - name: EXTRA_CLAIMS_WEBHOOK_URL
+              value: {{ . | quote }}
+            {{- end }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
             - name: WEBAUTHN_ENABLED
@@ -111,6 +115,11 @@ spec:
             {{- if .Values.passmower.githubClientSecretRef }}
             - secretRef:
                 name: {{ .Values.passmower.githubClientSecretRef }}
+            {{- end }}
+            {{- /* Secret with EXTRA_CLAIMS_WEBHOOK_TOKEN for the enrichment webhook. */}}
+            {{- if .Values.passmower.extraClaimsWebhookTokenSecretRef }}
+            - secretRef:
+                name: {{ .Values.passmower.extraClaimsWebhookTokenSecretRef }}
             {{- end }}
             {{- /* One secretRef per distinct OIDC provider credentials secret. */}}
             {{- $seen := dict }}

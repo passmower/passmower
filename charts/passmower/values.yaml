@@ -46,6 +46,16 @@ passmower:
   emailCredentialsSecretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
   githubClientSecretRef: "github-client"
+
+  # Generic claims-enrichment webhook: at token issuance passmower POSTs the
+  # caller context ({sub, groups, client_id, scope}) to this URL and merges the
+  # returned JSON into claims backed by the `namespaces` scope. Fail-open with
+  # a 2s timeout — an outage never blocks login. Empty = feature off.
+  extraClaimsWebhookUrl: ""
+  # Secret holding EXTRA_CLAIMS_WEBHOOK_TOKEN, presented to the webhook as a
+  # bearer token.
+  extraClaimsWebhookTokenSecretRef: ""
+
   # Generic OIDC upstream login providers. Add an entry per provider — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:

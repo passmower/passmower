@@ -326,6 +326,7 @@ spec:
                       - allowed_groups
                       - applications
                       - all_applications
+                      - namespaces
                 displayName:
                   type: string
                 grantTypes:
