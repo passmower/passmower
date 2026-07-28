@@ -83,6 +83,35 @@ spec:
 
 See and use [values.yaml](values.yaml) for customizations.
 
+## Redis configuration
+
+`REDIS_URI` remains the preferred single-value configuration and takes
+precedence when it is set. Passmower can also construct the connection URL from
+`REDIS_HOST`, `REDIS_PORT` (default `6379`), `REDIS_USERNAME`, `REDIS_PASSWORD`,
+and `REDIS_DB` (default `0`). Only `REDIS_HOST` is required in sliced mode.
+
+The chart supports a generated password Secret without requiring that Secret to
+template a complete URI:
+
+```yaml
+redis:
+  internal:
+    enabled: false
+  external:
+    enabled: true
+    host: dragonfly.default.svc.cluster.local
+    port: 6379
+    database: 0
+    passwordSecretKeyRef:
+      name: dragonfly-auth
+      key: password
+```
+
+Alternatively, set `redis.external.envFromSecretRef` to import a Secret whose
+keys use the `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, and
+`REDIS_DB` names. The existing `redis.external.secretKeyRef` URI configuration
+continues to work unchanged.
+
 ## Upstream login providers
 
 Passmower authenticates users against GitHub (a dedicated handler), email
