@@ -235,6 +235,14 @@ svg {
     }
   }
 }
+
+.welcome-logo {
+  display: block;
+  width: min(240px, 70vw);
+  height: auto;
+  margin: 0 auto 1.5rem;
+}
+
 @media screen and (max-width: 640px) {
   .card, .card-wide {
     width: 100%;
