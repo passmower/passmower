@@ -243,6 +243,12 @@ svg {
   margin: 0 auto 1.5rem;
 }
 
+.welcome-subtitle {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
 @media screen and (max-width: 640px) {
   .card, .card-wide {
     width: 100%;

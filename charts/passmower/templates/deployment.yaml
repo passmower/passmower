@@ -41,6 +41,10 @@ spec:
             - name: WELCOME_MESSAGE
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.passmower.welcomeSubtitle }}
+            - name: WELCOME_SUBTITLE
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.passmower.groupPrefix }}
             - name: GROUP_PREFIX
               value: {{ . | quote }}

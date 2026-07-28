@@ -6,8 +6,11 @@ passmower:
   host: ""
   # Heading shown on the welcome / sign-in landing page (only rendered when more
   # than one login method is enabled; a single method skips straight to sign-in).
-  # Empty falls back to "One login. Every cluster.".
+  # Empty falls back to "Welcome to Passmower".
   welcomeMessage: ""
+  # Smaller copy shown below the logo and heading on the welcome page.
+  # Empty falls back to "One login. Every cluster. The Kubernetes-native OpenID provider.".
+  welcomeSubtitle: ""
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.

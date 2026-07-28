@@ -20,6 +20,9 @@
           <p id="error"></p>
         </div>
       </div>
+      <% if (welcome) { %>
+      <img class="welcome-logo" src="/passmower.png" alt="Passmower">
+      <% } %>
       <h1><%= title %></h1>
       <%- body %>
       <% if (uid) { %>
