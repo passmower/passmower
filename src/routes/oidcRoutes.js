@@ -106,6 +106,7 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
         params,
         title,
         dbg,
+        welcome: false,
         ...extra,
         wide,
         nonce: ctx.res.locals.cspNonce,
@@ -135,8 +136,10 @@ export default (provider) => {
             if (enabledAuthMethodCount() === 1) {
                 return ctx.redirect(url.href)
             }
-            return render(provider, ctx, 'hi', process.env.WELCOME_MESSAGE || 'One login. Every cluster.', {
-                url: url.href
+            return render(provider, ctx, 'hi', process.env.WELCOME_MESSAGE || 'Welcome to Passmower', {
+                url: url.href,
+                welcomeSubtitle: process.env.WELCOME_SUBTITLE || 'One login. Every cluster. The Kubernetes-native OpenID provider.',
+                welcome: true
             })
         }
     })
