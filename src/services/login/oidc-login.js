@@ -4,6 +4,7 @@ import accessDenied from "../../utils/session/access-denied.js";
 import getLoginResult from "../../utils/user/get-login-result.js";
 import { auditLog } from "../../utils/session/audit-log.js";
 import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
+import ScimLinkService from "../scim-link-service.js";
 
 // Map the validated id_token / userinfo claims onto the structure we persist
 // under identities.<provider> and the values createOrUpdateByEmails expects.
@@ -24,6 +25,9 @@ const extractIdentity = (providerConfig, profile) => {
         emails: [{ email: primaryEmail, primary: true }],
         groups,
         preferredUsername: profile.preferred_username ?? profile.nickname,
+        linkClaims: Object.fromEntries(providerConfig.linkingClaims
+            .filter(claim => ['string', 'number'].includes(typeof profile[claim]))
+            .map(claim => [claim, String(profile[claim])])),
     };
 };
 
@@ -146,10 +150,22 @@ export default async (ctx, provider, providerConfig) => {
                         company: identity.company,
                         emails: identity.emails,
                         groups: identity.groups,
+                        linkClaims: identity.linkClaims,
                     },
                 },
             }
         );
+        try {
+            await new ScimLinkService(
+                ctx.kubeOIDCUserService.adapter,
+                ctx.kubeOIDCUserService,
+            ).linkAccount(key, account.accountId, identity.linkClaims);
+        } catch (error) {
+            // Linking enriches authorization; it is not authentication. Fail
+            // closed for the SCIM grant while allowing the verified upstream
+            // login to finish, and leave an audit trail for reconciliation.
+            auditLog(ctx, {error: error.message, provider: key, accountId: account.accountId}, 'SCIM account linking failed');
+        }
     }
 
     return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, displayName), {

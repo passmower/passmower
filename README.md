@@ -317,6 +317,10 @@ To list users:
 kubectl get oidcusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .github.id // "-", .status.profile.name] | @tsv' | column -t
 ```
 
+Passmower can also accept automated user and group provisioning over SCIM 2.0.
+See [docs/scim-provisioning.md](docs/scim-provisioning.md) for endpoint,
+authentication, Entra configuration, and lifecycle behavior.
+
 ## Traefik middleware
 
 For legacy applications `forwardAuth` based middleware option is supported.

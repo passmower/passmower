@@ -10,9 +10,11 @@ import serve from 'koa-static';
 import KubeOIDCClientOperator from "./operators/kube-oidc-client-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
+import scimRoutes from "./routes/scimRoutes.js";
 import {setupLogger} from "./providers/setup-logger.js";
 import {KubeOIDCMiddlewareClientOperator} from "./operators/kube-oidc-middleware-client-operator.js";
 import KubeOidcUserOperator from "./operators/kube-oidc-user-operator.js";
+import KubeScimConnectionOperator from "./operators/kube-scim-connection-operator.js";
 import metricsServer from "./routes/metrics-server.js";
 import {getUsernameSource} from "./utils/username-source.js";
 
@@ -35,6 +37,7 @@ export async function buildProvider() {
     provider.use(apiRoutes(provider).routes());
     provider.use(adminRoutes(provider).routes());
     provider.use(forwardAuthRoutes(provider).routes());
+    provider.use(scimRoutes().routes());
     provider.use(serve('frontend/dist'));
     provider.use(serve('styles/dist'));
     return provider
@@ -48,6 +51,8 @@ export async function startOperators(provider) {
     await kubeMiddlewareClientOperator.watchClients()
     const kubeUserOperator = new KubeOidcUserOperator(provider)
     await kubeUserOperator.watchUsers()
+    const scimConnectionOperator = new KubeScimConnectionOperator()
+    await scimConnectionOperator.watchConnections()
 }
 
 // Boot the full application. Skipped when imported as a module (e.g. by tests),

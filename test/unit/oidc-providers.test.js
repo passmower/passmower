@@ -86,6 +86,18 @@ describe('getOidcProviders', () => {
 
         expect(getOidcProviders()).toEqual([])
     })
+
+    it('retains only valid configured linking claim names', () => {
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
+            entra: {
+                issuer: 'https://login.microsoftonline.com/common/v2.0',
+                linkingClaims: ['tid', 'oid', 'tid', 'bad claim'],
+            }
+        }))
+        vi.stubEnv('ENTRA_CLIENT_ID', 'id')
+        vi.stubEnv('ENTRA_CLIENT_SECRET', 'secret')
+        expect(getOidcProvider('entra').linkingClaims).toEqual(['tid', 'oid'])
+    })
 })
 
 describe('oidcRedirectUri', () => {

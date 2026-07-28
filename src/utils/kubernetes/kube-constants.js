@@ -6,6 +6,12 @@ export const OIDCClientCrd = 'OIDCClient';
 export const OIDCClients = 'oidcclients';
 export const OIDCMiddlewareClientCrd = 'OIDCMiddlewareClient';
 export const OIDCMiddlewareClients = 'oidcmiddlewareclients';
+export const SCIMConnectionCrd = 'SCIMConnection';
+export const SCIMConnections = 'scimconnections';
+export const SCIMSubjectCrd = 'SCIMSubject';
+export const SCIMSubjects = 'scimsubjects';
+export const SCIMGroupCrd = 'SCIMGroup';
+export const SCIMGroups = 'scimgroups';
 export const defaultApiGroup = 'codemowers.cloud'
 // v1 is the served + storage version as of 2.0. v1beta1 is still served
 // (deprecated) by the CRDs, so existing v1beta1 objects remain visible through
@@ -41,5 +47,8 @@ export const plurals = {
     [OIDCUserCrd]: OIDCUsers,
     [OIDCClientCrd]: OIDCClients,
     [OIDCMiddlewareClientCrd]: OIDCMiddlewareClients,
+    [SCIMConnectionCrd]: SCIMConnections,
+    [SCIMSubjectCrd]: SCIMSubjects,
+    [SCIMGroupCrd]: SCIMGroups,
     [TraefikMiddleware]: TraefikMiddlewares,
 }

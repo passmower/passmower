@@ -134,6 +134,7 @@ class Account {
 
     getIntendedStatus() {
         const identities = Object.values(this.#identities ?? {})
+        const activeIdentities = identities.filter(identity => identity.active !== false)
         const identityEmails = identities.flatMap(i => i.emails ?? [])
         const emails = [...new Set([
             this.#spec?.email,
@@ -157,7 +158,7 @@ class Account {
         if (!primaryEmail) {
             primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email
         }
-        const groups = [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...identities.flatMap(i => i.groups ?? [])]
+        const groups = [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...activeIdentities.flatMap(i => i.groups ?? [])]
         return {
             primaryEmail,
             emails,

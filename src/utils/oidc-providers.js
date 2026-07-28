@@ -10,6 +10,7 @@ import * as client from "openid-client";
 //      "scopes": ["openid","email","profile"],   // optional
 //      "groupsClaim": "groups",                    // optional
 //      "groupPrefix": "google.com",                // optional, defaults to issuer host
+//      "linkingClaims": ["tid", "oid"],             // optional stable claims retained for SCIM linking
 //      "tokenEndpointAuthMethod": "client_secret_post", // optional, or client_secret_basic
 //      "enabled": true }}                          // optional, defaults to true
 //
@@ -72,6 +73,9 @@ const buildProvider = (def) => {
         clientSecret,
         scopes: Array.isArray(def.scopes) && def.scopes.length ? def.scopes : DEFAULT_SCOPES,
         groupsClaim: def.groupsClaim || null,
+        linkingClaims: Array.isArray(def.linkingClaims)
+            ? [...new Set(def.linkingClaims.filter(claim => typeof claim === 'string' && /^[A-Za-z0-9_.:-]+$/.test(claim)))]
+            : [],
         groupPrefix,
         // client_secret_post is the default: oauth4webapi's client_secret_basic
         // form-urlencodes credentials per RFC 6749 §2.3.1, which several major

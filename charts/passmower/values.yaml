@@ -67,6 +67,8 @@ passmower:
   #   scopes          (optional) defaults to [openid, email, profile]
   #   groupsClaim     (optional) token claim to read group/role membership from
   #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
+  #   linkingClaims   (optional) stable verified claims retained for SCIM subject
+  #                   linking, e.g. [tid, oid] for Entra. Never use email here.
   #   icon            (optional) custom sign-in button icon: inline SVG markup or
   #                   a data: URI. External image URLs are blocked by CSP. Falls
   #                   back to a built-in logo for well-known keys, else a generic icon.
