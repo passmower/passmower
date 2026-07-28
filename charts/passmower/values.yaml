@@ -6,7 +6,7 @@ passmower:
   host: ""
   # Heading shown on the welcome / sign-in landing page (only rendered when more
   # than one login method is enabled; a single method skips straight to sign-in).
-  # Empty falls back to "Welcome to Passmower".
+  # Empty falls back to "One login. Every cluster.".
   welcomeMessage: ""
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
