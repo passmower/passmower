@@ -137,6 +137,9 @@ redis:
     secretKeyRef:
       name: "redis-passmower-owner-secrets"
       key: "REDIS_MASTER_0_URI"
+    usernameSecretKeyRef:
+      name: ""
+      key: "username"
     passwordSecretKeyRef:
       name: ""
       key: "password"
