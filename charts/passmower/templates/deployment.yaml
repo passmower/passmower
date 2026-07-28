@@ -89,22 +89,47 @@ spec:
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
+            {{- if .Values.redis.internal.enabled }}
             - name: REDIS_URI
-              {{- if .Values.redis.internal.enabled }}
               value: redis://redis.{{ .Release.Namespace }}.svc.cluster.local
-              {{- end }}
-              {{- if .Values.redis.redisClaim.enabled }}
+            {{- else if .Values.redis.redisClaim.enabled }}
+            - name: REDIS_URI
               valueFrom:
                 secretKeyRef:
                   name: redis-{{ include "passmower.fullname" . }}-owner-secret
                   key: REDIS_MASTER_0_URI
-              {{- end }}
-              {{- if .Values.redis.external.enabled }}
+            {{- else if and .Values.redis.external.enabled .Values.redis.external.secretKeyRef.name (not .Values.redis.external.host) (not .Values.redis.external.envFromSecretRef) }}
+            - name: REDIS_URI
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.redis.external.secretKeyRef.name }}
                   key: {{ .Values.redis.external.secretKeyRef.key }}
-              {{- end }}
+            {{- end }}
+            {{- if .Values.redis.external.enabled }}
+            {{- with .Values.redis.external.host }}
+            - name: REDIS_HOST
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.redis.external.port }}
+            - name: REDIS_PORT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.redis.external.username }}
+            - name: REDIS_USERNAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.redis.external.database }}
+            - name: REDIS_DB
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.redis.external.passwordSecretKeyRef.name }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.external.passwordSecretKeyRef.name }}
+                  key: {{ .Values.redis.external.passwordSecretKeyRef.key }}
+            {{- end }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: oidc-keys
@@ -120,6 +145,10 @@ spec:
             {{- if .Values.passmower.extraClaimsWebhookTokenSecretRef }}
             - secretRef:
                 name: {{ .Values.passmower.extraClaimsWebhookTokenSecretRef }}
+            {{- end }}
+            {{- if and .Values.redis.external.enabled .Values.redis.external.envFromSecretRef }}
+            - secretRef:
+                name: {{ .Values.redis.external.envFromSecretRef }}
             {{- end }}
             {{- /* One secretRef per distinct OIDC provider credentials secret. */}}
             {{- $seen := dict }}

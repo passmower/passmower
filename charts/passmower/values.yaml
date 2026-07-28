@@ -143,12 +143,24 @@ redis:
     enabled: true
     # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
     image: redis:7-alpine
-  # Use your own implementation - just provide a secret with a valid Redis URL.
+  # Use your own implementation. REDIS_URI remains supported through
+  # secretKeyRef. Alternatively set host/port/username/database here and source
+  # the password from a Secret, or import a Secret whose keys are REDIS_HOST,
+  # REDIS_PORT, REDIS_USERNAME, REDIS_PASSWORD, and/or REDIS_DB.
   external:
     enabled: false
+    host: ""
+    # Empty values use runtime defaults: port 6379 and database 0.
+    port: ""
+    username: ""
+    database: ""
+    envFromSecretRef: ""
     secretKeyRef:
       name: "redis-passmower-owner-secrets"
       key: "REDIS_MASTER_0_URI"
+    passwordSecretKeyRef:
+      name: ""
+      key: "password"
 
 podMonitor:
   # Enable PodMonitor for Prometheus Operator
