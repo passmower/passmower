@@ -95,22 +95,25 @@ linked across providers by verified email.
 
 OIDC providers are configured entirely at deploy time — adding Google, GitLab,
 EntraID, Keycloak, Okta, Authentik, Zitadel, etc. requires no code change, just
-a `passmower.oidcProviders` list entry:
+a `passmower.oidcProviders` map entry:
 
 ```yaml
 passmower:
   oidcProviders:
-    - key: google                       # slug; also the callback path & env prefix
+    google:                              # slug; also the callback path & env prefix
+      order: 10                          # optional sign-in button order
       displayName: Google                # label on the sign-in button
       issuer: https://accounts.google.com
       clientSecretRef: google-client     # k8s secret with GOOGLE_CLIENT_ID/SECRET
-    - key: gitlab
+    gitlab:
+      order: 20
       displayName: GitLab
       issuer: https://gitlab.com         # set your host for self-hosted GitLab
       groupsClaim: groups_direct         # token claim to read groups from
       groupPrefix: gitlab.com            # optional; defaults to the issuer host
       clientSecretRef: gitlab-client
-    - key: entraid
+    entraid:
+      order: 30
       displayName: Microsoft
       issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
       groupsClaim: groups
@@ -118,9 +121,12 @@ passmower:
       clientSecretRef: entraid-client
 ```
 
-Each entry supports: `key` (required), `displayName`, `issuer` (required),
+Each entry's map key is its provider key. Entries support: `order`,
+`displayName`, `issuer` (required),
 `scopes` (defaults to `[openid, email, profile]`), `groupsClaim`, `groupPrefix`,
 `enabled` (defaults to `true`), `clientSecretRef`, and `icon`.
+Providers are sorted by ascending numeric `order`; entries with equal or omitted
+orders are sorted by provider key.
 
 Well-known providers (Google, GitLab, Microsoft) get a built-in button logo;
 anything else gets a generic icon. To set a custom one, use `icon` with **inline

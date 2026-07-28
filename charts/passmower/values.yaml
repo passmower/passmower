@@ -56,11 +56,12 @@ passmower:
   # bearer token.
   extraClaimsWebhookTokenSecretRef: ""
 
-  # Generic OIDC upstream login providers. Add an entry per provider — any
+  # Generic OIDC upstream login providers. Add a provider-keyed entry — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:
-  #   key             unique slug; also the env-var prefix for credentials and
-  #                   the callback path /interaction/callback/<key>
+  # The map key is the unique slug, env-var prefix, and callback path key.
+  #   order           (optional) numeric sign-in button order; unordered/equal
+  #                   entries are sorted by provider key
   #   displayName     label shown on the sign-in button
   #   issuer          OIDC issuer URL used for discovery
   #   scopes          (optional) defaults to [openid, email, profile]
@@ -79,18 +80,21 @@ passmower:
   #                   (KEY = key upper-cased, e.g. GOOGLE_CLIENT_ID). Several
   #                   providers may share one secret.
   # The provider only appears once its credentials are present.
-  oidcProviders: []
-  #  - key: google
+  oidcProviders: {}
+  #  google:
+  #    order: 10
   #    displayName: Google
   #    issuer: https://accounts.google.com
   #    clientSecretRef: google-client
-  #  - key: gitlab
+  #  gitlab:
+  #    order: 20
   #    displayName: GitLab
   #    issuer: https://gitlab.com
   #    groupsClaim: groups_direct
   #    groupPrefix: gitlab.com
   #    clientSecretRef: gitlab-client
-  #  - key: entraid
+  #  entraid:
+  #    order: 30
   #    displayName: Microsoft
   #    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
   #    groupsClaim: groups

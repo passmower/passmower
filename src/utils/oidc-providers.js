@@ -4,14 +4,14 @@ import * as client from "openid-client";
 // is not standards-compliant OIDC and keeps its own handler (github-login.js).
 //
 // Providers are fully defined at deploy time via the OIDC_PROVIDERS env var,
-// which holds a JSON array of definitions:
-//   [{ "key": "google", "displayName": "Google",
-//      "issuer": "https://accounts.google.com",
+// which holds a JSON object keyed by provider slug:
+//   { "google": { "displayName": "Google",
+//      "issuer": "https://accounts.google.com", "order": 10,
 //      "scopes": ["openid","email","profile"],   // optional
 //      "groupsClaim": "groups",                    // optional
 //      "groupPrefix": "google.com",                // optional, defaults to issuer host
 //      "tokenEndpointAuthMethod": "client_secret_post", // optional, or client_secret_basic
-//      "enabled": true }]                          // optional, defaults to true
+//      "enabled": true }}                          // optional, defaults to true
 //
 // Client credentials are NEVER part of that JSON — they are read from
 // environment (typically a mounted Kubernetes secret) using the convention
@@ -29,7 +29,17 @@ const parseProviderDefinitions = () => {
     }
     try {
         const parsed = JSON.parse(process.env.OIDC_PROVIDERS);
-        return Array.isArray(parsed) ? parsed : [];
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+            return [];
+        }
+        return Object.entries(parsed)
+            .filter(([, def]) => def && typeof def === 'object' && !Array.isArray(def))
+            .map(([key, def]) => ({ ...def, key }))
+            .sort((a, b) => {
+                const aOrder = Number.isFinite(a.order) ? a.order : Number.MAX_SAFE_INTEGER;
+                const bOrder = Number.isFinite(b.order) ? b.order : Number.MAX_SAFE_INTEGER;
+                return aOrder - bOrder || a.key.localeCompare(b.key);
+            });
     } catch (error) {
         globalThis.logger?.error({ error: error.message }, 'Failed to parse OIDC_PROVIDERS');
         return [];
@@ -54,6 +64,7 @@ const buildProvider = (def) => {
     }
     return {
         key: def.key,
+        order: Number.isFinite(def.order) ? def.order : null,
         displayName: def.displayName || def.key,
         enabled,
         issuer: def.issuer,

@@ -184,7 +184,8 @@ passwords** (or the `mockCallback` connector), and point Passmower at it via
 ```yaml
 passmower:
   oidcProviders:
-    - key: dev
+    dev:
+      order: 10
       displayName: Dev login (Dex)
       issuer: https://dex.dev.local        # or http:// if OIDC_ALLOW_INSECURE_UPSTREAM=true
       clientSecretRef: dex-dev-client
@@ -219,7 +220,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `OIDC_COOKIE_KEYS` | JSON array of cookie-signing keys. |
 | `OIDC_JWKS` | JSON JWKS for token signing. |
 | `REDIS_URI`, `REDIS_IP_FAMILY` | Redis connection. |
-| `OIDC_PROVIDERS` | JSON array of generic upstream OIDC providers. |
+| `OIDC_PROVIDERS` | JSON object of generic upstream OIDC providers keyed by provider slug. |
 | `OIDC_ALLOW_INSECURE_UPSTREAM` | Permit `http://` upstreams (local dev only). |
 | `GITHUB_ENABLED`, `GH_CLIENT_ID/SECRET`, `GITHUB_ORGANIZATION` | GitHub upstream. |
 | `EMAIL_ENABLED`, `EMAIL_HOST/PORT/SSL/USERNAME/PASSWORD/FROM` | Email magic-links. |

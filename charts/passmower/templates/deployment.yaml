@@ -86,7 +86,7 @@ spec:
             - name: EMAIL_ENABLED
               value: {{ .Values.passmower.emailEnabled | quote }}
             - name: OIDC_PROVIDERS
-              value: {{ .Values.passmower.oidcProviders | default list | toJson | quote }}
+              value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
             - name: REDIS_URI

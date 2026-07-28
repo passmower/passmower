@@ -48,8 +48,30 @@ All `passmower.*` and `passmower.texts.*` value keys moved from `snake_case` to
 | `passmower.texts.emails.terms_of_service` | `passmower.texts.emails.termsOfService` |
 
 These rendered **environment variables** keep their names (`GROUP_PREFIX`,
-`USERNAME_SOURCE`, …), so if you inject configuration directly as env vars rather than
-through chart values, nothing changes for you.
+`USERNAME_SOURCE`, …). Their values are unchanged except for the `OIDC_PROVIDERS`
+shape described below.
+
+### OIDC providers changed from a list to a map
+
+`passmower.oidcProviders` is now keyed by provider slug. This makes provider-specific
+overrides merge cleanly across Helm values files. Move each entry's `key` into the map
+key and optionally set a numeric `order` for its position on the sign-in page:
+
+```diff
+ passmower:
+   oidcProviders:
+-    - key: google
++    google:
++      order: 10
+       displayName: Google
+       issuer: https://accounts.google.com
+       clientSecretRef: google-client
+```
+
+Providers are sorted by ascending `order`, then by provider key when `order` is equal
+or omitted. If you inject `OIDC_PROVIDERS` directly, change its JSON value from an
+array to an object with the same keyed shape. The legacy array shape is no longer
+accepted.
 
 ### Removed deprecated keys
 
