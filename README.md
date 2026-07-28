@@ -105,12 +105,16 @@ redis:
     host: dragonfly.default.svc.cluster.local
     port: 6379
     database: 0
+    usernameSecretKeyRef:
+      name: dragonfly-auth
+      key: username
     passwordSecretKeyRef:
       name: dragonfly-auth
       key: password
 ```
 
-Alternatively, set `redis.external.envFromSecretRef` to import a Secret whose
+`usernameSecretKeyRef` is optional; a plain `redis.external.username` value is
+also supported. Set `redis.external.envFromSecretRef` instead to import a Secret whose
 keys use the `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, and
 `REDIS_DB` names. The existing `redis.external.secretKeyRef` URI configuration
 continues to work unchanged.

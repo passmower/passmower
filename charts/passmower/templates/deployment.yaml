@@ -114,9 +114,17 @@ spec:
             - name: REDIS_PORT
               value: {{ . | quote }}
             {{- end }}
+            {{- if .Values.redis.external.usernameSecretKeyRef.name }}
+            - name: REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.external.usernameSecretKeyRef.name }}
+                  key: {{ .Values.redis.external.usernameSecretKeyRef.key }}
+            {{- else }}
             {{- with .Values.redis.external.username }}
             - name: REDIS_USERNAME
               value: {{ . | quote }}
+            {{- end }}
             {{- end }}
             {{- with .Values.redis.external.database }}
             - name: REDIS_DB
