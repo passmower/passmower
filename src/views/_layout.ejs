@@ -20,7 +20,7 @@
           <p id="error"></p>
         </div>
       </div>
-      <% if (welcome) { %>
+      <% if (typeof welcome !== 'undefined' && welcome) { %>
       <img class="welcome-logo" src="/passmower.svg" alt="Passmower">
       <% } %>
       <h1><%= title %></h1>
