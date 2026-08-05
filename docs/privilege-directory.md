@@ -14,6 +14,13 @@ passmower:
     - github.com:example-org:billing
 ```
 
+Without the Helm chart, set `PRIVILEGE_DIRECTORY_GROUPS` to the equivalent JSON
+array string, for example:
+
+```shell
+PRIVILEGE_DIRECTORY_GROUPS='["example.com:kubernetes-admins","github.com:example-org:billing"]'
+```
+
 Authenticated users can then open `/privileges` for the complete configured
 directory. Each role heading links to `/privileges/<group>`, a shareable view
 containing only that role.
