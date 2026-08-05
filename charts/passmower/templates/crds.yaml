@@ -517,6 +517,34 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 slackId:
                   type: string
+                recentApplications:
+                  type: array
+                  description: >-
+                    Bounded, most-recent-first summary of applications successfully
+                    authorized by this user. This is an operational projection, not
+                    a durable audit log.
+                  items:
+                    type: object
+                    required:
+                      - clientId
+                      - clientNamespace
+                      - clientName
+                      - lastAuthenticatedAt
+                    properties:
+                      clientId:
+                        type: string
+                      clientNamespace:
+                        type: string
+                      clientName:
+                        type: string
+                      clientKind:
+                        type: string
+                        enum:
+                          - OIDCClient
+                          - OIDCMiddlewareClient
+                      lastAuthenticatedAt:
+                        type: string
+                        format: date-time
       subresources: &oidcUserSubresources
         status: {}
       additionalPrinterColumns: &oidcUserPrinterColumns
@@ -621,6 +649,12 @@ spec:
                       - namespaces
                 displayName:
                   type: string
+                disabled:
+                  type: boolean
+                  default: false
+                  description: >-
+                    Remove this client from the active provider configuration while
+                    preserving its resource and generated Secret for later re-enabling.
                 grantTypes:
                   type: array
                   items:
@@ -697,6 +731,10 @@ spec:
                     x-kubernetes-embedded-resource: true
                 instance:
                   type: string
+                lastUsedAt:
+                  type: string
+                  format: date-time
+                  description: Latest successful authorization or token exchange.
       subresources: &oidcClientSubresources
         status: {}
       additionalPrinterColumns: &oidcClientPrinterColumns
@@ -704,6 +742,12 @@ spec:
           type: string
           description: Passmower deployment which manages this client
           jsonPath: .status.instance
+        - name: Disabled
+          type: boolean
+          jsonPath: .spec.disabled
+        - name: Last used
+          type: date
+          jsonPath: .status.lastUsedAt
         - name: Uris
           type: string
           description: Redirect URLs configured for this client
@@ -755,6 +799,12 @@ spec:
                     type: string
                 displayName:
                   type: string
+                disabled:
+                  type: boolean
+                  default: false
+                  description: >-
+                    Disable forward authentication while preserving this resource
+                    and its generated middleware configuration.
                 headerMapping:
                   type: object
                   default:
@@ -787,6 +837,10 @@ spec:
                     x-kubernetes-embedded-resource: true
                 instance:
                   type: string
+                lastUsedAt:
+                  type: string
+                  format: date-time
+                  description: Latest successful authorization or token exchange.
       subresources: &oidcMiddlewareClientSubresources
         status: {}
       additionalPrinterColumns: &oidcMiddlewareClientPrinterColumns
@@ -794,6 +848,12 @@ spec:
           type: string
           description: Passmower deployment which manages this client
           jsonPath: .status.instance
+        - name: Disabled
+          type: boolean
+          jsonPath: .spec.disabled
+        - name: Last used
+          type: date
+          jsonPath: .status.lastUsedAt
         - name: Uri
           type: string
           description: URL configured for this client

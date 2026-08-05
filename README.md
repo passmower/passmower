@@ -289,6 +289,15 @@ user is allowed to open — via the `applications` userinfo claim, or the full
 admin-only catalog at `GET /api/apps/all`. See
 [docs/application-listing.md](docs/application-listing.md).
 
+## Audit logging and application activity
+
+Passmower emits minimal structured audit records and maintains bounded recent
+application summaries on user and client CRDs. Production installations should
+forward the audit stream to durable storage. See
+[docs/audit-logging.md](docs/audit-logging.md) for the event schema, privacy
+controls, retention guidance, inactivity conditions, and reversible client
+disabling.
+
 ## User enrollment
 
 How usernames are assigned at enrollment (system-generated, user-prompted, or derived from the

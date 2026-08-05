@@ -89,6 +89,20 @@ spec:
               value: {{ .Values.passmower.githubEnabled | quote }}
             - name: EMAIL_ENABLED
               value: {{ .Values.passmower.emailEnabled | quote }}
+            - name: AUDIT_ENABLED
+              value: {{ .Values.passmower.audit.enabled | quote }}
+            - name: AUDIT_INCLUDE_SOURCE_ADDRESS
+              value: {{ .Values.passmower.audit.includeSourceAddress | quote }}
+            - name: AUDIT_INCLUDE_USER_AGENT
+              value: {{ .Values.passmower.audit.includeUserAgent | quote }}
+            - name: ACTIVITY_TRACKING_ENABLED
+              value: {{ .Values.passmower.activityTracking.enabled | quote }}
+            - name: ACTIVITY_FLUSH_INTERVAL_SECONDS
+              value: {{ .Values.passmower.activityTracking.flushIntervalSeconds | quote }}
+            - name: ACTIVITY_RECENT_APPLICATION_LIMIT
+              value: {{ .Values.passmower.activityTracking.recentApplicationLimit | quote }}
+            - name: CLIENT_INACTIVE_AFTER_DAYS
+              value: {{ .Values.passmower.activityTracking.inactiveAfterDays | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY

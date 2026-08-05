@@ -50,6 +50,10 @@ class OIDCClient {
     #secretRefreshJobSpec = null
     #displayOrder = 0
     #description = null
+    #disabled = false
+    #lastUsedAt = null
+    #creationTimestamp = null
+    #generation = null
 
     constructor() {
     }
@@ -58,7 +62,7 @@ class OIDCClient {
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
-            client_namespace: this.#clientNamespace,
+            clientNamespace: this.#clientNamespace,
             client_secret: this.#clientSecret,
             grant_types: this.#grantTypes,
             token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
@@ -76,6 +80,7 @@ class OIDCClient {
             allowedCORSOrigins: this.#allowedCORSOrigins,
             displayOrder: this.#displayOrder,
             description: this.#description,
+            kind: OIDCClientCrd,
         }
     }
 
@@ -104,6 +109,10 @@ class OIDCClient {
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
+        this.#disabled = incomingClient.spec?.disabled === true
+        this.#lastUsedAt = incomingClient.status?.lastUsedAt ?? null
+        this.#creationTimestamp = incomingClient.metadata?.creationTimestamp ?? null
+        this.#generation = incomingClient.metadata?.generation ?? null
         return this
     }
 
@@ -170,6 +179,10 @@ class OIDCClient {
         return OIDCClientId(this.#clientNamespace, this.#clientName)
     }
 
+    getKind() {
+        return OIDCClientCrd
+    }
+
     getInstance() {
         return this.#status.instance
     }
@@ -184,6 +197,52 @@ class OIDCClient {
 
     getResourceVersion() {
         return this.#resourceVersion
+    }
+
+    getGeneration() {
+        return this.#generation
+    }
+
+    isDisabled() {
+        return this.#disabled
+    }
+
+    getLastUsedAt() {
+        return this.#lastUsedAt
+    }
+
+    setLastUsedAt(lastUsedAt) {
+        this.#lastUsedAt = lastUsedAt
+        return this
+    }
+
+    getIntendedStatus() {
+        return {
+            ...this.#status,
+            instance: this.#status.instance,
+            lastUsedAt: this.#lastUsedAt,
+            conditions: this.#conditions,
+        }
+    }
+
+    updateActivityCondition(now, inactiveAfterDays) {
+        const reference = this.#lastUsedAt ?? this.#creationTimestamp
+        if (!reference) return this
+        const inactive = now.getTime() - new Date(reference).getTime() >= inactiveAfterDays * 86400000
+        const previous = this.#conditions.find(condition => condition.type === 'Inactive')
+        const condition = {
+            type: 'Inactive',
+            status: inactive ? 'True' : 'False',
+            reason: inactive ? 'NotUsedRecently' : 'RecentlyUsed',
+            message: inactive
+                ? `Client has not been used for at least ${inactiveAfterDays} days`
+                : `Client was used within the last ${inactiveAfterDays} days`,
+            lastTransitionTime: previous?.status === (inactive ? 'True' : 'False')
+                ? previous.lastTransitionTime
+                : now.toISOString(),
+        }
+        this.#conditions = [...this.#conditions.filter(item => item.type !== 'Inactive'), condition]
+        return this
     }
 
     // Build the secret-refresh Job from the user-supplied JobSpec. Using a Job

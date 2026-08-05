@@ -1,4 +1,4 @@
-import {collectDefaultMetrics, register} from "prom-client";
+import {collectDefaultMetrics, Gauge, register} from "prom-client";
 import Koa from 'koa';
 import Router from "@koa/router";
 import { setupOidcMetrics } from "../utils/session/handle-oidc-flow-metrics.js";
@@ -27,6 +27,11 @@ export default async () => {
         deployment: process.env.DEPLOYMENT_NAME,
     })
     globalThis.metrics = {}
+    globalThis.metrics.oidcClientLastUsed = new Gauge({
+        name: 'passmower_oidc_client_last_used_timestamp_seconds',
+        help: 'Unix timestamp of the latest successful OIDC activity for a client, or zero if never used',
+        labelNames: ['kind', 'namespace', 'client'],
+    })
     setupOidcMetrics()
 
     const userService = new KubeOIDCUserService();

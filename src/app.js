@@ -17,6 +17,7 @@ import KubeOidcUserOperator from "./operators/kube-oidc-user-operator.js";
 import KubeScimConnectionOperator from "./operators/kube-scim-connection-operator.js";
 import metricsServer from "./routes/metrics-server.js";
 import {getUsernameSource} from "./utils/username-source.js";
+import {getActivityTracker} from './services/activity-tracker.js';
 
 const __dirname = dirname(import.meta.url);
 
@@ -45,6 +46,7 @@ export async function buildProvider() {
 
 // Start the operators that watch the cluster for OIDC client/user resources.
 export async function startOperators(provider) {
+    const activityTracker = getActivityTracker()
     const kubeClientOperator = new KubeOIDCClientOperator(provider)
     await kubeClientOperator.watchClients()
     const kubeMiddlewareClientOperator = new KubeOIDCMiddlewareClientOperator(provider)
@@ -53,6 +55,7 @@ export async function startOperators(provider) {
     await kubeUserOperator.watchUsers()
     const scimConnectionOperator = new KubeScimConnectionOperator()
     await scimConnectionOperator.watchConnections()
+    activityTracker.start()
 }
 
 // Boot the full application. Skipped when imported as a module (e.g. by tests),

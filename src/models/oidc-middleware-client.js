@@ -25,6 +25,10 @@ export default class OIDCMiddlewareClient {
     #conditions = []
     #displayOrder = 0
     #description = null
+    #disabled = false
+    #lastUsedAt = null
+    #creationTimestamp = null
+    #generation = null
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -39,6 +43,10 @@ export default class OIDCMiddlewareClient {
         this.#conditions = incomingClient.status?.conditions ?? []
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
+        this.#disabled = incomingClient.spec?.disabled === true
+        this.#lastUsedAt = incomingClient.status?.lastUsedAt ?? null
+        this.#creationTimestamp = incomingClient.metadata?.creationTimestamp ?? null
+        this.#generation = incomingClient.metadata?.generation ?? null
         return this
     }
 
@@ -46,7 +54,7 @@ export default class OIDCMiddlewareClient {
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
-            client_namespace: this.#clientNamespace,
+            clientNamespace: this.#clientNamespace,
             client_secret: randomUUID(),
             grant_types: [ grantType ],
             response_types: [ responseType ],
@@ -84,6 +92,10 @@ export default class OIDCMiddlewareClient {
         return OIDCMiddlewareClientId(this.#clientNamespace, this.#clientName)
     }
 
+    getKind() {
+        return OIDCMiddlewareClientCrd
+    }
+
     getClientName() {
         return this.#clientName
     }
@@ -94,6 +106,50 @@ export default class OIDCMiddlewareClient {
 
     getResourceVersion() {
         return this.#resourceVersion
+    }
+
+    getGeneration() {
+        return this.#generation
+    }
+
+    isDisabled() {
+        return this.#disabled
+    }
+
+    getLastUsedAt() {
+        return this.#lastUsedAt
+    }
+
+    setLastUsedAt(lastUsedAt) {
+        this.#lastUsedAt = lastUsedAt
+        return this
+    }
+
+    getIntendedStatus() {
+        return {
+            ...this.#status,
+            lastUsedAt: this.#lastUsedAt,
+            conditions: this.#conditions,
+        }
+    }
+
+    updateActivityCondition(now, inactiveAfterDays) {
+        const reference = this.#lastUsedAt ?? this.#creationTimestamp
+        if (!reference) return this
+        const inactive = now.getTime() - new Date(reference).getTime() >= inactiveAfterDays * 86400000
+        const previous = this.#conditions.find(condition => condition.type === 'Inactive')
+        const status = inactive ? 'True' : 'False'
+        const condition = {
+            type: 'Inactive',
+            status,
+            reason: inactive ? 'NotUsedRecently' : 'RecentlyUsed',
+            message: inactive
+                ? `Client has not been used for at least ${inactiveAfterDays} days`
+                : `Client was used within the last ${inactiveAfterDays} days`,
+            lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : now.toISOString(),
+        }
+        this.#conditions = [...this.#conditions.filter(item => item.type !== 'Inactive'), condition]
+        return this
     }
 
     getInstance() {
