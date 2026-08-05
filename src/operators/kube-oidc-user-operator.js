@@ -62,6 +62,9 @@ export class KubeOIDCUserOperator {
             } while (this.reconcileEmailPending)
         })().finally(() => {
             this.reconcileEmailPromise = null
+            if (this.reconcileEmailPending) {
+                return this.#scheduleEmailReconcile()
+            }
         })
         return this.reconcileEmailPromise
     }
