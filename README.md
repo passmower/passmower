@@ -306,6 +306,10 @@ upstream provider) is controlled by `USERNAME_SOURCE`. See
 `USE_GITHUB_USERNAME` / `REQUIRE_CUSTOM_USERNAME` flags.
 
 If automatic enrollment is disabled users can be managed GitOps style.
+Passmower validates email ownership across those resources and blocks newer
+duplicates from authentication. See
+[docs/identity-integrity.md](docs/identity-integrity.md) for provider linking,
+normalization, conflict status, metrics, and remediation.
 
 ```
 apiVersion: codemowers.cloud/v1

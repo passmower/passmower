@@ -2,11 +2,11 @@ import ShortUniqueId from "short-unique-id";
 import {Approved} from "../conditions/approved.js";
 import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
-import validator from "validator";
 import {listMyApps} from "../utils/apps/list-apps.js";
 import {getUsernameSource} from "../utils/username-source.js";
 import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
+import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -144,7 +144,7 @@ class Account {
             this.#passmower?.email,
             ...(this.#github?.emails ?? []).map(ghEmail => ghEmail.email),
             ...identityEmails.map(e => e.email),
-        ].filter(e => e))]
+        ].map(canonicalizeEmail).filter(Boolean))]
         let primaryEmail
         const preferredDomain = process.env.PREFERRED_EMAIL_DOMAIN
         if (preferredDomain) {
@@ -154,11 +154,11 @@ class Account {
                     domain: e.split('@')[1]
                 }
             })
-            primaryEmail = emailsWithDomains.find(e => e.domain === preferredDomain)
+            primaryEmail = emailsWithDomains.find(e => e.domain === preferredDomain.toLowerCase())
             primaryEmail = primaryEmail?.email
         }
         if (!primaryEmail) {
-            primaryEmail = this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email
+            primaryEmail = canonicalizeEmail(this.#spec?.email || this.#spec?.companyEmail || this.#passmower?.email || this.#github?.emails?.find(ghEmail => ghEmail.primary)?.email || this.#github?.emails?.find(ghEmail => ghEmail.email)?.email || identityEmails.find(e => e.primary)?.email || identityEmails.find(e => e.email)?.email)
         }
         const groups = [...(this.#spec?.groups ?? []), ...(this.#passmower?.groups ?? []), ...(this.#github?.groups ?? []), ...activeIdentities.flatMap(i => i.groups ?? [])]
         return {
@@ -277,6 +277,25 @@ class Account {
         return this.#metadata
     }
 
+    getClaimedEmails() {
+        const identities = Object.values(this.#identities ?? {})
+        return [...new Set([
+            this.#spec?.email,
+            this.#spec?.companyEmail,
+            this.#passmower?.email,
+            ...(this.#github?.emails ?? []).map(item => item.email),
+            ...identities.flatMap(identity => (identity.emails ?? []).map(item => item.email)),
+        ].map(canonicalizeEmail).filter(Boolean))]
+    }
+
+    getIdentity(providerKey) {
+        return this.#identities?.[providerKey]
+    }
+
+    getGithubId() {
+        return this.#github?.id
+    }
+
     pushCustomGroup(name) {
         const group = {
             prefix: GroupPrefix,
@@ -314,10 +333,10 @@ class Account {
         return 'u' + uid.rnd(10);
     }
 
-    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username, preferredUsername) {
+    static async createOrUpdateByEmails(ctx, provider, email, githubEmails, username, preferredUsername, identity = {}) {
         if (Array.isArray(githubEmails)) {
             githubEmails = githubEmails.map((e) => {
-                let ghEmail = e.email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(e.email) : e.email
+                const ghEmail = canonicalizeEmail(e.email)
                 return {
                     email: ghEmail,
                     primary: e.primary
@@ -326,11 +345,31 @@ class Account {
             githubEmails = [...new Map(githubEmails.map(v => [v.email, v])).values()]
         }
         const emails = [
-            email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(email) : email,
+            canonicalizeEmail(email),
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
         auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
-        let user = await ctx.kubeOIDCUserService.findUserByEmails(emails)
+        let user
+        try {
+            const users = await ctx.kubeOIDCUserService.listUsers()
+            if (identity.providerKey && identity.subject) {
+                user = await ctx.kubeOIDCUserService.findUserByIdentity(identity.providerKey, identity.subject, users)
+            } else if (identity.githubId !== undefined) {
+                user = await ctx.kubeOIDCUserService.findUserByGithubId(identity.githubId, users)
+            }
+            const emailUser = await ctx.kubeOIDCUserService.findUserByEmails(emails, users)
+            if (user && emailUser && user.accountId !== emailUser.accountId) {
+                throw new IdentityIntegrityError('Stable upstream identity and email resolve to different OIDC users', {
+                    identityAccountId: user.accountId,
+                    emailAccountId: emailUser.accountId,
+                })
+            }
+            user ??= emailUser
+        } catch (error) {
+            if (!(error instanceof IdentityIntegrityError)) throw error
+            auditLog(ctx, {emails, identity, error: error.message}, 'Identity resolution blocked by integrity conflict')
+            return undefined
+        }
         if (!user) {
             auditLog(ctx, {emails, email, githubEmails, username}, 'User not found')
             // `username` is set explicitly only by the admin invite path; otherwise
@@ -380,7 +419,7 @@ class Account {
     }
 
     static async findByEmail(ctx, email) {
-        email = email && process.env.NORMALIZE_EMAIL_ADDRESSES === 'true' ? validator.normalizeEmail(email) : email
+        email = canonicalizeEmail(email)
         return await ctx.kubeOIDCUserService.findUserByEmails([email])
     }
 

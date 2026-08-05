@@ -135,7 +135,10 @@ export default async (ctx, provider, providerConfig) => {
     }
 
     // Phase 3 — link/create the account, persist the identity, finish.
-    const account = await Account.createOrUpdateByEmails(ctx, provider, identity.primaryEmail, identity.emails, undefined, identity.preferredUsername);
+    const account = await Account.createOrUpdateByEmails(
+        ctx, provider, identity.primaryEmail, identity.emails, undefined, identity.preferredUsername,
+        {providerKey: key, subject: identity.sub}
+    );
 
     if (!account?.accountId) {
         auditLog(ctx, { account, interactionDetails }, `Unable to determine account from ${displayName}`);

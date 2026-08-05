@@ -23,6 +23,9 @@
                 <p>Name: {{ account.name }}</p>
                 <p>Primary email: {{ account.email }}</p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
+                <p v-if="emailConflict(account)" class="notice">
+                    Email conflict: {{ emailConflict(account).message }}
+                </p>
                 <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
                 <div class="recent-applications" v-if="account.recentApplications?.length">
                     <p>Recent applications:</p>
@@ -83,6 +86,11 @@ export default {
                 dateStyle: 'medium',
                 timeStyle: 'short',
             }).format(new Date(value))
+        },
+        emailConflict(account) {
+            return account.conditions.find(condition =>
+                condition.type === 'EmailUnique' && condition.status === 'False'
+            )
         },
         async editProfile(account) {
             this.setAccount(account)

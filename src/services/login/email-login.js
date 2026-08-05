@@ -8,6 +8,7 @@ import {getEmailContent, getEmailSubject} from "../../utils/get-email-content.js
 import {SlackAdapter} from "../../adapters/slack.js";
 import {parseRequestMetadata} from "../../utils/session/parse-request-headers.js";
 import {auditLog} from "../../utils/session/audit-log.js";
+import {IdentityIntegrityError} from "../../utils/user/identity-integrity.js";
 
 export class EmailLogin {
     constructor() {
@@ -20,7 +21,14 @@ export class EmailLogin {
         const {uid, params} = await provider.interactionDetails(ctx.req, ctx.res);
         const client = await provider.Client.find(params.client_id);
         const email = ctx.request.body.email.toLowerCase()
-        const account = await Account.findByEmail(ctx, email)
+        let account
+        try {
+            account = await Account.findByEmail(ctx, email)
+        } catch (error) {
+            if (!(error instanceof IdentityIntegrityError)) throw error
+            auditLog(ctx, {email, error: error.message}, 'Email login blocked by identity conflict')
+            return accessDenied(ctx, provider, 'This email is attached to a conflicted account. Contact an administrator.')
+        }
         if (process.env.ENROLL_USERS === 'false' && !account) {
             auditLog(ctx, {email}, 'Account doesn\'t exist')
             return accessDenied(ctx, provider, 'Account doesn\'t exist')

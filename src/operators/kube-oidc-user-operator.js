@@ -14,6 +14,8 @@ export class KubeOIDCUserOperator {
         this.adapter = adapter
         this.instance = this.adapter.instance
         this.userService = new KubeOIDCUserService(this.adapter);
+        this.reconcileEmailPromise = null
+        this.reconcileEmailPending = false
     }
 
     async watchUsers() {
@@ -22,7 +24,7 @@ export class KubeOIDCUserOperator {
             (OIDCUser) => (new Account()).fromKubernetes(OIDCUser),
             (OIDCUser) => this.#claimOIDCUser(OIDCUser),
             (OIDCUser) => this.#updateOIDCUser(OIDCUser),
-            (OIDCUser) => (OIDCUser),
+            () => this.#scheduleEmailReconcile(),
             new NamespaceFilter(this.adapter.namespace)
         )
         await this.adapter.watchObjects()
@@ -34,12 +36,37 @@ export class KubeOIDCUserOperator {
         OIDCUser.setLabels(condition.toLabels())
         await this.userService.replaceUserLabels(OIDCUser)
         await this.userService.updateUserStatus(OIDCUser)
+        await this.#scheduleEmailReconcile()
     }
 
     async #updateOIDCUser(OIDCUser) {
-        if (OIDCUser.getMetadata()?.managedFields.pop()?.manager !== this.instance) {
+        if (OIDCUser.getMetadata()?.managedFields?.at(-1)?.manager !== this.instance) {
             await this.userService.updateUserStatus(OIDCUser)
+            await this.#scheduleEmailReconcile()
         }
+    }
+
+    async #scheduleEmailReconcile() {
+        if (this.reconcileEmailPromise) {
+            this.reconcileEmailPending = true
+            return this.reconcileEmailPromise
+        }
+        this.reconcileEmailPromise = (async () => {
+            do {
+                this.reconcileEmailPending = false
+                try {
+                    await this.userService.reconcileEmailUniqueness()
+                } catch (error) {
+                    globalThis.logger?.error(error, 'Failed to reconcile OIDCUser email uniqueness')
+                }
+            } while (this.reconcileEmailPending)
+        })().finally(() => {
+            this.reconcileEmailPromise = null
+            if (this.reconcileEmailPending) {
+                return this.#scheduleEmailReconcile()
+            }
+        })
+        return this.reconcileEmailPromise
     }
 }
 

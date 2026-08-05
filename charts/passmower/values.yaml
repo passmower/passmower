@@ -37,7 +37,10 @@ passmower:
   namespaceSelector: "*"
   # Domain which will be preferred for determining primary emails.
   preferredEmailDomain: "gmail.com"
-  # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
+  # Normalize all upstream and OIDCUser email claims before identity matching and
+  # duplicate detection, including provider-specific aliases such as Gmail +tags.
+  # Changing this on an existing installation may expose previously hidden conflicts;
+  # see docs/identity-integrity.md.
   normalizeEmailAddresses: true
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
   webauthnEnabled: true

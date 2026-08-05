@@ -86,7 +86,9 @@ export default async (ctx, provider) => {
         return accessDenied(ctx, provider, 'Error getting profile from GitHub')
     }
 
-    const account = await Account.createOrUpdateByEmails(ctx, provider, undefined, emails, undefined, user.login);
+    const account = await Account.createOrUpdateByEmails(
+        ctx, provider, undefined, emails, undefined, user.login, {githubId: user.id}
+    );
 
     if (!account?.accountId) {
         auditLog(ctx,{account, interactionDetails}, 'Unable to determine account from GitHub')
