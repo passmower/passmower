@@ -5,6 +5,7 @@ import {
     TraefikMiddlewareForwardAuthAddress
 } from "../utils/kubernetes/kube-constants.js";
 import {randomUUID} from "crypto";
+import {ClientActivityState} from './client-activity-state.js';
 
 export const grantType = 'implicit'
 export const responseType = 'id_token'
@@ -18,13 +19,10 @@ export default class OIDCMiddlewareClient {
     #uri = null
     #displayName = null
     #resourceVersion = null
-    #status = {
-        instance: null
-    }
     #uid = null
-    #conditions = []
     #displayOrder = 0
-    #description = null
+    #disabled = false
+    #activityState = null
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -34,11 +32,10 @@ export default class OIDCMiddlewareClient {
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
-        this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
-        this.#conditions = incomingClient.status?.conditions ?? []
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
-        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
+        this.#disabled = incomingClient.spec?.disabled === true
+        this.#activityState = new ClientActivityState(incomingClient)
         return this
     }
 
@@ -46,7 +43,7 @@ export default class OIDCMiddlewareClient {
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
-            client_namespace: this.#clientNamespace,
+            clientNamespace: this.#clientNamespace,
             client_secret: randomUUID(),
             grant_types: [ grantType ],
             response_types: [ responseType ],
@@ -56,7 +53,7 @@ export default class OIDCMiddlewareClient {
             uri: this.#uri,
             displayName: this.#displayName,
             displayOrder: this.#displayOrder,
-            description: this.#description,
+            description: this.#activityState.description,
             kind: OIDCMiddlewareClientCrd
         }
     }
@@ -72,16 +69,20 @@ export default class OIDCMiddlewareClient {
     }
 
     getConditions() {
-        return this.#conditions
+        return this.#activityState.conditions
     }
 
     setConditions(conditions) {
-        this.#conditions = conditions
+        this.#activityState.conditions = conditions
         return this
     }
 
     getClientId() {
         return OIDCMiddlewareClientId(this.#clientNamespace, this.#clientName)
+    }
+
+    getKind() {
+        return OIDCMiddlewareClientCrd
     }
 
     getClientName() {
@@ -96,8 +97,34 @@ export default class OIDCMiddlewareClient {
         return this.#resourceVersion
     }
 
+    isDisabled() {
+        return this.#disabled
+    }
+
+    getLastUsedAt() {
+        return this.#activityState.lastUsedAt
+    }
+
+    setLastUsedAt(lastUsedAt) {
+        this.#activityState.lastUsedAt = lastUsedAt
+        return this
+    }
+
+    getIntendedStatus() {
+        return this.#activityState.getIntendedStatus()
+    }
+
+    updateActivityCondition(now, inactiveAfterDays) {
+        this.#activityState.updateActivityCondition(now, inactiveAfterDays)
+        return this
+    }
+
+    getReconcileFingerprint() {
+        return this.#activityState.getReconcileFingerprint()
+    }
+
     getInstance() {
-        return this.#status.instance
+        return this.#activityState.status.instance
     }
 
     getMetadata() {

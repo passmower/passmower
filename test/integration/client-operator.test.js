@@ -10,15 +10,19 @@ describe('KubeOIDCClientOperator reconciliation', () => {
     let provider, adapter, operator
     const clientRedis = () => new RedisAdapter('Client')
 
-    function rawClient(name, { secretRefreshJobSpec } = {}) {
+    function rawClient(name, { secretRefreshJobSpec, disabled = false, description } = {}) {
         return {
-            metadata: { name, namespace: 'apps', resourceVersion: '1', uid: `uid-${name}`, annotations: {} },
+            metadata: {
+                name, namespace: 'apps', resourceVersion: '1', generation: disabled ? 2 : 1, uid: `uid-${name}`,
+                annotations: description ? {'kubernetes.io/description': description} : {},
+            },
             spec: {
                 grantTypes: ['authorization_code'],
                 responseTypes: ['code'],
                 redirectUris: ['https://app.example.com/cb'],
                 availableScopes: ['openid'],
                 tokenEndpointAuthMethod: 'client_secret_basic',
+                disabled,
                 ...(secretRefreshJobSpec ? { secretRefreshJobSpec } : {}),
             },
             status: {}, // unclaimed
@@ -57,6 +61,10 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         const cached = await clientRedis().find(idOf('app-a'))
         expect(cached).toBeTruthy()
         expect(cached.client_secret).toBeTruthy()
+        const configured = await provider.Client.find(idOf('app-a'))
+        expect(configured.clientNamespace).toBe('apps')
+        expect(configured.clientName).toBe('app-a')
+        expect(configured.kind).toBe('OIDCClient')
     })
 
     it('creates the secretRefreshJob when configured (#69/#70)', async () => {
@@ -81,8 +89,30 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         adapter.seed('OIDCClient', rawClient('app-c', { secretRefreshJobSpec: refreshJobSpec }))
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-c')
         const afterCreate = adapter.jobs.length
+        const modified = rawClient('app-c', { secretRefreshJobSpec: refreshJobSpec })
+        modified.metadata.generation = 2
+        adapter.seed('OIDCClient', modified)
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-c')
         expect(adapter.jobs.length).toBe(afterCreate + 1)
+    })
+
+    it('does not refresh client material for a status-only update', async () => {
+        adapter.seed('OIDCClient', rawClient('app-status', {secretRefreshJobSpec: refreshJobSpec}))
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'app-status')
+        const jobs = adapter.jobs.length
+        await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-status')
+        expect(adapter.jobs).toHaveLength(jobs)
+    })
+
+    it('reconciles description annotation changes without a generation bump', async () => {
+        adapter.seed('OIDCClient', rawClient('app-description', {description: 'Old description'}))
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'app-description')
+        expect((await clientRedis().find(idOf('app-description'))).description).toBe('Old description')
+
+        adapter.seed('OIDCClient', rawClient('app-description', {description: 'New description'}))
+        await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-description')
+
+        expect((await clientRedis().find(idOf('app-description'))).description).toBe('New description')
     })
 
     it('removes the client from Redis on delete', async () => {
@@ -92,5 +122,18 @@ describe('KubeOIDCClientOperator reconciliation', () => {
 
         await adapter.fireWatch('DELETED', 'OIDCClient', 'app-d')
         expect(await clientRedis().find(idOf('app-d'))).toBeUndefined()
+    })
+
+    it('removes a disabled client from Redis without deleting its Secret', async () => {
+        adapter.seed('OIDCClient', rawClient('app-disabled'))
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'app-disabled')
+        const secret = adapter.secrets.get('apps/oidc-client-app-disabled-owner-secrets')
+        expect(await clientRedis().find(idOf('app-disabled'))).toBeTruthy()
+
+        adapter.seed('OIDCClient', rawClient('app-disabled', {disabled: true}))
+        await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-disabled')
+
+        expect(await clientRedis().find(idOf('app-disabled'))).toBeUndefined()
+        expect(adapter.secrets.get('apps/oidc-client-app-disabled-owner-secrets')).toEqual(secret)
     })
 })

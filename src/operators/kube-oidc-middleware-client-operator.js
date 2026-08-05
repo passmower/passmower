@@ -7,6 +7,8 @@ import {
 import OidcMiddlewareClient from "../models/oidc-middleware-client.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {Claimed} from "../conditions/claimed.js";
+import {getActivityTracker} from '../services/activity-tracker.js';
+import {ClientReconcileState} from '../models/client-activity-state.js';
 
 export class KubeOIDCMiddlewareClientOperator {
     constructor(provider, adapter = new KubernetesAdapter()) {
@@ -14,6 +16,7 @@ export class KubeOIDCMiddlewareClientOperator {
         this.provider = provider
         this.adapter = adapter
         this.instance = this.adapter.instance
+        this.reconcileState = new ClientReconcileState(getActivityTracker())
     }
 
     async watchClients() {
@@ -29,22 +32,29 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #createOIDCClient (OIDCMiddlewareClient) {
+        this.reconcileState.register(OIDCMiddlewareClient)
         if (OIDCMiddlewareClient.getInstance() === this.instance) {
             if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
                 await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                if (!OIDCMiddlewareClient.isDisabled()) await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
             }
         } else if (!OIDCMiddlewareClient.getInstance()) {
             // Claim that client
             const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
             if (claimedClient?.getInstance() === this.instance) {
                 await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                if (!OIDCMiddlewareClient.isDisabled()) await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
             }
         }
+        if (OIDCMiddlewareClient.isDisabled()) await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
     }
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
+        if (!this.reconcileState.shouldReconcile(OIDCMiddlewareClient)) return
+        if (OIDCMiddlewareClient.isDisabled()) {
+            await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
+            return
+        }
         await new Promise(res => setTimeout(res, 1000)); // Wait second as the client is momentarily updated after creation, resulting 404.
         await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
         await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
@@ -52,6 +62,7 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #deleteOIDCClient (OIDCMiddlewareClient) {
+        this.reconcileState.unregister(OIDCMiddlewareClient)
         if (OIDCMiddlewareClient.getInstance() === this.instance) {
             await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
         }
@@ -96,10 +107,7 @@ export class KubeOIDCMiddlewareClientOperator {
 
     async #replaceClientStatus (OIDCMiddlewareClient) {
         OIDCMiddlewareClient = new Claimed().setStatus(true).set(OIDCMiddlewareClient)
-        const status = {
-            instance: this.instance,
-            conditions: OIDCMiddlewareClient.getConditions(),
-        }
+        const status = {...OIDCMiddlewareClient.getIntendedStatus(), instance: this.instance}
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCMiddlewareClientCrd,
             OIDCMiddlewareClient.getClientNamespace(),

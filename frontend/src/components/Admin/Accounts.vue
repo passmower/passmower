@@ -24,6 +24,17 @@
                 <p>Primary email: {{ account.email }}</p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
                 <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
+                <div class="recent-applications" v-if="account.recentApplications?.length">
+                    <p>Recent applications:</p>
+                    <ul>
+                        <li v-for="application in account.recentApplications" :key="application.clientId">
+                            <strong>{{ application.namespace }}/{{ application.name }}</strong>
+                            <span> ({{ application.kind === 'OIDCMiddlewareClient' ? 'forward auth' : 'OIDC' }})</span>
+                            — <time :datetime="application.lastAuthenticatedAt">{{ formatDate(application.lastAuthenticatedAt) }}</time>
+                        </li>
+                    </ul>
+                </div>
+                <p v-else>No recent application activity</p>
             </div>
             <div class="item-actions">
                 <Check v-if="!account.approved" @click="approve(account)" />
@@ -66,6 +77,13 @@ export default {
     methods: {
         ...mapActions(useAccountStore, ['setAccount', 'originalAccount']),
         ...mapActions(useAccountsStore, ['setAccounts']),
+        formatDate(value) {
+            if (!value) return 'Never'
+            return new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            }).format(new Date(value))
+        },
         async editProfile(account) {
             this.setAccount(account)
             const modal = await openModal(EditProfile);

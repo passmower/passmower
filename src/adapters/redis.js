@@ -349,12 +349,12 @@ class RedisAdapter {
 
     async destroy(id) {
         const key = this.key(id);
-        const payload = this.find(id)
+        const payload = await this.find(id)
 
         await getClient().del(key);
 
         if (referencable[this.name]) {
-            const owner = payload[referencable[this.name]?.ownerKey] ?? 1
+            const owner = payload?.[referencable[this.name]?.ownerKey] ?? 1
             const key = `${referencable[this.name].listName}:${owner}`;
             await getClient().srem(key, id);
         }

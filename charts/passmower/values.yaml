@@ -59,6 +59,25 @@ passmower:
   # bearer token.
   extraClaimsWebhookTokenSecretRef: ""
 
+  # Emit a minimal, versioned JSON audit record for successful application
+  # authorizations and token exchanges. Records go to stdout and should be
+  # collected into a durable audit backend; see docs/audit-logging.md.
+  audit:
+    enabled: true
+    # Personal data is excluded by default. Enable only when required by your
+    # audit policy and protect the resulting log stream accordingly.
+    includeSourceAddress: false
+    includeUserAgent: false
+
+  # Project recent successful application activity into OIDCUser/OIDCClient
+  # status. Writes are aggregated so login traffic does not become Kubernetes
+  # API traffic one-for-one.
+  activityTracking:
+    enabled: true
+    flushIntervalSeconds: 900
+    recentApplicationLimit: 20
+    inactiveAfterDays: 90
+
   # Generic OIDC upstream login providers. Add a provider-keyed entry — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:

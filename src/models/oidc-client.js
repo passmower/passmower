@@ -21,6 +21,7 @@ import {
 } from "../utils/kubernetes/kube-constants.js";
 import {KubeOwnerMetadata} from "../utils/kubernetes/kube-owner-metadata.js";
 import sortObject from "../utils/sort-object.js";
+import {ClientActivityState} from './client-activity-state.js';
 
 class OIDCClient {
     #clientName = null
@@ -39,17 +40,14 @@ class OIDCClient {
     #uri = null
     #displayName = null
     #resourceVersion = null
-    #status = {
-        instance: null
-    }
     #uid = null
     #pkce = true
-    #conditions = {}
     #allowedCORSOrigins = null
     #secretMetadata = null
     #secretRefreshJobSpec = null
     #displayOrder = 0
-    #description = null
+    #disabled = false
+    #activityState = null
 
     constructor() {
     }
@@ -58,7 +56,7 @@ class OIDCClient {
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
-            client_namespace: this.#clientNamespace,
+            clientNamespace: this.#clientNamespace,
             client_secret: this.#clientSecret,
             grant_types: this.#grantTypes,
             token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
@@ -75,7 +73,8 @@ class OIDCClient {
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
             displayOrder: this.#displayOrder,
-            description: this.#description,
+            description: this.#activityState.description,
+            kind: OIDCClientCrd,
         }
     }
 
@@ -95,15 +94,14 @@ class OIDCClient {
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
-        this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
-        this.#conditions = incomingClient.status?.conditions ?? []
         this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
         this.#secretRefreshJobSpec = incomingClient.spec?.secretRefreshJobSpec ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
-        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
+        this.#disabled = incomingClient.spec?.disabled === true
+        this.#activityState = new ClientActivityState(incomingClient)
         return this
     }
 
@@ -140,11 +138,11 @@ class OIDCClient {
     }
 
     getConditions() {
-        return this.#conditions
+        return this.#activityState.conditions
     }
 
     setConditions(conditions) {
-        this.#conditions = conditions
+        this.#activityState.conditions = conditions
         return this
     }
 
@@ -170,8 +168,12 @@ class OIDCClient {
         return OIDCClientId(this.#clientNamespace, this.#clientName)
     }
 
+    getKind() {
+        return OIDCClientCrd
+    }
+
     getInstance() {
-        return this.#status.instance
+        return this.#activityState.status.instance
     }
 
     getClientName() {
@@ -184,6 +186,32 @@ class OIDCClient {
 
     getResourceVersion() {
         return this.#resourceVersion
+    }
+
+    isDisabled() {
+        return this.#disabled
+    }
+
+    getLastUsedAt() {
+        return this.#activityState.lastUsedAt
+    }
+
+    setLastUsedAt(lastUsedAt) {
+        this.#activityState.lastUsedAt = lastUsedAt
+        return this
+    }
+
+    getIntendedStatus() {
+        return this.#activityState.getIntendedStatus()
+    }
+
+    updateActivityCondition(now, inactiveAfterDays) {
+        this.#activityState.updateActivityCondition(now, inactiveAfterDays)
+        return this
+    }
+
+    getReconcileFingerprint() {
+        return this.#activityState.getReconcileFingerprint()
     }
 
     // Build the secret-refresh Job from the user-supplied JobSpec. Using a Job

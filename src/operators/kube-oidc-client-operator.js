@@ -6,6 +6,8 @@ import {
 import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
+import {getActivityTracker} from "../services/activity-tracker.js";
+import {ClientReconcileState} from '../models/client-activity-state.js';
 
 export class KubeOIDCClientOperator {
     constructor(provider, adapter = new KubernetesAdapter()) {
@@ -13,6 +15,7 @@ export class KubeOIDCClientOperator {
         this.provider = provider
         this.adapter = adapter
         this.instance = this.adapter.instance
+        this.reconcileState = new ClientReconcileState(getActivityTracker())
     }
 
     async watchClients() {
@@ -28,6 +31,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #createOIDCClient (OIDCClient) {
+        this.reconcileState.register(OIDCClient)
         if (OIDCClient.getInstance() === this.instance) {
             if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
                 let secret = await this.adapter.getSecret(
@@ -53,15 +57,15 @@ export class KubeOIDCClientOperator {
                 await this.#createKubeSecret(OIDCClient)
             }
         }
-        if (OIDCClient.hasSecret()) {
+        if (OIDCClient.isDisabled()) {
+            await this.redisAdapter.destroy(OIDCClient.getClientId())
+        } else if (OIDCClient.hasSecret()) {
             await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
         }
     }
 
     async #replaceClientStatus (OIDCClient) {
-        const status = {
-            instance: this.instance,
-        }
+        const status = {...OIDCClient.getIntendedStatus(), instance: this.instance}
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCClientCrd,
             OIDCClient.getClientNamespace(),
@@ -73,6 +77,11 @@ export class KubeOIDCClientOperator {
     }
 
     async #updateOIDCClient(OIDCClient) {
+        if (!this.reconcileState.shouldReconcile(OIDCClient)) return
+        if (OIDCClient.isDisabled()) {
+            await this.redisAdapter.destroy(OIDCClient.getClientId())
+            return
+        }
         await new Promise(res => setTimeout(res, 1000));
         let secret = await this.adapter.getSecret(
             OIDCClient.getClientNamespace(),
@@ -124,6 +133,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #deleteOIDCClient (OIDCClient) {
+        this.reconcileState.unregister(OIDCClient)
         if (OIDCClient.getInstance() === this.instance) {
             await this.redisAdapter.destroy(OIDCClient.getClientId())
         }

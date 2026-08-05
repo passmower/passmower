@@ -39,6 +39,7 @@ class Account {
     #labels = {}
     #metadata = {}
     #ctx = null
+    #recentApplications = []
 
     fromKubernetes(apiResponse) {
         this.accountId = apiResponse.metadata.name
@@ -59,6 +60,7 @@ class Account {
         this.profile = apiResponse.status?.profile ?? {}
         this.slackId = apiResponse.status?.slackId ?? null
         this.#conditions = apiResponse.status?.conditions ?? []
+        this.#recentApplications = apiResponse.status?.recentApplications ?? []
         this.#labels = apiResponse.metadata?.labels ?? {}
         this.#metadata = apiResponse.metadata
         this.isAdmin = !!this.#mapGroups().find(g => g.displayName === AdminGroup)
@@ -171,6 +173,7 @@ class Account {
             slackId: this.#slack?.id ?? null,
             passkeyCount: this.#webauthn?.credentials?.length ?? 0,
             conditions: this.#conditions,
+            recentApplications: this.#recentApplications,
         }
     }
 
@@ -191,7 +194,16 @@ class Account {
                 accountId: this.accountId,
                 impersonationEnabled: requesterAccountId !== this.accountId,
                 approved: this.isAdmin || (new Approved()).check(this),
-                conditions: this.#conditions
+                conditions: this.#conditions,
+                // Refined read-only activity projection for the admin UI. Do not
+                // expose the rest of the CRD status or any raw audit-log fields.
+                recentApplications: this.#recentApplications.map(application => ({
+                    clientId: application.clientId,
+                    namespace: application.clientNamespace,
+                    name: application.clientName,
+                    kind: application.clientKind,
+                    lastAuthenticatedAt: application.lastAuthenticatedAt,
+                })),
             }
         }
         return profile
@@ -240,6 +252,15 @@ class Account {
 
     setConditions(conditions) {
         this.#conditions = conditions
+        return this
+    }
+
+    getRecentApplications() {
+        return this.#recentApplications
+    }
+
+    setRecentApplications(recentApplications) {
+        this.#recentApplications = recentApplications
         return this
     }
 

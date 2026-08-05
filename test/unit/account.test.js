@@ -69,6 +69,34 @@ describe('Account.getIntendedStatus', () => {
     })
 })
 
+describe('Account.getProfileResponse', () => {
+    const recentApplications = [{
+        clientId: 'apps.grafana',
+        clientNamespace: 'apps',
+        clientName: 'grafana',
+        clientKind: 'OIDCClient',
+        lastAuthenticatedAt: '2026-08-05T12:30:00.000Z',
+        ignoredRawField: 'not-for-the-api',
+    }]
+
+    it('exposes a refined recent-application projection to admins', () => {
+        const response = account({status: {recentApplications}}).getProfileResponse(true, 'admin')
+        expect(response.recentApplications).toEqual([{
+            clientId: 'apps.grafana',
+            namespace: 'apps',
+            name: 'grafana',
+            kind: 'OIDCClient',
+            lastAuthenticatedAt: '2026-08-05T12:30:00.000Z',
+        }])
+        expect(response.recentApplications[0].ignoredRawField).toBeUndefined()
+    })
+
+    it('does not expose recent application activity in the ordinary profile response', () => {
+        const response = account({status: {recentApplications}}).getProfileResponse()
+        expect(response.recentApplications).toBeUndefined()
+    })
+})
+
 describe('Account.claims', () => {
     it('returns sub/username/email for openid scope', async () => {
         const a = account({
