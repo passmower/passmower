@@ -18,6 +18,12 @@ function newer(a, b) {
     return new Date(a) >= new Date(b) ? a : b
 }
 
+function newestActivity(a, b) {
+    if (!a) return b
+    if (!b) return a
+    return newer(a.lastAuthenticatedAt, b.lastAuthenticatedAt) === a.lastAuthenticatedAt ? a : b
+}
+
 export class ActivityTracker {
     constructor({adapter = new KubernetesAdapter(), now = () => new Date()} = {}) {
         this.adapter = adapter
@@ -49,6 +55,14 @@ export class ActivityTracker {
     }
 
     unregisterClient(clientId) {
+        const client = this.knownClients.get(clientId)
+        if (client) {
+            globalThis.metrics?.oidcClientLastUsed?.remove({
+                kind: client.clientKind,
+                namespace: client.clientNamespace,
+                client: client.clientName,
+            })
+        }
         this.knownClients.delete(clientId)
     }
 
@@ -71,19 +85,32 @@ export class ActivityTracker {
         const clients = this.pendingClients
         this.pendingUsers = new Map()
         this.pendingClients = new Map()
-        try {
-            for (const [accountId, applications] of users) await this.#flushUser(accountId, applications)
-            const clientIds = new Set([...this.knownClients.keys(), ...clients.keys()])
-            for (const clientId of clientIds) await this.#flushClient(clientId, clients.get(clientId))
-        } catch (err) {
-            for (const [accountId, applications] of users) {
+        const errors = []
+        for (const [accountId, applications] of users) {
+            try {
+                await this.#flushUser(accountId, applications)
+            } catch (err) {
                 const pending = this.pendingUsers.get(accountId) ?? new Map()
-                for (const [clientId, app] of applications) pending.set(clientId, app)
+                for (const [clientId, app] of applications) {
+                    pending.set(clientId, newestActivity(pending.get(clientId), app))
+                }
                 this.pendingUsers.set(accountId, pending)
+                errors.push(err)
             }
-            for (const [clientId, client] of clients) this.pendingClients.set(clientId, client)
-            throw err
         }
+        const clientIds = new Set([...this.knownClients.keys(), ...clients.keys()])
+        for (const clientId of clientIds) {
+            try {
+                await this.#flushClient(clientId, clients.get(clientId))
+            } catch (err) {
+                const activity = clients.get(clientId)
+                if (activity) {
+                    this.pendingClients.set(clientId, newestActivity(this.pendingClients.get(clientId), activity))
+                }
+                errors.push(err)
+            }
+        }
+        if (errors.length) throw new AggregateError(errors, `Failed to flush ${errors.length} OIDC activity projection(s)`)
     }
 
     async #flushUser(accountId, applications) {

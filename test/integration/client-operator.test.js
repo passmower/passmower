@@ -10,9 +10,12 @@ describe('KubeOIDCClientOperator reconciliation', () => {
     let provider, adapter, operator
     const clientRedis = () => new RedisAdapter('Client')
 
-    function rawClient(name, { secretRefreshJobSpec, disabled = false } = {}) {
+    function rawClient(name, { secretRefreshJobSpec, disabled = false, description } = {}) {
         return {
-            metadata: { name, namespace: 'apps', resourceVersion: '1', generation: disabled ? 2 : 1, uid: `uid-${name}`, annotations: {} },
+            metadata: {
+                name, namespace: 'apps', resourceVersion: '1', generation: disabled ? 2 : 1, uid: `uid-${name}`,
+                annotations: description ? {'kubernetes.io/description': description} : {},
+            },
             spec: {
                 grantTypes: ['authorization_code'],
                 responseTypes: ['code'],
@@ -99,6 +102,17 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         const jobs = adapter.jobs.length
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-status')
         expect(adapter.jobs).toHaveLength(jobs)
+    })
+
+    it('reconciles description annotation changes without a generation bump', async () => {
+        adapter.seed('OIDCClient', rawClient('app-description', {description: 'Old description'}))
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'app-description')
+        expect((await clientRedis().find(idOf('app-description'))).description).toBe('Old description')
+
+        adapter.seed('OIDCClient', rawClient('app-description', {description: 'New description'}))
+        await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-description')
+
+        expect((await clientRedis().find(idOf('app-description'))).description).toBe('New description')
     })
 
     it('removes the client from Redis on delete', async () => {

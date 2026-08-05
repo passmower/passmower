@@ -5,6 +5,7 @@ import {
     TraefikMiddlewareForwardAuthAddress
 } from "../utils/kubernetes/kube-constants.js";
 import {randomUUID} from "crypto";
+import {ClientActivityState} from './client-activity-state.js';
 
 export const grantType = 'implicit'
 export const responseType = 'id_token'
@@ -18,17 +19,10 @@ export default class OIDCMiddlewareClient {
     #uri = null
     #displayName = null
     #resourceVersion = null
-    #status = {
-        instance: null
-    }
     #uid = null
-    #conditions = []
     #displayOrder = 0
-    #description = null
     #disabled = false
-    #lastUsedAt = null
-    #creationTimestamp = null
-    #generation = null
+    #activityState = null
 
     fromIncomingClient(incomingClient) {
         this.#clientName = incomingClient.metadata.name
@@ -38,15 +32,10 @@ export default class OIDCMiddlewareClient {
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
-        this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
-        this.#conditions = incomingClient.status?.conditions ?? []
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
-        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
         this.#disabled = incomingClient.spec?.disabled === true
-        this.#lastUsedAt = incomingClient.status?.lastUsedAt ?? null
-        this.#creationTimestamp = incomingClient.metadata?.creationTimestamp ?? null
-        this.#generation = incomingClient.metadata?.generation ?? null
+        this.#activityState = new ClientActivityState(incomingClient)
         return this
     }
 
@@ -64,7 +53,7 @@ export default class OIDCMiddlewareClient {
             uri: this.#uri,
             displayName: this.#displayName,
             displayOrder: this.#displayOrder,
-            description: this.#description,
+            description: this.#activityState.description,
             kind: OIDCMiddlewareClientCrd
         }
     }
@@ -80,11 +69,11 @@ export default class OIDCMiddlewareClient {
     }
 
     getConditions() {
-        return this.#conditions
+        return this.#activityState.conditions
     }
 
     setConditions(conditions) {
-        this.#conditions = conditions
+        this.#activityState.conditions = conditions
         return this
     }
 
@@ -108,52 +97,34 @@ export default class OIDCMiddlewareClient {
         return this.#resourceVersion
     }
 
-    getGeneration() {
-        return this.#generation
-    }
-
     isDisabled() {
         return this.#disabled
     }
 
     getLastUsedAt() {
-        return this.#lastUsedAt
+        return this.#activityState.lastUsedAt
     }
 
     setLastUsedAt(lastUsedAt) {
-        this.#lastUsedAt = lastUsedAt
+        this.#activityState.lastUsedAt = lastUsedAt
         return this
     }
 
     getIntendedStatus() {
-        return {
-            ...this.#status,
-            lastUsedAt: this.#lastUsedAt,
-            conditions: this.#conditions,
-        }
+        return this.#activityState.getIntendedStatus()
     }
 
     updateActivityCondition(now, inactiveAfterDays) {
-        const reference = this.#lastUsedAt ?? this.#creationTimestamp
-        if (!reference) return this
-        const inactive = now.getTime() - new Date(reference).getTime() >= inactiveAfterDays * 86400000
-        const previous = this.#conditions.find(condition => condition.type === 'Inactive')
-        const status = inactive ? 'True' : 'False'
-        const condition = {
-            type: 'Inactive',
-            status,
-            reason: inactive ? 'NotUsedRecently' : 'RecentlyUsed',
-            message: inactive
-                ? `Client has not been used for at least ${inactiveAfterDays} days`
-                : `Client was used within the last ${inactiveAfterDays} days`,
-            lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : now.toISOString(),
-        }
-        this.#conditions = [...this.#conditions.filter(item => item.type !== 'Inactive'), condition]
+        this.#activityState.updateActivityCondition(now, inactiveAfterDays)
         return this
     }
 
+    getReconcileFingerprint() {
+        return this.#activityState.getReconcileFingerprint()
+    }
+
     getInstance() {
-        return this.#status.instance
+        return this.#activityState.status.instance
     }
 
     getMetadata() {

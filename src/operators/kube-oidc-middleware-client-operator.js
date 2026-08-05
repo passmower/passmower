@@ -8,6 +8,7 @@ import OidcMiddlewareClient from "../models/oidc-middleware-client.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {Claimed} from "../conditions/claimed.js";
 import {getActivityTracker} from '../services/activity-tracker.js';
+import {ClientReconcileState} from '../models/client-activity-state.js';
 
 export class KubeOIDCMiddlewareClientOperator {
     constructor(provider, adapter = new KubernetesAdapter()) {
@@ -15,8 +16,7 @@ export class KubeOIDCMiddlewareClientOperator {
         this.provider = provider
         this.adapter = adapter
         this.instance = this.adapter.instance
-        this.activityTracker = getActivityTracker()
-        this.reconciledGenerations = new Map()
+        this.reconcileState = new ClientReconcileState(getActivityTracker())
     }
 
     async watchClients() {
@@ -32,8 +32,7 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #createOIDCClient (OIDCMiddlewareClient) {
-        this.activityTracker.registerClient(OIDCMiddlewareClient)
-        this.reconciledGenerations.set(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.getGeneration())
+        this.reconcileState.register(OIDCMiddlewareClient)
         if (OIDCMiddlewareClient.getInstance() === this.instance) {
             if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
                 await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
@@ -51,10 +50,7 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
-        this.activityTracker.registerClient(OIDCMiddlewareClient)
-        const previousGeneration = this.reconciledGenerations.get(OIDCMiddlewareClient.getClientId())
-        if (OIDCMiddlewareClient.getGeneration() !== null && previousGeneration === OIDCMiddlewareClient.getGeneration()) return
-        this.reconciledGenerations.set(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.getGeneration())
+        if (!this.reconcileState.shouldReconcile(OIDCMiddlewareClient)) return
         if (OIDCMiddlewareClient.isDisabled()) {
             await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
             return
@@ -66,8 +62,7 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #deleteOIDCClient (OIDCMiddlewareClient) {
-        this.activityTracker.unregisterClient(OIDCMiddlewareClient.getClientId())
-        this.reconciledGenerations.delete(OIDCMiddlewareClient.getClientId())
+        this.reconcileState.unregister(OIDCMiddlewareClient)
         if (OIDCMiddlewareClient.getInstance() === this.instance) {
             await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
         }

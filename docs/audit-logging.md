@@ -51,6 +51,9 @@ Successful activity is aggregated and periodically projected into Kubernetes:
 - `passmower_oidc_client_last_used_timestamp_seconds` exposes the same client
   summary to Prometheus.
 
+Each Passmower replica publishes its own view of the last-used gauge. Dashboards
+and alerts should use `max by (kind, namespace, client)` across replicas.
+
 These fields are summaries for administration and user interfaces, not an audit
 history. By default Passmower flushes at most every 15 minutes rather than
 writing to the Kubernetes API for every login:

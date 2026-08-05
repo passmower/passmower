@@ -14,7 +14,11 @@ export class AuditService {
 
     write(event, ctx) {
         if (process.env.AUDIT_ENABLED === 'false') return
-        const request = parseRequestMetadata(ctx?.headers ?? {}, undefined, undefined)
+        const includeSourceAddress = process.env.AUDIT_INCLUDE_SOURCE_ADDRESS === 'true'
+        const includeUserAgent = process.env.AUDIT_INCLUDE_USER_AGENT === 'true'
+        const request = includeSourceAddress
+            ? parseRequestMetadata(ctx?.headers ?? {}, undefined, undefined)
+            : undefined
         const record = {
             schemaVersion: 1,
             eventId: randomUUID(),
@@ -22,8 +26,8 @@ export class AuditService {
             ...event,
             request: {
                 id: ctx?.state?.requestId ?? ctx?.get?.('x-request-id') ?? undefined,
-                sourceAddress: process.env.AUDIT_INCLUDE_SOURCE_ADDRESS === 'true' ? request?.ip : undefined,
-                userAgent: process.env.AUDIT_INCLUDE_USER_AGENT === 'true' ? ctx?.get?.('user-agent') : undefined,
+                sourceAddress: includeSourceAddress ? request?.ip : undefined,
+                userAgent: includeUserAgent ? ctx?.get?.('user-agent') : undefined,
             },
             sessionHash: hash(ctx?.oidc?.session?.jti ?? ctx?.currentSession?.jti),
         }

@@ -70,4 +70,92 @@ describe('ActivityTracker', () => {
         await tracker.flush()
         expect(adapter.list('OIDCClient')[0].status.conditions.find(c => c.type === 'Inactive').status).toBe('True')
     })
+
+    it('continues flushing clients when one user projection fails', async () => {
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
+        adapter.seed('OIDCUser', rawUser())
+        adapter.seed('OIDCClient', rawClient())
+        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+            if (kind === 'OIDCUser') return undefined
+            return replace(kind, ...args)
+        })
+        const tracker = new ActivityTracker({adapter, now: () => new Date('2026-08-05T12:00:00.000Z')})
+        tracker.registerClient(new OidcClient().fromIncomingClient(adapter.list('OIDCClient')[0]))
+        tracker.record({
+            accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+            timestamp: '2026-08-05T11:30:00.000Z',
+        })
+
+        await expect(tracker.flush()).rejects.toThrow('Failed to flush 1 OIDC activity projection')
+        expect(adapter.list('OIDCClient')[0].status.lastUsedAt).toBe('2026-08-05T11:30:00.000Z')
+    })
+
+    it('preserves newer user activity recorded while a failed flush is in progress', async () => {
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
+        adapter.seed('OIDCUser', rawUser())
+        adapter.seed('OIDCClient', rawClient())
+        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        const tracker = new ActivityTracker({adapter})
+        let fail = true
+        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+            if (kind === 'OIDCUser' && fail) {
+                tracker.record({
+                    accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+                    timestamp: '2026-08-05T12:00:00.000Z',
+                })
+                return undefined
+            }
+            return replace(kind, ...args)
+        })
+        tracker.record({
+            accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+            timestamp: '2026-08-05T11:00:00.000Z',
+        })
+        await expect(tracker.flush()).rejects.toBeInstanceOf(AggregateError)
+
+        fail = false
+        await tracker.flush()
+        expect(adapter.list('OIDCUser')[0].status.recentApplications[0].lastAuthenticatedAt)
+            .toBe('2026-08-05T12:00:00.000Z')
+    })
+
+    it('preserves newer client activity recorded while its status write fails', async () => {
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
+        adapter.seed('OIDCClient', rawClient())
+        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        const tracker = new ActivityTracker({adapter})
+        let fail = true
+        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+            if (kind === 'OIDCClient' && fail) {
+                tracker.record({
+                    clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+                    timestamp: '2026-08-05T12:00:00.000Z',
+                })
+                return undefined
+            }
+            return replace(kind, ...args)
+        })
+        tracker.record({
+            clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+            timestamp: '2026-08-05T11:00:00.000Z',
+        })
+        await expect(tracker.flush()).rejects.toBeInstanceOf(AggregateError)
+
+        fail = false
+        await tracker.flush()
+        expect(adapter.list('OIDCClient')[0].status.lastUsedAt).toBe('2026-08-05T12:00:00.000Z')
+    })
+
+    it('removes the Prometheus series when a client is unregistered', () => {
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
+        adapter.seed('OIDCClient', rawClient())
+        const remove = vi.fn()
+        globalThis.metrics = {oidcClientLastUsed: {remove}}
+        const tracker = new ActivityTracker({adapter})
+        const client = new OidcClient().fromIncomingClient(adapter.list('OIDCClient')[0])
+        tracker.registerClient(client)
+        tracker.unregisterClient(client.getClientId())
+        expect(remove).toHaveBeenCalledWith({kind: 'OIDCClient', namespace: 'apps', client: 'grafana'})
+    })
 })

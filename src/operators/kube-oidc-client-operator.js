@@ -7,6 +7,7 @@ import RedisAdapter from "../adapters/redis.js";
 import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {getActivityTracker} from "../services/activity-tracker.js";
+import {ClientReconcileState} from '../models/client-activity-state.js';
 
 export class KubeOIDCClientOperator {
     constructor(provider, adapter = new KubernetesAdapter()) {
@@ -14,8 +15,7 @@ export class KubeOIDCClientOperator {
         this.provider = provider
         this.adapter = adapter
         this.instance = this.adapter.instance
-        this.activityTracker = getActivityTracker()
-        this.reconciledGenerations = new Map()
+        this.reconcileState = new ClientReconcileState(getActivityTracker())
     }
 
     async watchClients() {
@@ -31,8 +31,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #createOIDCClient (OIDCClient) {
-        this.activityTracker.registerClient(OIDCClient)
-        this.reconciledGenerations.set(OIDCClient.getClientId(), OIDCClient.getGeneration())
+        this.reconcileState.register(OIDCClient)
         if (OIDCClient.getInstance() === this.instance) {
             if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
                 let secret = await this.adapter.getSecret(
@@ -78,12 +77,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #updateOIDCClient(OIDCClient) {
-        this.activityTracker.registerClient(OIDCClient)
-        const previousGeneration = this.reconciledGenerations.get(OIDCClient.getClientId())
-        if (OIDCClient.getGeneration() !== null && previousGeneration === OIDCClient.getGeneration()) {
-            return
-        }
-        this.reconciledGenerations.set(OIDCClient.getClientId(), OIDCClient.getGeneration())
+        if (!this.reconcileState.shouldReconcile(OIDCClient)) return
         if (OIDCClient.isDisabled()) {
             await this.redisAdapter.destroy(OIDCClient.getClientId())
             return
@@ -139,8 +133,7 @@ export class KubeOIDCClientOperator {
     }
 
     async #deleteOIDCClient (OIDCClient) {
-        this.activityTracker.unregisterClient(OIDCClient.getClientId())
-        this.reconciledGenerations.delete(OIDCClient.getClientId())
+        this.reconcileState.unregister(OIDCClient)
         if (OIDCClient.getInstance() === this.instance) {
             await this.redisAdapter.destroy(OIDCClient.getClientId())
         }
