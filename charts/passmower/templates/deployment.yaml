@@ -57,6 +57,8 @@ spec:
             - name: REQUIRED_GROUP
               value: {{ . | quote }}
             {{- end }}
+            - name: PRIVILEGE_DIRECTORY_GROUPS
+              value: {{ .Values.passmower.privilegeDirectoryGroups | default list | toJson | quote }}
             {{- with .Values.passmower.githubOrganization }}
             - name: GITHUB_ORGANIZATION
               value: {{ . | quote }}

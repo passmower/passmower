@@ -330,6 +330,10 @@ To list users:
 kubectl get oidcusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .github.id // "-", .status.profile.name] | @tsv' | column -t
 ```
 
+An authenticated, explicitly allow-listed “who has access?” directory can help
+users find people responsible for selected roles. See
+[docs/privilege-directory.md](docs/privilege-directory.md).
+
 Passmower can also accept automated user and group provisioning over SCIM 2.0.
 See [docs/scim-provisioning.md](docs/scim-provisioning.md) for endpoint,
 authentication, Entra configuration, and lifecycle behavior.

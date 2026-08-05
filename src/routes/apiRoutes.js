@@ -14,6 +14,7 @@ import validator, {
 } from "../utils/session/validator.js";
 import {getText} from "../utils/get-text.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
+import {buildPrivilegeDirectory, getListedPrivilegeGroups} from "../utils/user/privilege-directory.js";
 
 export default (provider) => {
     const router = new Router();
@@ -86,6 +87,20 @@ export default (provider) => {
         ctx.body = {
             ...account.getProfileResponse(),
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
+            privilegeDirectoryEnabled: getListedPrivilegeGroups().length > 0,
+        }
+    })
+
+    router.get('/api/privileges', async (ctx) => {
+        const configuredGroups = getListedPrivilegeGroups()
+        const requestedGroup = ctx.query.group
+        if (requestedGroup && !configuredGroups.includes(requestedGroup)) {
+            ctx.status = 404
+            return
+        }
+        const groups = requestedGroup ? [requestedGroup] : configuredGroups
+        ctx.body = {
+            roles: buildPrivilegeDirectory(await ctx.kubeOIDCUserService.listUsers(), groups),
         }
     })
 

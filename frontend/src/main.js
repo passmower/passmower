@@ -7,12 +7,14 @@ import {createRouter, createWebHistory} from 'vue-router'
 import App from "./App.vue";
 import Apps from "./Apps.vue";
 import Profile from "./Profile.vue";
+import Privileges from "./Privileges.vue";
 
 const app = createApp(App)
 
 const routes = [
     { path: '/', component: Apps },
     { path: '/profile', component: Profile },
+    { path: '/privileges/:group?', component: Privileges },
     { path: '/admin', component: Admin },
 ]
 const router = createRouter({
