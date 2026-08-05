@@ -29,7 +29,8 @@ export class SlackAdapter {
         teamIdPromise ??= this.client.auth.test()
             .then(response => response.team_id)
             .catch(error => {
-                globalThis.logger.error({error}, 'getting workspace ID from Slack failed')
+                teamIdPromise = undefined
+                globalThis.logger?.error({error}, 'getting workspace ID from Slack failed')
                 return undefined
             })
         return teamIdPromise
