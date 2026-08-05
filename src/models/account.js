@@ -351,12 +351,13 @@ class Account {
         auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
         let user
         try {
+            const users = await ctx.kubeOIDCUserService.listUsers()
             if (identity.providerKey && identity.subject) {
-                user = await ctx.kubeOIDCUserService.findUserByIdentity(identity.providerKey, identity.subject)
+                user = await ctx.kubeOIDCUserService.findUserByIdentity(identity.providerKey, identity.subject, users)
             } else if (identity.githubId !== undefined) {
-                user = await ctx.kubeOIDCUserService.findUserByGithubId(identity.githubId)
+                user = await ctx.kubeOIDCUserService.findUserByGithubId(identity.githubId, users)
             }
-            const emailUser = await ctx.kubeOIDCUserService.findUserByEmails(emails)
+            const emailUser = await ctx.kubeOIDCUserService.findUserByEmails(emails, users)
             if (user && emailUser && user.accountId !== emailUser.accountId) {
                 throw new IdentityIntegrityError('Stable upstream identity and email resolve to different OIDC users', {
                     identityAccountId: user.accountId,

@@ -284,7 +284,7 @@ export class KubernetesAdapter {
                 },
                 involvedObject: {
                     apiVersion: involvedObject.apiVersion ?? `${defaultApiGroup}/${defaultApiGroupVersion}`,
-                    kind: 'OIDCUser',
+                    kind: involvedObject.kind ?? 'OIDCUser',
                     name: involvedObject.name,
                     namespace,
                     uid: involvedObject.uid,

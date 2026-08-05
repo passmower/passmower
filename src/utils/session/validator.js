@@ -3,6 +3,7 @@ import Account from "../../models/account.js";
 import validatorLib from "validator";
 import {getText} from "../get-text.js";
 import {USERNAME_RULES} from "../user/username.js";
+import {IdentityIntegrityError} from "../user/identity-integrity.js";
 
 // Display-name / company validation (#64). Upstream IdPs (GitHub, OIDC) legitimately
 // supply names with unicode letters, accents, apostrophes, hyphens, "&", etc. — an
@@ -40,7 +41,13 @@ const customValidators = {
         } else {
             Account.findByEmail(ctx, value).then(user => {
                 resolve(!user)
-            }).catch(reject);
+            }).catch(error => {
+                if (error instanceof IdentityIntegrityError) {
+                    resolve(false)
+                } else {
+                    reject(error)
+                }
+            });
         }
     }),
     isValidName: (value) => isSafeDisplayName(value),

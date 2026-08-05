@@ -36,8 +36,8 @@ export class KubeOIDCUserService {
         )
     }
 
-    async findUserByEmails(emails) {
-        const allUsers = await this.listUsers()
+    async findUserByEmails(emails, users) {
+        const allUsers = users ?? await this.listUsers()
         const ownership = assessEmailOwnership(allUsers)
         const candidates = [...new Set(emails.map(canonicalizeEmail).filter(Boolean)
             .map(email => ownership.owners.get(email)).filter(Boolean))]
@@ -56,22 +56,24 @@ export class KubeOIDCUserService {
         return account
     }
 
-    async findUserByIdentity(providerKey, subject) {
+    async findUserByIdentity(providerKey, subject, users) {
         return this.#findUniqueStableIdentity(
             account => account.getIdentity(providerKey)?.sub === subject,
-            `${providerKey} subject ${subject}`
+            `${providerKey} subject ${subject}`,
+            users,
         )
     }
 
-    async findUserByGithubId(githubId) {
+    async findUserByGithubId(githubId, users) {
         return this.#findUniqueStableIdentity(
             account => String(account.getGithubId()) === String(githubId),
-            `GitHub id ${githubId}`
+            `GitHub id ${githubId}`,
+            users,
         )
     }
 
-    async #findUniqueStableIdentity(predicate, description) {
-        const allUsers = await this.listUsers()
+    async #findUniqueStableIdentity(predicate, description, users) {
+        const allUsers = users ?? await this.listUsers()
         const matches = allUsers.filter(predicate)
         if (matches.length > 1) {
             throw new IdentityIntegrityError(`${description} is attached to multiple OIDC users`, {

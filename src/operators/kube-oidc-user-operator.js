@@ -14,7 +14,8 @@ export class KubeOIDCUserOperator {
         this.adapter = adapter
         this.instance = this.adapter.instance
         this.userService = new KubeOIDCUserService(this.adapter);
-        this.reconcileEmailPromise = Promise.resolve()
+        this.reconcileEmailPromise = null
+        this.reconcileEmailPending = false
     }
 
     async watchUsers() {
@@ -46,12 +47,22 @@ export class KubeOIDCUserOperator {
     }
 
     async #scheduleEmailReconcile() {
-        this.reconcileEmailPromise = this.reconcileEmailPromise
-            .catch(() => undefined)
-            .then(() => this.userService.reconcileEmailUniqueness())
-            .catch(error => {
-                globalThis.logger?.error(error, 'Failed to reconcile OIDCUser email uniqueness')
-            })
+        if (this.reconcileEmailPromise) {
+            this.reconcileEmailPending = true
+            return this.reconcileEmailPromise
+        }
+        this.reconcileEmailPromise = (async () => {
+            do {
+                this.reconcileEmailPending = false
+                try {
+                    await this.userService.reconcileEmailUniqueness()
+                } catch (error) {
+                    globalThis.logger?.error(error, 'Failed to reconcile OIDCUser email uniqueness')
+                }
+            } while (this.reconcileEmailPending)
+        })().finally(() => {
+            this.reconcileEmailPromise = null
+        })
         return this.reconcileEmailPromise
     }
 }

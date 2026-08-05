@@ -144,6 +144,11 @@ export default (provider) => {
         }
 
         const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, username);
+        if (!account) {
+            ctx.status = 409
+            ctx.body = {errors: [{param: 'email', msg: 'Email is already taken'}]}
+            return
+        }
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
         account.addCondition(condition)
