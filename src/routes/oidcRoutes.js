@@ -120,7 +120,7 @@ export default (provider) => {
     }))
     router.use(validator())
 
-    router.get(['/', '/profile', '/terms-of-service'], async (ctx, next) => {
+    router.get(['/', '/profile', '/privileges', '/privileges/:group', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
             if (ctx.path === '/terms-of-service') {
                 // TODO: proper implementation
