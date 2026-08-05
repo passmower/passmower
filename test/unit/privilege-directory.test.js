@@ -38,4 +38,12 @@ describe('privilege directory', () => {
             members: [{username: 'alice', name: 'Alice', email: 'alice@example.com'}],
         }])
     })
+
+    it('adds Slack links only for linked users when a workspace is configured', () => {
+        const alice = account('alice', 'person', 'Alice', 'alice@example.com', ['local:admin'])
+        alice.slackId = 'U123'
+        expect(buildPrivilegeDirectory([alice], ['local:admin'], 'T456')[0].members[0].slackUrl)
+            .toBe('slack://user?team=T456&id=U123')
+        expect(buildPrivilegeDirectory([alice], ['local:admin'])[0].members[0].slackUrl).toBeUndefined()
+    })
 })

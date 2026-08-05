@@ -15,6 +15,7 @@ import validator, {
 import {getText} from "../utils/get-text.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
 import {buildPrivilegeDirectory, getListedPrivilegeGroups} from "../utils/user/privilege-directory.js";
+import {SlackAdapter} from "../adapters/slack.js";
 
 export default (provider) => {
     const router = new Router();
@@ -99,8 +100,9 @@ export default (provider) => {
             return
         }
         const groups = requestedGroup ? [requestedGroup] : configuredGroups
+        const slackTeamId = await new SlackAdapter().getTeamId()
         ctx.body = {
-            roles: buildPrivilegeDirectory(await ctx.kubeOIDCUserService.listUsers(), groups),
+            roles: buildPrivilegeDirectory(await ctx.kubeOIDCUserService.listUsers(), groups, slackTeamId),
         }
     })
 

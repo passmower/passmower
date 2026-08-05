@@ -23,6 +23,7 @@
             <h3>{{ member.name || member.username }}</h3>
             <p v-if="member.name && member.name !== member.username">Username: {{ member.username }}</p>
             <p v-if="member.email"><a :href="`mailto:${member.email}`">{{ member.email }}</a></p>
+            <p v-if="member.slackUrl"><a :href="member.slackUrl">Message on Slack</a></p>
           </div>
         </div>
       </section>

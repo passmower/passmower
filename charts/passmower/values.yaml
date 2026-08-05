@@ -131,7 +131,8 @@ passmower:
   #    groupsClaim: groups
   #    groupPrefix: entraid
   #    clientSecretRef: entraid-client
-  # Slack API client secret name. Secret must contain SLACK_TOKEN
+  # Slack API client secret name. Secret must contain SLACK_TOKEN and may contain
+  # SLACK_TEAM_ID to avoid resolving the workspace ID through auth.test.
   # slackClientSecretRef: "slack-client"
   # Different texts displayed and sent to the user
   texts:

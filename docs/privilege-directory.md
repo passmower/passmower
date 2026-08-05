@@ -31,5 +31,12 @@ user CRD, other group memberships, conditions, identities, or audit activity.
 Groups not present in `privilegeDirectoryGroups` return `404`, even if they
 exist on an account.
 
+When Slack integration is enabled, members linked to Slack also receive a
+“Message on Slack” deep link. Passmower obtains the workspace ID once through
+Slack `auth.test`. To avoid that lookup, the secret selected by
+`slackClientSecretRef` may provide `SLACK_TEAM_ID` alongside `SLACK_TOKEN`.
+The Slack token is never returned; the workspace and user identifiers appear
+only inside the generated deep-link URL.
+
 Treat the configured list as a privacy decision. The page requires a valid
 Passmower site session, but every authenticated user can view its contents.

@@ -10,7 +10,7 @@ export function getListedPrivilegeGroups(value = process.env.PRIVILEGE_DIRECTORY
     }
 }
 
-export function buildPrivilegeDirectory(accounts, groups = getListedPrivilegeGroups()) {
+export function buildPrivilegeDirectory(accounts, groups = getListedPrivilegeGroups(), slackTeamId) {
     return groups.map(group => ({
         group,
         members: accounts
@@ -20,6 +20,9 @@ export function buildPrivilegeDirectory(accounts, groups = getListedPrivilegeGro
                 username: account.accountId,
                 name: account.profile.name,
                 email: account.primaryEmail,
+                slackUrl: slackTeamId && account.slackId
+                    ? `slack://user?team=${encodeURIComponent(slackTeamId)}&id=${encodeURIComponent(account.slackId)}`
+                    : undefined,
             }))
             .sort((a, b) => (a.name ?? a.username).localeCompare(b.name ?? b.username)),
     }))
