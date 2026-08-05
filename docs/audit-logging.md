@@ -68,6 +68,11 @@ Activity buffered since the previous flush may be lost if every Passmower pod
 terminates simultaneously. Audit records are emitted immediately and remain the
 historical source of truth once collected by a durable backend.
 
+The admin UI shows a refined, read-only view of each user's bounded recent
+application activity: application namespace/name, client kind, and last
+authentication time. It does not return raw CRD status, conditions beyond those
+already used by user administration, request metadata, or audit records.
+
 ## Reversibly disabling a client
 
 Set `OIDCClient.spec.disabled: true` or `OIDCMiddlewareClient.spec.disabled: true`

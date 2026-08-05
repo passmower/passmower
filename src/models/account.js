@@ -194,7 +194,16 @@ class Account {
                 accountId: this.accountId,
                 impersonationEnabled: requesterAccountId !== this.accountId,
                 approved: this.isAdmin || (new Approved()).check(this),
-                conditions: this.#conditions
+                conditions: this.#conditions,
+                // Refined read-only activity projection for the admin UI. Do not
+                // expose the rest of the CRD status or any raw audit-log fields.
+                recentApplications: this.#recentApplications.map(application => ({
+                    clientId: application.clientId,
+                    namespace: application.clientNamespace,
+                    name: application.clientName,
+                    kind: application.clientKind,
+                    lastAuthenticatedAt: application.lastAuthenticatedAt,
+                })),
             }
         }
         return profile
