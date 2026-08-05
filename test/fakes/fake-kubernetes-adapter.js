@@ -16,6 +16,7 @@ export class FakeKubernetesAdapter {
         this.store = new Map()       // `${kind}/${name}` -> stored CR object
         this.secrets = new Map()     // `${namespace}/${name}` -> { data, metadata }
         this.jobs = []               // jobs created via createJob (e.g. secret-refresh)
+        this.events = []             // Kubernetes Events emitted by reconcilers
         this.watchHandlers = []      // for operator tests
         this.watchParameters = null  // set by setWatchParameters()
         this._rv = 0
@@ -45,7 +46,7 @@ export class FakeKubernetesAdapter {
         const obj = {
             apiVersion: 'codemowers.cloud/v1',
             kind,
-            metadata: { name, labels, resourceVersion: this.#nextRv() },
+            metadata: { name, labels, resourceVersion: this.#nextRv(), creationTimestamp: new Date().toISOString() },
             status: {},
             ...structuredClone(spec),
         }
@@ -85,6 +86,11 @@ export class FakeKubernetesAdapter {
     async patchSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async deleteSecret(namespace, id) { this.secrets.delete(`${namespace}/${id}`) }
     async createJob(namespace, jobManifest) { this.jobs.push({ namespace, jobManifest: structuredClone(jobManifest) }); return { active: 1 } }
+    async createEvent(namespace, involvedObject, reason, message, type = 'Warning') {
+        const event = {namespace, involvedObject: structuredClone(involvedObject), reason, message, type}
+        this.events.push(event)
+        return event
+    }
 
     // --- Watch (used by operators) ------------------------------------------
 
@@ -134,6 +140,10 @@ export class FakeKubernetesAdapter {
     /** All stored resources of a kind, as raw objects. */
     list(kind) {
         return [...this.store.entries()].filter(([k]) => k.startsWith(`${kind}/`)).map(([, v]) => v)
+    }
+
+    delete(kind, name) {
+        this.store.delete(this.#key(kind, name))
     }
 }
 

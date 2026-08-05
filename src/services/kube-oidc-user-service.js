@@ -5,6 +5,7 @@ import {ClaimedBy} from "../conditions/claimed-by.js";
 import mergeWith from "lodash/mergeWith.js";
 import cloneDeep from "lodash/cloneDeep.js";
 import isArray from "lodash/isArray.js";
+import {assessEmailOwnership, canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
 
 // Custom merge that replaces arrays instead of merging by index
 function mergeReplacingArrays(objValue, srcValue) {
@@ -36,20 +37,105 @@ export class KubeOIDCUserService {
     }
 
     async findUserByEmails(emails) {
-        const emailsInKube = []
         const allUsers = await this.listUsers()
-        allUsers.map(user => {
-            user.emails.map((email) => {
-                emailsInKube.push({
-                    email: email,
-                    user: user
-                })
+        const ownership = assessEmailOwnership(allUsers)
+        const candidates = [...new Set(emails.map(canonicalizeEmail).filter(Boolean)
+            .map(email => ownership.owners.get(email)).filter(Boolean))]
+        if (candidates.length > 1) {
+            throw new IdentityIntegrityError('Incoming emails belong to different OIDC users', {
+                accountIds: candidates.map(account => account.accountId),
             })
-        })
-        const foundUser = emailsInKube.find((element) => {
-            return emails.includes(element.email)
-        })
-        return foundUser?.user
+        }
+        const account = candidates[0]
+        if (account && !ownership.isEligible(account)) {
+            throw new IdentityIntegrityError(`OIDCUser ${account.accountId} has conflicting email claims`, {
+                accountId: account.accountId,
+                conflicts: ownership.conflicts.get(account.accountId),
+            })
+        }
+        return account
+    }
+
+    async findUserByIdentity(providerKey, subject) {
+        return this.#findUniqueStableIdentity(
+            account => account.getIdentity(providerKey)?.sub === subject,
+            `${providerKey} subject ${subject}`
+        )
+    }
+
+    async findUserByGithubId(githubId) {
+        return this.#findUniqueStableIdentity(
+            account => String(account.getGithubId()) === String(githubId),
+            `GitHub id ${githubId}`
+        )
+    }
+
+    async #findUniqueStableIdentity(predicate, description) {
+        const allUsers = await this.listUsers()
+        const matches = allUsers.filter(predicate)
+        if (matches.length > 1) {
+            throw new IdentityIntegrityError(`${description} is attached to multiple OIDC users`, {
+                accountIds: matches.map(account => account.accountId),
+            })
+        }
+        const account = matches[0]
+        if (!account) return undefined
+        const ownership = assessEmailOwnership(allUsers)
+        if (!ownership.isEligible(account)) {
+            throw new IdentityIntegrityError(`OIDCUser ${account.accountId} has conflicting email claims`, {
+                accountId: account.accountId,
+                conflicts: ownership.conflicts.get(account.accountId),
+            })
+        }
+        return account
+    }
+
+    async reconcileEmailUniqueness() {
+        const accounts = await this.listUsers()
+        const ownership = assessEmailOwnership(accounts)
+        let conflictedUsers = 0
+        const errors = []
+        for (const account of accounts) {
+            const conflicts = ownership.conflicts.get(account.accountId) ?? []
+            if (conflicts.length) conflictedUsers++
+            const previous = account.getConditions().find(condition => condition.type === 'EmailUnique')
+            const status = conflicts.length ? 'False' : 'True'
+            const reason = conflicts.length ? 'DuplicateEmail' : 'Unique'
+            const message = conflicts.length
+                ? conflicts.map(conflict => `${conflict.email} is owned by OIDCUser ${conflict.ownerAccountId}`).join('; ')
+                : 'All claimed email addresses are unique'
+            if (previous?.status === status && previous?.reason === reason && previous?.message === message) continue
+            const condition = {
+                apiVersion: 'v1',
+                kind: 'Condition',
+                type: 'EmailUnique',
+                status,
+                reason,
+                message,
+                lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : new Date(),
+            }
+            account.setConditions([
+                ...account.getConditions().filter(item => item.type !== 'EmailUnique'),
+                condition,
+            ])
+            try {
+                const updated = await this.updateUserStatus(account)
+                if (!updated) throw new Error(`Status update returned no OIDCUser for ${account.accountId}`)
+                if (status === 'False' && previous?.status !== 'False') {
+                    await this.adapter.createEvent?.(
+                        this.adapter.namespace,
+                        account.getMetadata(),
+                        'DuplicateEmail',
+                        message,
+                    )
+                }
+            } catch (error) {
+                errors.push(error)
+            }
+        }
+        globalThis.metrics?.oidcUserEmailConflicts?.set(conflictedUsers)
+        if (errors.length) throw new AggregateError(errors, `Failed to reconcile ${errors.length} OIDCUser email condition(s)`)
+        return {accounts, ownership, conflictedUsers}
     }
 
     async createUser(id, email, githubEmails) {

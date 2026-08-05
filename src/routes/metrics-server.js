@@ -32,6 +32,10 @@ export default async () => {
         help: 'Unix timestamp of the latest successful OIDC activity for a client, or zero if never used',
         labelNames: ['kind', 'namespace', 'client'],
     })
+    globalThis.metrics.oidcUserEmailConflicts = new Gauge({
+        name: 'passmower_oidc_user_email_conflicts',
+        help: 'Number of OIDCUser resources rejected because an older user owns one or more claimed emails',
+    })
     setupOidcMetrics()
 
     const userService = new KubeOIDCUserService();

@@ -572,6 +572,10 @@ spec:
         - name: Groups
           type: string
           jsonPath: .status.groups
+        - name: Email unique
+          type: string
+          description: Whether all claimed emails are uniquely owned by this user
+          jsonPath: .status.conditions[?(@.type=="EmailUnique")].status
     - name: v1beta1
       served: true
       storage: false

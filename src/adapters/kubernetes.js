@@ -273,6 +273,36 @@ export class KubernetesAdapter {
         })
     }
 
+    async createEvent(namespace, involvedObject, reason, message, type = 'Warning') {
+        const now = new Date()
+        return await this.coreV1Api.createNamespacedEvent({
+            namespace,
+            body: {
+                metadata: {
+                    generateName: `${involvedObject.name}-`,
+                    namespace,
+                },
+                involvedObject: {
+                    apiVersion: involvedObject.apiVersion ?? `${defaultApiGroup}/${defaultApiGroupVersion}`,
+                    kind: 'OIDCUser',
+                    name: involvedObject.name,
+                    namespace,
+                    uid: involvedObject.uid,
+                },
+                reason,
+                message,
+                type,
+                source: {component: this.instance},
+                firstTimestamp: now,
+                lastTimestamp: now,
+                count: 1,
+            },
+        }, this.defaultOptions).catch(error => {
+            globalThis.logger.error({error, reason, involvedObject: involvedObject.name}, 'Failed to create Kubernetes Event')
+            return null
+        })
+    }
+
     setWatchParameters (kind, mapperFunction, addedCallback, modifiedCallback, deletedCallback, namespaceFilter, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         this.watchParameters = {
             kind,

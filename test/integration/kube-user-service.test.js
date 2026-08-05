@@ -1,6 +1,16 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest'
 import { KubeOIDCUserService } from '../../src/services/kube-oidc-user-service.js'
 import { FakeKubernetesAdapter } from '../fakes/fake-kubernetes-adapter.js'
+import {IdentityIntegrityError} from '../../src/utils/user/identity-integrity.js';
+
+function rawUser(name, created, email, overrides = {}) {
+    return {
+        metadata: {name, namespace: 'test', creationTimestamp: created, uid: `uid-${name}`},
+        spec: {type: 'person', email},
+        status: {},
+        ...overrides,
+    }
+}
 
 // Exercises the real user-service + Account model against the in-memory fake
 // adapter — i.e. the exact code path that reads/writes OIDCUser custom resources.
@@ -62,6 +72,65 @@ describe('KubeOIDCUserService over the fake Kubernetes adapter', () => {
         expect(stored.identities.google.sub).toBe('g-1')
         expect(stored.status.emails).toContain('dave@corp.example.com')
         expect(stored.status.groups.map(g => `${g.prefix}:${g.name}`)).toContain('google.com:eng')
+    })
+
+    it('deterministically rejects a newer GitOps user with a duplicate email', async () => {
+        adapter.seed('OIDCUser', rawUser('original', '2026-01-01T00:00:00Z', 'person@example.com'))
+        adapter.seed('OIDCUser', rawUser('duplicate', '2026-02-01T00:00:00Z', 'PERSON@example.com'))
+        globalThis.metrics = {oidcUserEmailConflicts: {set: vi.fn()}}
+
+        const result = await service.reconcileEmailUniqueness()
+
+        expect(result.conflictedUsers).toBe(1)
+        const byName = Object.fromEntries(adapter.list('OIDCUser').map(user => [user.metadata.name, user]))
+        expect(byName.original.status.conditions.find(c => c.type === 'EmailUnique').status).toBe('True')
+        expect(byName.duplicate.status.conditions.find(c => c.type === 'EmailUnique')).toMatchObject({
+            status: 'False',
+            reason: 'DuplicateEmail',
+            message: 'person@example.com is owned by OIDCUser original',
+        })
+        expect((await service.findUserByEmails(['person@example.com'])).accountId).toBe('original')
+        expect(adapter.events).toHaveLength(1)
+        expect(adapter.events[0]).toMatchObject({reason: 'DuplicateEmail', type: 'Warning'})
+        expect(globalThis.metrics.oidcUserEmailConflicts.set).toHaveBeenCalledWith(1)
+    })
+
+    it('restores uniqueness after the original duplicate claim is removed', async () => {
+        adapter.seed('OIDCUser', rawUser('original', '2026-01-01T00:00:00Z', 'person@example.com'))
+        adapter.seed('OIDCUser', rawUser('duplicate', '2026-02-01T00:00:00Z', 'person@example.com'))
+        await service.reconcileEmailUniqueness()
+        adapter.delete('OIDCUser', 'original')
+
+        await service.reconcileEmailUniqueness()
+
+        const duplicate = adapter.list('OIDCUser')[0]
+        expect(duplicate.status.conditions.find(c => c.type === 'EmailUnique')).toMatchObject({
+            status: 'True', reason: 'Unique',
+        })
+        expect((await service.findUserByEmails(['person@example.com'])).accountId).toBe('duplicate')
+    })
+
+    it('rejects an upstream identity whose verified emails span multiple owners', async () => {
+        adapter.seed('OIDCUser', rawUser('alice', '2026-01-01T00:00:00Z', 'alice@example.com'))
+        adapter.seed('OIDCUser', rawUser('bob', '2026-01-02T00:00:00Z', 'bob@example.com'))
+        await expect(service.findUserByEmails(['alice@example.com', 'bob@example.com']))
+            .rejects.toBeInstanceOf(IdentityIntegrityError)
+    })
+
+    it('resolves an existing provider subject before an upstream email change', async () => {
+        adapter.seed('OIDCUser', rawUser('alice', '2026-01-01T00:00:00Z', 'old@example.com', {
+            identities: {google: {sub: 'google-123', emails: [{email: 'old@example.com', primary: true}]}},
+        }))
+        const found = await service.findUserByIdentity('google', 'google-123')
+        expect(found.accountId).toBe('alice')
+        expect(await service.findUserByEmails(['new@example.com'])).toBeUndefined()
+    })
+
+    it('resolves an existing GitHub numeric id independently of email', async () => {
+        adapter.seed('OIDCUser', rawUser('alice', '2026-01-01T00:00:00Z', 'old@example.com', {
+            github: {id: 12345, emails: [{email: 'old@example.com', primary: true}]},
+        }))
+        expect((await service.findUserByGithubId(12345)).accountId).toBe('alice')
     })
 
     it('adds, renames and removes a passkey', async () => {
