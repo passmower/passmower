@@ -44,7 +44,7 @@ export class WebAuthnService {
             userDisplayName: account.profile?.name || account.username || account.accountId,
             // Prevent re-registration of existing credentials
             excludeCredentials: existingCredentials.map(cred => ({
-                id: base64URLToBuffer(cred.id),
+                id: cred.id,
                 transports: cred.transports,
             })),
             authenticatorSelection: {
@@ -130,7 +130,7 @@ export class WebAuthnService {
             const account = await this.userService.findUser(accountId);
             if (account?.webauthn?.credentials?.length) {
                 allowCredentials = account.webauthn.credentials.map(cred => ({
-                    id: base64URLToBuffer(cred.id),
+                    id: cred.id,
                     transports: cred.transports,
                 }));
             }
@@ -188,7 +188,7 @@ export class WebAuthnService {
                 expectedOrigin: this.origin,
                 expectedRPID: this.rpID,
                 credential: {
-                    id: base64URLToBuffer(credential.id),
+                    id: credential.id,
                     publicKey: base64URLToBuffer(credential.publicKey),
                     counter: credential.counter,
                     transports: credential.transports,
