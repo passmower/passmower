@@ -215,6 +215,18 @@ class OIDCClient {
         return this
     }
 
+    updateReadyCondition(ready, reason, message, now) {
+        return this.#activityState.updateReadyCondition(ready, reason, message, now)
+    }
+
+    getMetadata() {
+        return new KubeOwnerMetadata(
+            OIDCClientCrd,
+            this.#clientName,
+            this.#uid
+        )
+    }
+
     getReconcileFingerprint() {
         return this.#activityState.getReconcileFingerprint()
     }

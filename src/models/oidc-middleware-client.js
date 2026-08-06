@@ -122,6 +122,10 @@ export default class OIDCMiddlewareClient {
         return this
     }
 
+    updateReadyCondition(ready, reason, message, now) {
+        return this.#activityState.updateReadyCondition(ready, reason, message, now)
+    }
+
     getReconcileFingerprint() {
         return this.#activityState.getReconcileFingerprint()
     }

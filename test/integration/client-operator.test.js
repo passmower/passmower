@@ -65,6 +65,12 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         expect(configured.clientNamespace).toBe('apps')
         expect(configured.clientName).toBe('app-a')
         expect(configured.kind).toBe('OIDCClient')
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'True', reason: 'Reconciled',
+        }))
+        expect(adapter.events).toContainEqual(expect.objectContaining({
+            reason: 'Reconciled', type: 'Normal',
+        }))
     })
 
     it('creates the secretRefreshJob when configured (#69/#70)', async () => {
@@ -100,8 +106,10 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         adapter.seed('OIDCClient', rawClient('app-status', {secretRefreshJobSpec: refreshJobSpec}))
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-status')
         const jobs = adapter.jobs.length
+        const events = adapter.events.length
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-status')
         expect(adapter.jobs).toHaveLength(jobs)
+        expect(adapter.events).toHaveLength(events)
     })
 
     it('reconciles description annotation changes without a generation bump', async () => {
@@ -135,5 +143,23 @@ describe('KubeOIDCClientOperator reconciliation', () => {
 
         expect(await clientRedis().find(idOf('app-disabled'))).toBeUndefined()
         expect(adapter.secrets.get('apps/oidc-client-app-disabled-owner-secrets')).toEqual(secret)
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'True', reason: 'Disabled',
+        }))
+    })
+
+    it('reports a failed secret-refresh Job in status and a Warning event', async () => {
+        adapter.createJob = async () => null
+        adapter.seed('OIDCClient', rawClient('app-job-failure', {secretRefreshJobSpec: refreshJobSpec}))
+
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'app-job-failure')
+
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'False', reason: 'RefreshJobReconcileFailed',
+        }))
+        expect(adapter.events).toContainEqual(expect.objectContaining({
+            reason: 'RefreshJobReconcileFailed', type: 'Warning',
+        }))
+        expect(await clientRedis().find(idOf('app-job-failure'))).toBeUndefined()
     })
 })

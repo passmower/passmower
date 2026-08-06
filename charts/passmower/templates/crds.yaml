@@ -765,6 +765,9 @@ spec:
           type: string
           description: Passmower deployment which manages this client
           jsonPath: .status.instance
+        - name: Ready
+          type: string
+          jsonPath: '.status.conditions[?(@.type=="Ready")].status'
         - name: Disabled
           type: boolean
           jsonPath: .spec.disabled
@@ -876,6 +879,9 @@ spec:
           type: string
           description: Passmower deployment which manages this client
           jsonPath: .status.instance
+        - name: Ready
+          type: string
+          jsonPath: '.status.conditions[?(@.type=="Ready")].status'
         - name: Disabled
           type: boolean
           jsonPath: .spec.disabled
