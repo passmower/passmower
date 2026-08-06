@@ -1,7 +1,7 @@
 import htmlSafe from "oidc-provider/lib/helpers/html_safe.js";
 
 const renderError = (ctx, out, error) => {
-    globalThis.logger.debug({ctx, out, error})
+    globalThis.logger?.debug({ctx, out, error})
     // redirect_uri mismatches are hard to debug from the generic message, so
     // surface the attempted URI and the client's registered ones (#75).
     if (out.error === 'invalid_redirect_uri') {

@@ -31,4 +31,14 @@ describe('renderError', () => {
         const body = render({ error: 'invalid_redirect_uri', error_description: 'mismatch' }, undefined)
         expect(body).toContain('mismatch')
     })
+
+    it('renders when logging is not initialized', () => {
+        const logger = globalThis.logger
+        delete globalThis.logger
+        try {
+            expect(render({ error: 'server_error', error_description: 'try later' }, {})).toContain('try later')
+        } finally {
+            globalThis.logger = logger
+        }
+    })
 })
