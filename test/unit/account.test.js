@@ -67,6 +67,31 @@ describe('Account.getIntendedStatus', () => {
         expect(status.profile.name).toBe('GH Name')
         expect(status.profile.company).toBe('GH Co')
     })
+
+    it('stores ToS acceptance outside conditions', () => {
+        const acceptedAt = new Date('2026-08-06T12:00:00.000Z')
+        const status = account({status: {conditions: [{type: 'Ready', status: 'True'}]}})
+            .acceptTermsOfService('content-hash', acceptedAt)
+            .getIntendedStatus()
+
+        expect(status.termsOfService).toEqual({
+            acceptedAt: acceptedAt.toISOString(),
+            contentHash: 'content-hash',
+        })
+        expect(status.conditions).toEqual([{type: 'Ready', status: 'True'}])
+    })
+
+    it('migrates legacy ToSv1 acceptance on the next status projection', () => {
+        const status = account({status: {conditions: [{
+            type: 'ToSv1', status: 'True', lastTransitionTime: '2025-01-01T00:00:00.000Z',
+        }, {type: 'Ready', status: 'True'}]}}).getIntendedStatus()
+
+        expect(status.termsOfService).toEqual({
+            acceptedAt: '2025-01-01T00:00:00.000Z',
+            contentHash: null,
+        })
+        expect(status.conditions).toEqual([{type: 'Ready', status: 'True'}])
+    })
 })
 
 describe('Account.getProfileResponse', () => {
@@ -105,6 +130,16 @@ describe('Account.getProfileResponse', () => {
 
     it('returns null onboarder metadata for users not created through an admin invite', () => {
         expect(account().getProfileResponse(true).onboardedBy).toBeNull()
+    })
+
+    it('projects the dedicated ToS acceptance timestamp without exposing its content hash', () => {
+        const response = account({status: {termsOfService: {
+            acceptedAt: '2026-08-06T12:00:00.000Z',
+            contentHash: 'content-hash',
+        }}}).getProfileResponse()
+
+        expect(response.tos_accepted_at).toBe('2026-08-06T12:00:00.000Z')
+        expect(response.termsOfService).toBeUndefined()
     })
 })
 

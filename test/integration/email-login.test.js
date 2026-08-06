@@ -66,7 +66,11 @@ describe('email magic-link login (HTTP)', () => {
                 emails: ['test@example.com'],
                 groups: [],
                 profile: { name: 'Test User' },
-                conditions: [{ type: 'ToSv1', status: 'True' }],
+                conditions: [],
+                termsOfService: {
+                    acceptedAt: '2026-08-06T12:00:00.000Z',
+                    contentHash: 'test-content-hash',
+                },
             },
         })
     })

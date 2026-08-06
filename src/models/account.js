@@ -36,6 +36,7 @@ class Account {
     #identities = {}
     #webauthn = null
     #conditions = []
+    #termsOfService = null
     #labels = {}
     #metadata = {}
     #ctx = null
@@ -60,6 +61,7 @@ class Account {
         this.profile = apiResponse.status?.profile ?? {}
         this.slackId = apiResponse.status?.slackId ?? null
         this.#conditions = apiResponse.status?.conditions ?? []
+        this.#termsOfService = apiResponse.status?.termsOfService ?? null
         this.#recentApplications = apiResponse.status?.recentApplications ?? []
         this.#labels = apiResponse.metadata?.labels ?? {}
         this.#metadata = apiResponse.metadata
@@ -172,7 +174,8 @@ class Account {
             },
             slackId: this.#slack?.id ?? null,
             passkeyCount: this.#webauthn?.credentials?.length ?? 0,
-            conditions: this.#conditions,
+            conditions: this.#conditions.filter(condition => condition.type !== 'ToSv1'),
+            termsOfService: this.getTermsOfServiceAcceptance(),
             recentApplications: this.#recentApplications,
         }
     }
@@ -186,7 +189,7 @@ class Account {
             phones: this.profile.phones,
             isAdmin: this.isAdmin,
             groups: this.#mapGroups(),
-            tos_accepted_at: this.#conditions.find(c => c.type === 'ToSv1')?.lastTransitionTime,
+            tos_accepted_at: this.getTermsOfServiceAcceptance()?.acceptedAt,
         }
         if (forAdmin) {
             profile = {
@@ -253,6 +256,24 @@ class Account {
 
     setConditions(conditions) {
         this.#conditions = conditions
+        return this
+    }
+
+    getTermsOfServiceAcceptance() {
+        if (this.#termsOfService) return this.#termsOfService
+        const legacy = this.#conditions.find(condition => condition.type === 'ToSv1' && condition.status === 'True')
+        return legacy ? {
+            acceptedAt: legacy.lastTransitionTime ?? null,
+            contentHash: null,
+        } : undefined
+    }
+
+    acceptTermsOfService(contentHash, acceptedAt = new Date()) {
+        this.#termsOfService = {
+            acceptedAt: acceptedAt instanceof Date ? acceptedAt.toISOString() : acceptedAt,
+            contentHash,
+        }
+        this.#conditions = this.#conditions.filter(condition => condition.type !== 'ToSv1')
         return this
     }
 

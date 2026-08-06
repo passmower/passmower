@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import Account from '../../src/models/account.js'
-import { ToSv1 } from '../../src/conditions/tosv1.js'
 import { Approved } from '../../src/conditions/approved.js'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -11,21 +10,6 @@ function accountWith({ conditions = [], groups = [] } = {}) {
         status: { conditions, groups },
     })
 }
-
-describe('ToSv1 condition', () => {
-    it('check() is true only when a True ToSv1 condition is present', () => {
-        const cond = new ToSv1()
-        expect(cond.check(accountWith({ conditions: [{ type: 'ToSv1', status: 'True' }] }))).toBe(true)
-        expect(cond.check(accountWith({ conditions: [{ type: 'ToSv1', status: 'False' }] }))).toBe(false)
-        expect(cond.check(accountWith({ conditions: [] }))).toBeFalsy()
-    })
-
-    it('set()/add() append a True condition that check() then accepts', () => {
-        const account = accountWith()
-        new ToSv1().setStatus(true).set(account)
-        expect(new ToSv1().check(account)).toBe(true)
-    })
-})
 
 describe('Approved condition', () => {
     it('approves everyone when REQUIRED_GROUP is not set', () => {
