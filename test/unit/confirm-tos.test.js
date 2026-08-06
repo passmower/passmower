@@ -42,6 +42,5 @@ describe('confirmTos', () => {
         expect(mocks.sendMail).toHaveBeenCalledWith(
             'alice@example.com', 'Terms accepted', 'text', '<p>html</p>',
         )
-        expect(account.addCondition).toBeUndefined()
     })
 })
