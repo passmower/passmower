@@ -323,6 +323,9 @@ spec:
                   type: string
                 name:
                   type: string
+                onboardedBy:
+                  type: string
+                  description: Account ID of the administrator who invited this user
             identities:
               # Federated identities from generic OIDC upstream providers
               # (e.g. google, gitlab, entraid), keyed by provider name.

@@ -195,6 +195,7 @@ class Account {
                 impersonationEnabled: requesterAccountId !== this.accountId,
                 approved: this.isAdmin || (new Approved()).check(this),
                 conditions: this.#conditions,
+                onboardedBy: this.#passmower?.onboardedBy ?? null,
                 // Refined read-only activity projection for the admin UI. Do not
                 // expose the rest of the CRD status or any raw audit-log fields.
                 recentApplications: this.#recentApplications.map(application => ({
