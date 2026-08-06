@@ -37,4 +37,20 @@ describe('requestErrorHandler', () => {
         expect(ctx.body).toBeUndefined()
         expect(globalThis.logger.error).not.toHaveBeenCalled()
     })
+
+    it('leaves intentional client errors to Koa', async () => {
+        const ctx = {method: 'GET', path: '/interaction/id/passkey/start'}
+        const error = Object.assign(new Error('Passkey login is disabled'), {
+            status: 404,
+            expose: true,
+        })
+
+        await expect(requestErrorHandler(ctx, async () => {
+            throw error
+        })).rejects.toBe(error)
+
+        expect(ctx.status).toBeUndefined()
+        expect(ctx.body).toBeUndefined()
+        expect(globalThis.logger.error).not.toHaveBeenCalled()
+    })
 })

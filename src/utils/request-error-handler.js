@@ -9,9 +9,9 @@ export default async function requestErrorHandler(ctx, next) {
     try {
         await next()
     } catch (error) {
-        // Once a response is on the wire, let Koa terminate it through its
-        // normal error path instead of attempting to append an HTML document.
-        if (ctx.headerSent) throw error
+        // Let Koa preserve intentional client errors, and once a response is
+        // on the wire do not attempt to append an HTML document.
+        if (ctx.headerSent || (error.status >= 400 && error.status < 500)) throw error
 
         globalThis.logger?.error({
             error,
