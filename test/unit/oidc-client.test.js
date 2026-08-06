@@ -35,3 +35,15 @@ describe('OIDCClient model — application_type', () => {
         expect(redis.token_endpoint_auth_method).toBe('none')
     })
 })
+
+describe('OIDCClient model — user ACL', () => {
+    it('projects allowed users into provider metadata', () => {
+        const client = new OIDCClient()
+            .fromIncomingClient(incomingClient({allowedUsers: ['alice', 'bob']}))
+        const redis = client.toRedis()
+
+        expect(redis.allowedUsers).toEqual(['alice', 'bob'])
+        expect(client.toClientSecret({urlFor: route => `https://oidc.example/${route}`}))
+            .toMatchObject({OIDC_ALLOWED_USERS: 'alice,bob'})
+    })
+})

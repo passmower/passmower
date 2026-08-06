@@ -216,6 +216,8 @@ spec:
   allowedGroups:
     - github.com:example-org:grafana-users-team
     - yourorg.com:local-group
+  allowedUsers:
+    - u-example
   grantTypes:
     - authorization_code
     - refresh_token
@@ -230,6 +232,10 @@ spec:
 Make sure to replace the `redirectURI` with the correct callback URL for your
 application. Secret named `oidc-client-grafana-owner-secrets` is written
 into the originating namespace.
+
+`allowedGroups` and `allowedUsers` are optional allowlists. When either list is
+configured, access is granted if the account matches at least one group or one
+account ID. Leaving both lists empty allows every authenticated user.
 
 In most cases application deployment can directly read the generated secret:
 
@@ -358,6 +364,8 @@ spec:
   uri: 'https://webmail.example.com'
   allowedGroups:
     - example.com:employees
+  allowedUsers:
+    - u-example
   headerMapping:
     email: Remote-Email
     groups: Remote-Groups

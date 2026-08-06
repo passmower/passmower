@@ -183,6 +183,7 @@ export default {
     extraClientMetadata: {
         properties: [
             'allowedGroups',
+            'allowedUsers',
             'clientNamespace',
             'availableScopes',
             'kind',

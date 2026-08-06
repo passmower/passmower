@@ -88,6 +88,14 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
             uri: 'https://gated.test/',
             allowedGroups: ['github.com:testorg:admins'],
         })
+        await clientRedis.upsert('app-user-gated', {
+            client_id: 'app-user-gated',
+            client_name: 'app-user-gated',
+            displayName: 'User Gated App',
+            uri: 'https://user-gated.test/',
+            allowedGroups: [],
+            allowedUsers: ['plain-user'],
+        })
         // Not launchable (no uri) — must never be listed.
         await clientRedis.upsert('app-headless', {
             client_id: 'app-headless',
@@ -131,6 +139,7 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
 
             const names = res.body.apps.map(a => a.name)
             expect(names).toContain('Open App')
+            expect(names).toContain('User Gated App')
             // group-gated app is hidden from users outside the group
             expect(names).not.toContain('Gated App')
             // clients without a uri are not launchable apps
@@ -151,6 +160,7 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
                 url: 'https://gated.test/',
                 groups: ['github.com:testorg:admins'],
             })
+            expect(res.body.apps.map(a => a.name)).not.toContain('User Gated App')
         })
     })
 
@@ -172,6 +182,7 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
             const byName = Object.fromEntries(res.body.apps.map(a => [a.name, a]))
             expect(byName['Open App'].accessible).toBe(true)
             expect(byName['Gated App'].accessible).toBe(true)
+            expect(byName['User Gated App'].accessible).toBe(false)
             expect(byName['app-headless']).toBeUndefined()
         })
     })
