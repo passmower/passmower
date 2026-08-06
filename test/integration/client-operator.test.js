@@ -10,7 +10,7 @@ describe('KubeOIDCClientOperator reconciliation', () => {
     let provider, adapter, operator
     const clientRedis = () => new RedisAdapter('Client')
 
-    function rawClient(name, { secretRefreshJobSpec, disabled = false, description } = {}) {
+    function rawClient(name, { secretRefreshJobSpec, disabled = false, description, status = {} } = {}) {
         return {
             metadata: {
                 name, namespace: 'apps', resourceVersion: '1', generation: disabled ? 2 : 1, uid: `uid-${name}`,
@@ -25,7 +25,7 @@ describe('KubeOIDCClientOperator reconciliation', () => {
                 disabled,
                 ...(secretRefreshJobSpec ? { secretRefreshJobSpec } : {}),
             },
-            status: {}, // unclaimed
+            status,
         }
     }
     const refreshJobSpec = { template: { spec: { containers: [{ name: 'refresh', image: 'busybox' }] } } }
@@ -95,7 +95,8 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         adapter.seed('OIDCClient', rawClient('app-c', { secretRefreshJobSpec: refreshJobSpec }))
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-c')
         const afterCreate = adapter.jobs.length
-        const modified = rawClient('app-c', { secretRefreshJobSpec: refreshJobSpec })
+        const status = structuredClone(adapter.list('OIDCClient')[0].status)
+        const modified = rawClient('app-c', {secretRefreshJobSpec: refreshJobSpec, status})
         modified.metadata.generation = 2
         adapter.seed('OIDCClient', modified)
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-c')
@@ -117,7 +118,8 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         await adapter.fireWatch('ADDED', 'OIDCClient', 'app-description')
         expect((await clientRedis().find(idOf('app-description'))).description).toBe('Old description')
 
-        adapter.seed('OIDCClient', rawClient('app-description', {description: 'New description'}))
+        const status = structuredClone(adapter.list('OIDCClient')[0].status)
+        adapter.seed('OIDCClient', rawClient('app-description', {description: 'New description', status}))
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-description')
 
         expect((await clientRedis().find(idOf('app-description'))).description).toBe('New description')
@@ -138,7 +140,8 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         const secret = adapter.secrets.get('apps/oidc-client-app-disabled-owner-secrets')
         expect(await clientRedis().find(idOf('app-disabled'))).toBeTruthy()
 
-        adapter.seed('OIDCClient', rawClient('app-disabled', {disabled: true}))
+        const status = structuredClone(adapter.list('OIDCClient')[0].status)
+        adapter.seed('OIDCClient', rawClient('app-disabled', {disabled: true, status}))
         await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-disabled')
 
         expect(await clientRedis().find(idOf('app-disabled'))).toBeUndefined()
