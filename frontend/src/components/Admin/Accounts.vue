@@ -22,6 +22,7 @@
                 <h3>{{ account.accountId }}</h3>
                 <p>Name: {{ account.name }}</p>
                 <p>Primary email: {{ account.email }}</p>
+                <p v-if="account.onboardedBy">Invited by: {{ account.onboardedBy }}</p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
                 <p v-if="emailConflict(account)" class="notice">
                     Email conflict: {{ emailConflict(account).message }}

@@ -401,6 +401,9 @@ spec:
                         type: string
                 name:
                   type: string
+                onboardedBy:
+                  type: string
+                  description: Account ID of the administrator who invited this user
             slack:
               type: object
               properties:

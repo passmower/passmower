@@ -149,12 +149,16 @@ export default (provider) => {
             ctx.body = {errors: [{param: 'email', msg: 'Email is already taken'}]}
             return
         }
+        const onboardedBy = ctx.adminSession.accountId
+        await ctx.kubeOIDCUserService.updateUserSpecs(account.accountId, {
+            passmower: {onboardedBy},
+        })
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
         account.addCondition(condition)
         await ctx.kubeOIDCUserService.updateUserStatus(account)
         await Account.approve(ctx, account.accountId)
-        auditLog(ctx, {email}, 'Admin invited user')
+        auditLog(ctx, {email, onboardedBy}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))

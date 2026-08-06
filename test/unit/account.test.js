@@ -95,6 +95,17 @@ describe('Account.getProfileResponse', () => {
         const response = account({status: {recentApplications}}).getProfileResponse()
         expect(response.recentApplications).toBeUndefined()
     })
+
+    it('exposes the onboarder only in the admin profile response', () => {
+        const invited = account({passmower: {onboardedBy: 'admin-user'}})
+
+        expect(invited.getProfileResponse(true).onboardedBy).toBe('admin-user')
+        expect(invited.getProfileResponse().onboardedBy).toBeUndefined()
+    })
+
+    it('returns null onboarder metadata for users not created through an admin invite', () => {
+        expect(account().getProfileResponse(true).onboardedBy).toBeNull()
+    })
 })
 
 describe('Account.claims', () => {
