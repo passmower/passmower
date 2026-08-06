@@ -5,6 +5,8 @@ import {providerBaseDomain} from "./base-domain.js";
 import configuration from "../../configuration.js";
 import {clientId as selfClientId} from "./self-oidc-client.js";
 
+const providerHostname = new URL(process.env.ISSUER_URL).hostname
+
 const getFullSiteSessionCookieName = (clientId) => {
     return configuration.cookies.names['site_session'] + '.' + clientId
 }
@@ -13,8 +15,14 @@ export const getSiteSessionCookieDomain = (clientId) => {
     return clientId === selfClientId ? undefined : providerBaseDomain
 }
 
+export const getLegacySiteSessionCookieDomain = (clientId) => {
+    return clientId === selfClientId && providerBaseDomain !== providerHostname ? providerBaseDomain : undefined
+}
+
+// Redis records carry the scope where their cookie is valid: the exact issuer
+// host for the dashboard and the shared base domain for forward-auth clients.
 const getSiteSessionScope = (clientId) => {
-    return getSiteSessionCookieDomain(clientId) ?? new URL(process.env.ISSUER_URL).hostname
+    return getSiteSessionCookieDomain(clientId) ?? providerHostname
 }
 
 export const addSiteSession = async (ctx, provider, sessionId, accountId, client) => {
@@ -25,11 +33,19 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         ...instance(provider).configuration.cookies.long,
         maxAge: instance(provider).configuration.ttl.SiteSession * 1000,
     }
+    const cookieName = getFullSiteSessionCookieName(client.clientId)
+    const legacyDomain = getLegacySiteSessionCookieDomain(client.clientId)
+    if (legacyDomain) {
+        ctx.cookies.set(cookieName, null, {
+            ...instance(provider).configuration.cookies.long,
+            domain: legacyDomain,
+        })
+    }
     if (domain) {
         cookieOptions.domain = domain
     }
     ctx.cookies.set(
-        getFullSiteSessionCookieName(client.clientId),
+        cookieName,
         siteWideCookie,
         cookieOptions
     )
