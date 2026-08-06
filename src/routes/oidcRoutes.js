@@ -233,16 +233,16 @@ export default (provider) => {
                 }, true)
             }
             case 'groups_required': {
-                // Check again so when user gets assigned into a required group and refreshes the interaction page, flow can continue.
+                // Check again so ACL changes can take effect when the interaction page is refreshed.
                 const client = await provider.Client.find(params.client_id);
                 if (checkAccountGroups(client, ctx.currentAccount)) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
                         mergeWithLastSubmission: true,
                     });
                 }
-                auditLog(ctx, {interactionDetails}, 'User does not have required groups')
+                auditLog(ctx, {interactionDetails}, 'User does not satisfy client access policy')
                 return render(provider, ctx, 'message', 'Access denied', {
-                    message: 'You need to be a member of an allowed group to access this resource'
+                    message: 'Your account is not permitted to access this resource'
                 }, true)
             }
             case 'name': {

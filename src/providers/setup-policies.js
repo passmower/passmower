@@ -44,7 +44,7 @@ export default () => {
 
     const allowedGroupsPolicy = new Prompt(
         { name: 'groups_required', requestable: true },
-        new Check('allowed_groups_required', 'Allowed groups required', 'interaction_required', async (ctx) => {
+        new Check('allowed_groups_required', 'Client access policy not satisfied', 'interaction_required', async (ctx) => {
                 const { oidc } = ctx;
                 return !checkAccountGroups(oidc?.entities?.Client, ctx.currentAccount)
             },

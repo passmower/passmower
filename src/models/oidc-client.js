@@ -4,6 +4,7 @@ import {
     OIDCClientCrd,
     OIDCClientId,
     OIDCClientSecretAllowedGroupsKey,
+    OIDCClientSecretAllowedUsersKey,
     OIDCClientSecretAuthUriKey,
     OIDCClientSecretAvailableScopesKey,
     OIDCClientSecretClientIdKey,
@@ -34,6 +35,7 @@ class OIDCClient {
     #applicationType = null
     #redirectUris = null
     #allowedGroups = null
+    #allowedUsers = null
     #overrideIncomingScopes = null
     #availableScopes = null
     #instanceUri = null
@@ -65,6 +67,7 @@ class OIDCClient {
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
+            allowedUsers: this.#allowedUsers,
             availableScopes: this.#availableScopes,
             instanceUri: this.#instanceUri,
             uri: this.#uri,
@@ -88,6 +91,7 @@ class OIDCClient {
         this.#applicationType = incomingClient.spec.applicationType || configuration.clientDefaults.application_type
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
+        this.#allowedUsers = incomingClient.spec.allowedUsers || []
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
         this.#instanceUri = process.env.ISSUER_URL
@@ -121,6 +125,7 @@ class OIDCClient {
             [OIDCClientSecretTokenUriKey]: provider.urlFor('token'),
             [OIDCClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
             [OIDCClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
+            [OIDCClientSecretAllowedUsersKey]: this.#allowedUsers.join(','),
         })
     }
 

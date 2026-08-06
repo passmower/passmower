@@ -15,6 +15,7 @@ export default class OIDCMiddlewareClient {
     #clientName = null
     #clientNamespace = null
     #allowedGroups = null
+    #allowedUsers = null
     #headerMapping = null
     #uri = null
     #displayName = null
@@ -28,6 +29,7 @@ export default class OIDCMiddlewareClient {
         this.#clientName = incomingClient.metadata.name
         this.#clientNamespace = incomingClient.metadata.namespace
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
+        this.#allowedUsers = incomingClient.spec.allowedUsers || []
         this.#headerMapping = incomingClient.spec.headerMapping || []
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
@@ -49,6 +51,7 @@ export default class OIDCMiddlewareClient {
             response_types: [ responseType ],
             availableScopes: [ scope ],
             allowedGroups: this.#allowedGroups,
+            allowedUsers: this.#allowedUsers,
             headerMapping: this.#headerMapping,
             uri: this.#uri,
             displayName: this.#displayName,

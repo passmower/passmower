@@ -639,6 +639,11 @@ spec:
                   type: array
                   items:
                     type: string
+                allowedUsers:
+                  type: array
+                  description: Account IDs allowed to access this client; combined with allowedGroups using OR semantics
+                  items:
+                    type: string
                 availableScopes:
                   type: array
                   default:
@@ -802,6 +807,11 @@ spec:
               properties:
                 allowedGroups:
                   type: array
+                  items:
+                    type: string
+                allowedUsers:
+                  type: array
+                  description: Account IDs allowed to access this client; combined with allowedGroups using OR semantics
                   items:
                     type: string
                 displayName:
