@@ -342,6 +342,11 @@ authentication, Entra configuration, and lifecycle behavior.
 
 For legacy applications `forwardAuth` based middleware option is supported.
 
+Forward-auth applications must use hostnames under the same registrable base
+domain as Passmower. Their per-client session cookie is scoped to that base
+domain so the browser includes it in Traefik's authentication request. The
+Passmower dashboard itself uses a host-only session cookie.
+
 ```
 ---
 apiVersion: codemowers.cloud/v1
