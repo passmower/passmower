@@ -9,9 +9,14 @@ import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {OIDCMiddlewareClientCrd} from "../utils/kubernetes/kube-constants.js";
 import Account from "../models/account.js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
+import requestErrorHandler from "../utils/request-error-handler.js";
 
 export default async (provider) => {
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
+
+    // Keep this first so it encloses every Passmower middleware and route added
+    // after provider setup.
+    provider.use(requestErrorHandler)
 
     const directives = helmet.contentSecurityPolicy.getDefaultDirectives();
     delete directives['form-action'];
