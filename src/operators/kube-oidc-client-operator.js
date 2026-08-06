@@ -92,7 +92,12 @@ export class KubeOIDCClientOperator {
 
     async #updateOIDCClient(OIDCClient) {
         if (!this.reconcileState.shouldReconcile(OIDCClient)) return
-        if (OIDCClient.getInstance() !== this.instance) return
+        if (OIDCClient.getInstance() !== this.instance) {
+            if (OIDCClient.getInstance()) return
+            const claimedClient = await this.#replaceClientStatus(OIDCClient)
+            if (claimedClient?.getInstance() !== this.instance) return
+            OIDCClient = claimedClient
+        }
         try {
             if (OIDCClient.isDisabled()) {
                 await this.redisAdapter.destroy(OIDCClient.getClientId())

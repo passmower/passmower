@@ -63,7 +63,12 @@ export class KubeOIDCMiddlewareClientOperator {
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
         if (!this.reconcileState.shouldReconcile(OIDCMiddlewareClient)) return
-        if (OIDCMiddlewareClient.getInstance() !== this.instance) return
+        if (OIDCMiddlewareClient.getInstance() !== this.instance) {
+            if (OIDCMiddlewareClient.getInstance()) return
+            const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+            if (claimedClient?.getInstance() !== this.instance) return
+            OIDCMiddlewareClient = claimedClient
+        }
         try {
             if (OIDCMiddlewareClient.isDisabled()) {
                 await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())

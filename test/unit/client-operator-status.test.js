@@ -11,10 +11,10 @@ class FakeRedisAdapter {
     async destroy(id) { this.records.delete(id) }
 }
 
-function middlewareClient(name) {
+function middlewareClient(name, generation = 1) {
     return {
         metadata: {
-            name, namespace: 'apps', generation: 1, uid: `uid-${name}`,
+            name, namespace: 'apps', generation, uid: `uid-${name}`,
         },
         spec: {
             uri: `https://${name}.example.com`,
@@ -76,6 +76,28 @@ describe('OIDCMiddlewareClient reconciliation status', () => {
             reason: 'MiddlewareReconcileFailed', type: 'Warning',
         })])
         expect(redis.records.size).toBe(0)
+    })
+
+    it('retries claiming an unclaimed client after a spec update', async () => {
+        const replaceStatus = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        let claimAttempts = 0
+        adapter.replaceNamespacedCustomObjectStatus = async (...args) => {
+            claimAttempts++
+            if (claimAttempts === 1) return undefined
+            return replaceStatus(...args)
+        }
+        adapter.seed('OIDCMiddlewareClient', middlewareClient('claim-retry'))
+        await adapter.fireWatch('ADDED', 'OIDCMiddlewareClient', 'claim-retry')
+        expect(adapter.list('OIDCMiddlewareClient')[0].status.instance).toBeUndefined()
+
+        adapter.seed('OIDCMiddlewareClient', middlewareClient('claim-retry', 2))
+        await adapter.fireWatch('MODIFIED', 'OIDCMiddlewareClient', 'claim-retry')
+
+        expect(adapter.list('OIDCMiddlewareClient')[0].status.instance).toBe('test-passmower')
+        expect(adapter.list('OIDCMiddlewareClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'True', reason: 'Reconciled',
+        }))
+        expect(redis.records.size).toBe(1)
     })
 })
 
