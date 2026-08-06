@@ -11,4 +11,15 @@ describe('OIDCUser CRD schema', () => {
         expect(github).not.toContain('onboardedBy:')
         expect(passmower).toContain('onboardedBy:')
     })
+
+    it('declares Terms of Service acceptance in status rather than spec', () => {
+        const oidcUserSchema = crds.slice(crds.indexOf('&oidcUserSchema'), crds.indexOf('\n    additionalPrinterColumns:', crds.indexOf('&oidcUserSchema')))
+        const specStart = oidcUserSchema.indexOf('\n            spec:')
+        const statusStart = oidcUserSchema.indexOf('\n            status:')
+        const spec = oidcUserSchema.slice(specStart, statusStart)
+        const status = oidcUserSchema.slice(statusStart)
+
+        expect(spec).not.toContain('termsOfService:')
+        expect(status).toContain('termsOfService:')
+    })
 })

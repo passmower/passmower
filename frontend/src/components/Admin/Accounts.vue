@@ -23,6 +23,9 @@
                 <p>Name: {{ account.name }}</p>
                 <p>Primary email: {{ account.email }}</p>
                 <p v-if="account.onboardedBy">Invited by: {{ account.onboardedBy }}</p>
+                <p v-if="account.tos_accepted_at">
+                    Terms of Service accepted: {{ formatDate(account.tos_accepted_at) }}
+                </p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
                 <p v-if="emailConflict(account)" class="notice">
                     Email conflict: {{ emailConflict(account).message }}

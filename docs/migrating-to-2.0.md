@@ -170,6 +170,15 @@ non-breaking way:
 > 2.0 window so the eventual removal is a no-op for you. (A version can only be dropped
 > once no stored objects remain on it — re-applying your resources as `v1` ensures that.)
 
+### Terms of Service acceptance moved out of conditions
+
+ToS acceptance is durable account state, not an observation about the current
+resource, so new acceptances are stored under `OIDCUser.status.termsOfService` with
+`acceptedAt` and `contentHash` fields. Passmower continues to recognize the legacy
+`status.conditions[type=ToSv1]` entry and automatically replaces it on the next status
+write. No user action or renewed acceptance is required. External tooling that reads
+the old condition should switch to `status.termsOfService.acceptedAt`.
+
 ---
 
 ## 4. RBAC change — automatic

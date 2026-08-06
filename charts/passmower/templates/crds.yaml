@@ -520,6 +520,17 @@ spec:
                   x-kubernetes-preserve-unknown-fields: true
                 slackId:
                   type: string
+                termsOfService:
+                  type: object
+                  description: Durable Terms of Service acceptance state; not a Kubernetes condition
+                  properties:
+                    acceptedAt:
+                      type: string
+                      format: date-time
+                      nullable: true
+                    contentHash:
+                      type: string
+                      nullable: true
                 recentApplications:
                   type: array
                   description: >-
