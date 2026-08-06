@@ -29,9 +29,28 @@ export class ClientActivityState {
             message: inactive
                 ? `Client has not been used for at least ${inactiveAfterDays} days`
                 : `Client was used within the last ${inactiveAfterDays} days`,
-            lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : now.toISOString(),
+            lastTransitionTime: previous?.status === status && previous.lastTransitionTime
+                ? previous.lastTransitionTime
+                : now.toISOString(),
         }
         this.conditions = [...this.conditions.filter(item => item.type !== 'Inactive'), condition]
+    }
+
+    updateReadyCondition(ready, reason, message, now = new Date()) {
+        const previous = this.conditions.find(condition => condition.type === 'Ready')
+        const status = ready ? 'True' : 'False'
+        const condition = {
+            type: 'Ready',
+            status,
+            reason,
+            message,
+            lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : now.toISOString(),
+        }
+        this.conditions = [...this.conditions.filter(item => item.type !== 'Ready'), condition]
+        return !previous
+            || previous.status !== status
+            || previous.reason !== reason
+            || previous.message !== message
     }
 
     // metadata.generation covers spec changes but not annotations. Description

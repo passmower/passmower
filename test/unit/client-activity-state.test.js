@@ -36,4 +36,21 @@ describe.each([
             lastUsedAt: '2026-08-05T12:00:00.000Z',
         })))).toBe(true)
     })
+
+    it('tracks readiness without changing transition time for the same status', () => {
+        const client = new Model().fromIncomingClient(resource(kind))
+        const first = new Date('2026-08-06T10:00:00.000Z')
+        const later = new Date('2026-08-06T11:00:00.000Z')
+
+        expect(client.updateReadyCondition(false, 'SecretReconcileFailed', 'Secret creation failed', first)).toBe(true)
+        expect(client.updateReadyCondition(false, 'RedisReconcileFailed', 'Redis update failed', later)).toBe(true)
+        expect(client.getConditions().find(condition => condition.type === 'Ready')).toEqual({
+            type: 'Ready', status: 'False', reason: 'RedisReconcileFailed', message: 'Redis update failed',
+            lastTransitionTime: first.toISOString(),
+        })
+
+        expect(client.updateReadyCondition(true, 'Reconciled', 'Client reconciliation completed', later)).toBe(true)
+        expect(client.updateReadyCondition(true, 'Reconciled', 'Client reconciliation completed', later)).toBe(false)
+        expect(client.getConditions().find(condition => condition.type === 'Ready').lastTransitionTime).toBe(later.toISOString())
+    })
 })
