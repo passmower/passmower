@@ -8,6 +8,7 @@ import {
 import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
+import isEqual from 'lodash/isEqual.js';
 
 // loadFromCluster() builds the API server URL straight from KUBERNETES_SERVICE_HOST,
 // which on IPv6-only / dual-stack clusters is a bare IPv6 literal — so the client
@@ -193,6 +194,9 @@ export class KubernetesAdapter {
                     name: id,
                 }, this.defaultOptions)
                 const status = await statusFunction(mapperFunction(current))
+                if (isEqual(current.status ?? {}, status ?? {})) {
+                    return mapperFunction(current)
+                }
                 const updated = await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
                     group: apiGroup,
                     version: apiGroupVersion,
@@ -211,6 +215,9 @@ export class KubernetesAdapter {
                 }, this.defaultOptions)
                 return mapperFunction(updated)
             } catch (error) {
+                if (error.code === 404) {
+                    return null
+                }
                 if (error.code === 409 && attempt < 3) {
                     globalThis.logger?.warn(
                         {kind, namespace, id, attempt},

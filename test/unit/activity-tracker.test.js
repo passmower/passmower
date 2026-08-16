@@ -91,6 +91,24 @@ describe('ActivityTracker', () => {
         expect(adapter.list('OIDCClient')[0].status.lastUsedAt).toBe('2026-08-05T11:30:00.000Z')
     })
 
+    it('drops pending activity when the user was deleted before flushing', async () => {
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
+        adapter.seed('OIDCUser', rawUser())
+        const mutate = adapter.mutateNamespacedCustomObjectStatus.bind(adapter)
+        adapter.mutateNamespacedCustomObjectStatus = vi.fn((...args) => mutate(...args))
+        const tracker = new ActivityTracker({adapter})
+        tracker.record({
+            accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
+            timestamp: '2026-08-05T11:30:00.000Z',
+        })
+        adapter.delete('OIDCUser', 'alice')
+
+        await tracker.flush()
+        await tracker.flush()
+
+        expect(adapter.mutateNamespacedCustomObjectStatus).toHaveBeenCalledOnce()
+    })
+
     it('preserves newer user activity recorded while a failed flush is in progress', async () => {
         const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
         adapter.seed('OIDCUser', rawUser())

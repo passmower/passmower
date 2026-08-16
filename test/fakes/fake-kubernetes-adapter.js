@@ -81,8 +81,11 @@ export class FakeKubernetesAdapter {
 
     async mutateNamespacedCustomObjectStatus(kind, _namespace, id, mapperFunction, statusFunction) {
         const stored = this.store.get(this.#key(kind, id))
-        if (!stored) return undefined
+        if (!stored) return null
         const status = await statusFunction(mapperFunction(structuredClone(stored)))
+        if (JSON.stringify(stored.status ?? {}) === JSON.stringify(status ?? {})) {
+            return mapperFunction(structuredClone(stored))
+        }
         stored.status = structuredClone(status)
         stored.metadata.resourceVersion = this.#nextRv()
         this.#emit('MODIFIED', kind, stored)

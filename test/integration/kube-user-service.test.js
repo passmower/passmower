@@ -110,6 +110,30 @@ describe('KubeOIDCUserService over the fake Kubernetes adapter', () => {
         expect((await service.findUserByEmails(['person@example.com'])).accountId).toBe('duplicate')
     })
 
+    it('preserves a concurrent EmailUnique transition time from the freshly read user', async () => {
+        adapter.seed('OIDCUser', rawUser('original', '2026-01-01T00:00:00Z', 'person@example.com'))
+        adapter.seed('OIDCUser', rawUser('duplicate', '2026-02-01T00:00:00Z', 'person@example.com'))
+        const transitionTime = new Date('2026-08-01T10:00:00.000Z')
+        const mutate = adapter.mutateNamespacedCustomObjectStatus.bind(adapter)
+        adapter.mutateNamespacedCustomObjectStatus = async (kind, namespace, id, mapper, statusFunction) => {
+            if (id === 'duplicate') {
+                adapter.list('OIDCUser').find(user => user.metadata.name === id).status.conditions = [{
+                    apiVersion: 'v1', kind: 'Condition', type: 'EmailUnique', status: 'False',
+                    reason: 'ConcurrentDecision', message: 'concurrently evaluated', lastTransitionTime: transitionTime,
+                }]
+            }
+            return mutate(kind, namespace, id, mapper, statusFunction)
+        }
+
+        await service.reconcileEmailUniqueness()
+
+        const condition = adapter.list('OIDCUser')
+            .find(user => user.metadata.name === 'duplicate')
+            .status.conditions.find(item => item.type === 'EmailUnique')
+        expect(condition).toMatchObject({status: 'False', reason: 'DuplicateEmail'})
+        expect(condition.lastTransitionTime).toEqual(transitionTime)
+    })
+
     it('rejects an upstream identity whose verified emails span multiple owners', async () => {
         adapter.seed('OIDCUser', rawUser('alice', '2026-01-01T00:00:00Z', 'alice@example.com'))
         adapter.seed('OIDCUser', rawUser('bob', '2026-01-02T00:00:00Z', 'bob@example.com'))

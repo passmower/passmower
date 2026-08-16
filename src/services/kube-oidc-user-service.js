@@ -107,20 +107,25 @@ export class KubeOIDCUserService {
                 ? conflicts.map(conflict => `${conflict.email} is owned by OIDCUser ${conflict.ownerAccountId}`).join('; ')
                 : 'All claimed email addresses are unique'
             if (previous?.status === status && previous?.reason === reason && previous?.message === message) continue
-            const condition = {
-                apiVersion: 'v1',
-                kind: 'Condition',
-                type: 'EmailUnique',
-                status,
-                reason,
-                message,
-                lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : new Date(),
-            }
             try {
-                const updated = await this.mutateUserStatus(account.accountId, current => current.setConditions([
-                    ...current.getConditions().filter(item => item.type !== 'EmailUnique'),
-                    condition,
-                ]))
+                const updated = await this.mutateUserStatus(account.accountId, current => {
+                    const currentPrevious = current.getConditions().find(condition => condition.type === 'EmailUnique')
+                    const condition = {
+                        apiVersion: 'v1',
+                        kind: 'Condition',
+                        type: 'EmailUnique',
+                        status,
+                        reason,
+                        message,
+                        lastTransitionTime: currentPrevious?.status === status
+                            ? currentPrevious.lastTransitionTime
+                            : new Date(),
+                    }
+                    return current.setConditions([
+                        ...current.getConditions().filter(item => item.type !== 'EmailUnique'),
+                        condition,
+                    ])
+                })
                 if (!updated) throw new Error(`Status update returned no OIDCUser for ${account.accountId}`)
                 if (status === 'False' && previous?.status !== 'False') {
                     await this.adapter.createEvent?.(

@@ -130,6 +130,7 @@ export class ActivityTracker {
                 return account.getIntendedStatus()
             },
         )
+        if (updated === null) return
         if (!updated) throw new Error(`Failed to update activity status for OIDCUser ${accountId}`)
     }
 
