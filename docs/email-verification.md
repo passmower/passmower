@@ -7,7 +7,9 @@ address never verifies another address that later becomes primary.
 Evidence is projected into `OIDCUser.status.emailVerifications` with its status,
 method, provider, and an optional verification timestamp. Provider-backed
 evidence is recomputed from the provider data stored on the user; magic-link
-evidence is durable status maintained by Passmower.
+evidence is durable status maintained by Passmower. Magic-link evidence remains
+stored if its address is temporarily unlinked, but it can only affect claims
+when that exact address is selected as the current primary email.
 
 The current evidence rules are:
 

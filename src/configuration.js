@@ -70,7 +70,6 @@ export default {
             'username',
         ],
         profile: [
-            'email',
             'emails',
             'name',
             'nickname',

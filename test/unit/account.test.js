@@ -234,6 +234,22 @@ describe('Account.claims', () => {
         })
     })
 
+    it('retains durable magic-link evidence while its address is unlinked', () => {
+        const status = account({
+            status: {
+                primaryEmail: null, emails: [], groups: [], profile: {},
+                emailVerifications: [{
+                    email: 'old@x.com', status: 'verified', method: 'magic-link',
+                    provider: 'passmower', verifiedAt: '2026-08-16T21:00:00.000Z',
+                }],
+            },
+        }).getIntendedStatus()
+
+        expect(status.emailVerifications).toContainEqual(expect.objectContaining({
+            email: 'old@x.com', status: 'verified', method: 'magic-link',
+        }))
+    })
+
     it('omits namespaces when the enrichment webhook is not configured', async () => {
         const a = account({ status: { primaryEmail: 'a@x.com', groups: [], profile: {} } })
         const claims = await a.claims('id_token', 'openid namespaces', {}, [])

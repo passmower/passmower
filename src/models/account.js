@@ -317,9 +317,8 @@ class Account {
     }
 
     getEmailVerifications() {
-        const claimedEmails = new Set(this.getClaimedEmails())
         const evidence = this.#emailVerifications
-            .filter(item => item.method === 'magic-link' && claimedEmails.has(canonicalizeEmail(item.email)))
+            .filter(item => item.method === 'magic-link')
             .map(item => ({...item, email: canonicalizeEmail(item.email)}))
         for (const item of this.#github?.emails ?? []) {
             const email = canonicalizeEmail(item.email)

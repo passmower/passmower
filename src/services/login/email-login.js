@@ -10,6 +10,17 @@ import {parseRequestMetadata} from "../../utils/session/parse-request-headers.js
 import {auditLog} from "../../utils/session/audit-log.js";
 import {IdentityIntegrityError} from "../../utils/user/identity-integrity.js";
 
+export async function recordMagicLinkVerification(service, account, email, verifiedAt) {
+    return await service.recordEmailVerification(account.accountId, email, {
+        method: 'magic-link', provider: 'passmower', verifiedAt,
+    }) ?? account
+}
+
+export async function recordSubmittedMagicLinkVerification(service, account, submission) {
+    if (!submission?.emailVerified || !submission.email) return account
+    return recordMagicLinkVerification(service, account, submission.email, submission.emailVerifiedAt)
+}
+
 export class EmailLogin {
     constructor() {
         this.adapter = new EmailAdapter()
@@ -124,9 +135,9 @@ export class EmailLogin {
         if (!account) {
             auditLog(ctx, {email}, 'Unable to determine account from login link')
         } else {
-            account = await ctx.kubeOIDCUserService.recordEmailVerification(account.accountId, email, {
-                method: 'magic-link', provider: 'passmower', verifiedAt,
-            })
+            account = await recordMagicLinkVerification(
+                ctx.kubeOIDCUserService, account, email, verifiedAt,
+            )
         }
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'LoginLink'), {
             mergeWithLastSubmission: true,

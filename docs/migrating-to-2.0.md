@@ -1,7 +1,7 @@
 # Migrating from Passmower 1.x to 2.0
 
-Passmower 2.0 is a major release. It carries two consumer-facing breaking changes
-(Helm values and one `OIDCClient` CRD field) plus a sweep of major dependency
+Passmower 2.0 is a major release. It carries three consumer-facing breaking changes
+(Helm values, one `OIDCClient` CRD field, and standard OIDC email scoping) plus a sweep of major dependency
 upgrades. This note lists everything you must change, and what changed for the better.
 
 > The 2.0 line ships from the `develop` branch as `2.0.0-dev` (image
@@ -14,7 +14,7 @@ upgrades. This note lists everything you must change, and what changed for the b
 - Back up your `values.yaml` (or HelmRelease/ArgoCD Application values).
 - Back up your `OIDCClient` and `OIDCUser` custom resources:
   `kubectl get oidcclients,oidcusers,oidcmiddlewareclients -A -o yaml > passmower-crs.bak.yaml`.
-- Read the two **action required** sections below and edit your values / CRs before
+- Read the three **action required** sections below and edit your values / CRs before
   upgrading.
 
 ---
@@ -140,7 +140,34 @@ labels.
 
 ---
 
-## 3. CRDs promoted to `codemowers.cloud/v1` — **no immediate action, but migrate your manifests**
+## 3. Add the `email` scope to clients that consume email claims — **action required**
+
+Passmower 1.x emitted `email` with the `profile` scope. Passmower 2.0 follows the
+standard OIDC scope boundary: `email` and `email_verified` are emitted only when
+the relying party is allowed to request, and actually requests, the `email` scope.
+
+Add `email` to each affected `OIDCClient` and to the relying party's authorization
+request. Otherwise authentication continues to work, but both email claims are
+omitted.
+
+```diff
+ spec:
+   availableScopes:
+     - openid
++    - email
+     - profile
+```
+
+Existing GitHub identities must sign in through GitHub once after upgrade to
+capture GitHub's explicit per-address verification result. Alternatively, users
+can prove control through a Passmower magic link. Passmower does not infer
+verification from legacy records that lack evidence.
+
+See [email-verification.md](email-verification.md) for provider-specific trust rules.
+
+---
+
+## 4. CRDs promoted to `codemowers.cloud/v1` — **no immediate action, but migrate your manifests**
 
 The custom resources (`OIDCUser`, `OIDCClient`, `OIDCMiddlewareClient`) are promoted
 from `codemowers.cloud/v1beta1` to **`codemowers.cloud/v1`**. This is done the
@@ -181,7 +208,7 @@ the old condition should switch to `status.termsOfService.acceptedAt`.
 
 ---
 
-## 4. RBAC change — automatic
+## 5. RBAC change — automatic
 
 The chart's `ClusterRole` now grants `create` on `batch/jobs` instead of core `pods`
 (the operator creates the refresh **Job** described above). This is applied for you by
@@ -191,7 +218,7 @@ you may drop the old `pods` `create` grant.
 
 ---
 
-## 5. Major dependency upgrades — informational
+## 6. Major dependency upgrades — informational
 
 2.0 upgrades several runtime dependencies across major versions, most notably
 `oidc-provider` 8 → 9, `openid-client` 5 → 6, and `koa` 2 → 3 (also `helmet` 8,
@@ -203,7 +230,7 @@ exists specifically to guard these upgrades.
 
 ---
 
-## 6. What's new (non-breaking)
+## 7. What's new (non-breaking)
 
 You don't have to do anything to get these, but they're the reason to upgrade:
 
@@ -221,7 +248,7 @@ You don't have to do anything to get these, but they're the reason to upgrade:
 
 ---
 
-## 7. Upgrade
+## 8. Upgrade
 
 After editing your values (section 1) and any `OIDCClient`s that used
 `secretRefreshPod` (section 2):
