@@ -53,10 +53,24 @@ not injected. A hook that requires them must use an explicitly authorized
 service account and query the Kubernetes API itself.
 
 Generated Jobs have deterministic names based on the hook, user UID,
-generation, and event type. This makes watch replay and concurrent Passmower
-replicas idempotent. Passmower defaults `restartPolicy` to `OnFailure` and
-`ttlSecondsAfterFinished` to `3600`; either can be overridden in `jobSpec`.
-Jobs are owned by the hook and labelled for monitoring.
+generation, and event type. This deduplicates concurrent Passmower replicas and
+routine watch reconnects while the process and Job still exist. Passmower
+defaults `restartPolicy` to `OnFailure` and `ttlSecondsAfterFinished` to `3600`;
+either can be overridden in `jobSpec`. Jobs are owned by the hook and labelled
+for monitoring.
+
+Hook delivery is **at least once**, not exactly once. Kubernetes replays
+existing resources as `Added` when a watch starts. Passmower suppresses those
+replays across watch reconnects within one process, but a Passmower pod restart
+loses that in-memory history. If the deterministic Added Job has already been
+reaped, the replacement pod can create it again. Hook workloads must therefore
+handle repeated Added events idempotently.
+
+The operator is edge-triggered and does not persist a user-event journal. A
+Deleted event that occurs while Passmower is stopped or outside an active watch
+can be missed permanently. Do not use this initial hook implementation as the
+only record for mandatory deprovisioning; periodically reconcile the target
+system or retain another authoritative lifecycle record.
 
 The hook status records the last attempted Job and a `Ready` condition. Failed
 Job creation sets `Ready=False` with reason `JobCreationFailed` and emits a

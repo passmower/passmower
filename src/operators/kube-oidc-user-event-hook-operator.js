@@ -22,7 +22,12 @@ export class KubeOidcUserEventHookOperator {
     }
 
     async #added(user) {
-        this.generations.set(user.metadata.uid, user.metadata.generation ?? 1)
+        const generation = user.metadata.generation ?? 1
+        // Kubernetes reports every existing object as ADDED when a watch is
+        // re-established. Suppress those synthetic events within this process,
+        // including after the user has advanced to a newer generation.
+        if (this.generations.get(user.metadata.uid) === generation) return
+        this.generations.set(user.metadata.uid, generation)
         await this.#dispatch({type: 'Added', user})
     }
 

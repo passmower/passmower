@@ -54,16 +54,21 @@ describe('KubeOidcUserEventHookOperator', () => {
         })
     })
 
-    it('does not create Jobs for status-only changes or replayed events', async () => {
+    it('does not create Jobs for status-only changes or reconnect replays at the current generation', async () => {
         await operator()
         adapter.seed('OIDCUser', rawUser())
         await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
         await adapter.fireWatch('MODIFIED', 'OIDCUser', 'alice')
         await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+        adapter.seed('OIDCUser', rawUser('alice', 2))
+        await adapter.fireWatch('MODIFIED', 'OIDCUser', 'alice')
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
 
-        expect(adapter.jobs).toHaveLength(1)
+        expect(adapter.jobs).toHaveLength(2)
+        expect(adapter.jobs.map(item => item.jobManifest.metadata.labels['codemowers.cloud/event']))
+            .toEqual(['added', 'modified'])
         expect(adapter.list('OIDCUserEventHook')[0].status.conditions[0]).toMatchObject({
-            status: 'True', reason: 'JobAlreadyExists',
+            status: 'True', reason: 'JobCreated',
         })
     })
 
