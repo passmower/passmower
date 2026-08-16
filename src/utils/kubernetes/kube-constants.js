@@ -2,6 +2,8 @@ export const metadata = 'metadata';
 export const spec = 'spec';
 export const OIDCUserCrd = 'OIDCUser';
 export const OIDCUsers = 'oidcusers';
+export const OIDCUserEventHookCrd = 'OIDCUserEventHook';
+export const OIDCUserEventHooks = 'oidcusereventhooks';
 export const OIDCClientCrd = 'OIDCClient';
 export const OIDCClients = 'oidcclients';
 export const OIDCMiddlewareClientCrd = 'OIDCMiddlewareClient';
@@ -46,6 +48,7 @@ export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clien
 
 export const plurals = {
     [OIDCUserCrd]: OIDCUsers,
+    [OIDCUserEventHookCrd]: OIDCUserEventHooks,
     [OIDCClientCrd]: OIDCClients,
     [OIDCMiddlewareClientCrd]: OIDCMiddlewareClients,
     [SCIMConnectionCrd]: SCIMConnections,

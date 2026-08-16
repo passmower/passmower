@@ -308,16 +308,20 @@ export class KubernetesAdapter {
         })
     }
 
-    async createJob(namespace, jobManifest) {
+    async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {
         return await this.batchV1Api.createNamespacedJob({
             namespace,
             body: jobManifest
         }, this.defaultOptions).then((r) => {
             return r.status
         }).catch((e) => {
+            const statusCode = e.code ?? e.statusCode ?? e.response?.statusCode
+            if (ignoreAlreadyExists && statusCode === 409) {
+                return {alreadyExists: true}
+            }
             // Surface failures (not just 404) — a swallowed secret-refresh
             // failure was a source of "refresh not triggering" confusion (#69).
-            globalThis.logger.error({ err: e, job: jobManifest?.metadata?.name }, 'Failed to create secret-refresh Job')
+            globalThis.logger.error({ err: e, job: jobManifest?.metadata?.name }, 'Failed to create Kubernetes Job')
             return null
         })
     }
