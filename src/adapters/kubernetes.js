@@ -160,26 +160,50 @@ export class KubernetesAdapter {
     }
 
     async replaceNamespacedCustomObjectStatus(kind, namespace, id, resourceVersion, status, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
-        return await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
-            group: apiGroup,
-            version: apiGroupVersion,
-            namespace,
-            plural: plurals[kind],
-            name: id,
-            body: {
-                apiVersion: apiGroup + '/' + apiGroupVersion,
-                kind,
-                metadata: {
+        let currentResourceVersion = resourceVersion
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const response = await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
+                    group: apiGroup,
+                    version: apiGroupVersion,
+                    namespace,
+                    plural: plurals[kind],
                     name: id,
-                    resourceVersion
-                },
-                status,
+                    body: {
+                        apiVersion: apiGroup + '/' + apiGroupVersion,
+                        kind,
+                        metadata: {
+                            name: id,
+                            resourceVersion: currentResourceVersion
+                        },
+                        status,
+                    }
+                }, this.defaultOptions)
+                return mapperFunction(response)
+            } catch (error) {
+                if (error.code !== 409 || attempt === 3) {
+                    globalThis.logger.error(error)
+                    return undefined
+                }
+                globalThis.logger?.warn(
+                    {kind, namespace, id, attempt},
+                    'Kubernetes status update conflicted, retrying with the latest resource version'
+                )
+                try {
+                    const latest = await this.customObjectsApi.getNamespacedCustomObject({
+                        group: apiGroup,
+                        version: apiGroupVersion,
+                        namespace,
+                        plural: plurals[kind],
+                        name: id,
+                    }, this.defaultOptions)
+                    currentResourceVersion = latest.metadata.resourceVersion
+                } catch (readError) {
+                    globalThis.logger.error(readError)
+                    return undefined
+                }
             }
-        }, this.defaultOptions).then((r) => {
-            return mapperFunction(r)
-        }).catch((e) => {
-            globalThis.logger.error(e)
-        })
+        }
     }
 
     async getSecret(namespace, id) {
