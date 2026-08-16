@@ -79,6 +79,19 @@ export class FakeKubernetesAdapter {
         return mapperFunction(structuredClone(stored))
     }
 
+    async mutateNamespacedCustomObjectStatus(kind, _namespace, id, mapperFunction, statusFunction) {
+        const stored = this.store.get(this.#key(kind, id))
+        if (!stored) return null
+        const status = await statusFunction(mapperFunction(structuredClone(stored)))
+        if (JSON.stringify(stored.status ?? {}) === JSON.stringify(status ?? {})) {
+            return mapperFunction(structuredClone(stored))
+        }
+        stored.status = structuredClone(status)
+        stored.metadata.resourceVersion = this.#nextRv()
+        this.#emit('MODIFIED', kind, stored)
+        return mapperFunction(structuredClone(stored))
+    }
+
     // --- Secrets + pods (used by the client operator) -----------------------
 
     async getSecret(namespace, id) { return this.secrets.get(`${namespace}/${id}`) }

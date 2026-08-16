@@ -107,21 +107,25 @@ export class KubeOIDCUserService {
                 ? conflicts.map(conflict => `${conflict.email} is owned by OIDCUser ${conflict.ownerAccountId}`).join('; ')
                 : 'All claimed email addresses are unique'
             if (previous?.status === status && previous?.reason === reason && previous?.message === message) continue
-            const condition = {
-                apiVersion: 'v1',
-                kind: 'Condition',
-                type: 'EmailUnique',
-                status,
-                reason,
-                message,
-                lastTransitionTime: previous?.status === status ? previous.lastTransitionTime : new Date(),
-            }
-            account.setConditions([
-                ...account.getConditions().filter(item => item.type !== 'EmailUnique'),
-                condition,
-            ])
             try {
-                const updated = await this.updateUserStatus(account)
+                const updated = await this.mutateUserStatus(account.accountId, current => {
+                    const currentPrevious = current.getConditions().find(condition => condition.type === 'EmailUnique')
+                    const condition = {
+                        apiVersion: 'v1',
+                        kind: 'Condition',
+                        type: 'EmailUnique',
+                        status,
+                        reason,
+                        message,
+                        lastTransitionTime: currentPrevious?.status === status
+                            ? currentPrevious.lastTransitionTime
+                            : new Date(),
+                    }
+                    return current.setConditions([
+                        ...current.getConditions().filter(item => item.type !== 'EmailUnique'),
+                        condition,
+                    ])
+                })
                 if (!updated) throw new Error(`Status update returned no OIDCUser for ${account.accountId}`)
                 if (status === 'False' && previous?.status !== 'False') {
                     await this.adapter.createEvent?.(
@@ -164,7 +168,7 @@ export class KubeOIDCUserService {
         if (!user) {
             return null
         }
-        return await this.updateUserStatus(user)
+        return await this.reconcileUserStatus(user.accountId)
     }
 
     async updateUserSpecs(accountId, {passmower, slack, github, identities} = {}) {
@@ -186,7 +190,7 @@ export class KubeOIDCUserService {
         if (!updatedUser) {
             throw new Error(`updateUserSpecs: Kubernetes rejected the spec patch for user "${accountId}"`)
         }
-        return await this.updateUserStatus(updatedUser)
+        return await this.reconcileUserStatus(updatedUser.accountId)
     }
 
     async replaceUserLabels(updatedUser) {
@@ -208,18 +212,21 @@ export class KubeOIDCUserService {
         )
     }
 
-    async updateUserStatus(account) {
-        if (!account) {
-            throw new Error('updateUserStatus: account is null (user creation or spec patch failed upstream)')
-        }
-        return await this.adapter.replaceNamespacedCustomObjectStatus(
+    async mutateUserStatus(accountId, mutation = () => {}) {
+        return await this.adapter.mutateNamespacedCustomObjectStatus(
             OIDCUserCrd,
             this.adapter.namespace,
-            account.accountId,
-            account.resourceVersion,
-            account.getIntendedStatus(),
-            (apiResponse) => (new Account()).fromKubernetes(apiResponse)
+            accountId,
+            (apiResponse) => (new Account()).fromKubernetes(apiResponse),
+            async account => {
+                await mutation(account)
+                return account.getIntendedStatus()
+            },
         )
+    }
+
+    async reconcileUserStatus(accountId) {
+        return await this.mutateUserStatus(accountId)
     }
 
     // WebAuthn/Passkey methods

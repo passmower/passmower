@@ -35,13 +35,13 @@ export class KubeOIDCUserOperator {
         condition = condition.setStatus(true)
         OIDCUser.setLabels(condition.toLabels())
         await this.userService.replaceUserLabels(OIDCUser)
-        await this.userService.updateUserStatus(OIDCUser)
+        await this.userService.reconcileUserStatus(OIDCUser.accountId)
         await this.#scheduleEmailReconcile()
     }
 
     async #updateOIDCUser(OIDCUser) {
         if (OIDCUser.getMetadata()?.managedFields?.at(-1)?.manager !== this.instance) {
-            await this.userService.updateUserStatus(OIDCUser)
+            await this.userService.reconcileUserStatus(OIDCUser.accountId)
             await this.#scheduleEmailReconcile()
         }
     }

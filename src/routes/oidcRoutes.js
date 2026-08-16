@@ -503,8 +503,10 @@ export default (provider) => {
         }
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
-        account.addCondition(condition)
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        await ctx.kubeOIDCUserService.mutateUserStatus(
+            account.accountId,
+            current => current.addCondition(condition),
+        )
 
         if (interactionDetails?.lastSubmission?.oauth?.provider) {
             switch (interactionDetails.lastSubmission.oauth.provider) {

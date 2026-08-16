@@ -114,24 +114,23 @@ export class ActivityTracker {
     }
 
     async #flushUser(accountId, applications) {
-        const account = await this.adapter.getNamespacedCustomObject(
+        const updated = await this.adapter.mutateNamespacedCustomObjectStatus(
             OIDCUserCrd, this.adapter.namespace, accountId,
-            raw => new Account().fromKubernetes(raw)
+            raw => new Account().fromKubernetes(raw),
+            account => {
+                const merged = new Map(account.getRecentApplications().map(app => [app.clientId, app]))
+                for (const [clientId, app] of applications) {
+                    const previous = merged.get(clientId)
+                    merged.set(clientId, {...app, lastAuthenticatedAt: newer(previous?.lastAuthenticatedAt, app.lastAuthenticatedAt)})
+                }
+                const recent = [...merged.values()]
+                    .sort((a, b) => new Date(b.lastAuthenticatedAt) - new Date(a.lastAuthenticatedAt))
+                    .slice(0, intEnv('ACTIVITY_RECENT_APPLICATION_LIMIT', DEFAULT_RECENT_APPLICATION_LIMIT))
+                account.setRecentApplications(recent)
+                return account.getIntendedStatus()
+            },
         )
-        if (!account) return
-        const merged = new Map(account.getRecentApplications().map(app => [app.clientId, app]))
-        for (const [clientId, app] of applications) {
-            const previous = merged.get(clientId)
-            merged.set(clientId, {...app, lastAuthenticatedAt: newer(previous?.lastAuthenticatedAt, app.lastAuthenticatedAt)})
-        }
-        const recent = [...merged.values()]
-            .sort((a, b) => new Date(b.lastAuthenticatedAt) - new Date(a.lastAuthenticatedAt))
-            .slice(0, intEnv('ACTIVITY_RECENT_APPLICATION_LIMIT', DEFAULT_RECENT_APPLICATION_LIMIT))
-        account.setRecentApplications(recent)
-        const updated = await this.adapter.replaceNamespacedCustomObjectStatus(
-            OIDCUserCrd, this.adapter.namespace, accountId, account.resourceVersion,
-            account.getIntendedStatus(), raw => new Account().fromKubernetes(raw)
-        )
+        if (updated === null) return
         if (!updated) throw new Error(`Failed to update activity status for OIDCUser ${accountId}`)
     }
 

@@ -6,8 +6,10 @@ import {getEmailContent, getEmailSubject} from "../get-email-content.js";
 export const confirmTos = async (ctx, accountId, contentHash) => {
     let account = await Account.findAccount(ctx, accountId)
     const acceptedAt = new Date()
-    account.acceptTermsOfService(contentHash, acceptedAt)
-    await ctx.kubeOIDCUserService.updateUserStatus(account)
+    await ctx.kubeOIDCUserService.mutateUserStatus(
+        accountId,
+        current => current.acceptTermsOfService(contentHash, acceptedAt),
+    )
 
     const content = await getEmailContent('emails/tos', {
         name: account.profile.name,

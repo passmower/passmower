@@ -8,6 +8,7 @@ import {
 import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
+import isEqual from 'lodash/isEqual.js';
 
 // loadFromCluster() builds the API server URL straight from KUBERNETES_SERVICE_HOST,
 // which on IPv6-only / dual-stack clusters is a bare IPv6 literal — so the client
@@ -180,6 +181,54 @@ export class KubernetesAdapter {
         }).catch((e) => {
             globalThis.logger.error(e)
         })
+    }
+
+    async mutateNamespacedCustomObjectStatus(kind, namespace, id, mapperFunction, statusFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const current = await this.customObjectsApi.getNamespacedCustomObject({
+                    group: apiGroup,
+                    version: apiGroupVersion,
+                    namespace,
+                    plural: plurals[kind],
+                    name: id,
+                }, this.defaultOptions)
+                const status = await statusFunction(mapperFunction(current))
+                if (isEqual(current.status ?? {}, status ?? {})) {
+                    return mapperFunction(current)
+                }
+                const updated = await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
+                    group: apiGroup,
+                    version: apiGroupVersion,
+                    namespace,
+                    plural: plurals[kind],
+                    name: id,
+                    body: {
+                        apiVersion: apiGroup + '/' + apiGroupVersion,
+                        kind,
+                        metadata: {
+                            name: id,
+                            resourceVersion: current.metadata.resourceVersion,
+                        },
+                        status,
+                    },
+                }, this.defaultOptions)
+                return mapperFunction(updated)
+            } catch (error) {
+                if (error.code === 404) {
+                    return null
+                }
+                if (error.code === 409 && attempt < 3) {
+                    globalThis.logger?.warn(
+                        {kind, namespace, id, attempt},
+                        'Kubernetes status mutation conflicted, recomputing from the latest resource'
+                    )
+                    continue
+                }
+                globalThis.logger.error(error)
+                return undefined
+            }
+        }
     }
 
     async getSecret(namespace, id) {

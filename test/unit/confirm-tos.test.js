@@ -33,12 +33,12 @@ describe('confirmTos', () => {
             acceptTermsOfService: vi.fn(),
         }
         vi.spyOn(Account, 'findAccount').mockResolvedValue(account)
-        const updateUserStatus = vi.fn()
+        const mutateUserStatus = vi.fn(async (_accountId, mutation) => mutation(account))
 
-        await confirmTos({kubeOIDCUserService: {updateUserStatus}}, 'alice', 'content-hash')
+        await confirmTos({kubeOIDCUserService: {mutateUserStatus}}, 'alice', 'content-hash')
 
         expect(account.acceptTermsOfService).toHaveBeenCalledWith('content-hash', expect.any(Date))
-        expect(updateUserStatus).toHaveBeenCalledWith(account)
+        expect(mutateUserStatus).toHaveBeenCalledWith('alice', expect.any(Function))
         expect(mocks.sendMail).toHaveBeenCalledWith(
             'alice@example.com', 'Terms accepted', 'text', '<p>html</p>',
         )
