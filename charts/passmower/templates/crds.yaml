@@ -416,6 +416,8 @@ spec:
                       primary:
                         type: boolean
                         default: false
+                      verified:
+                        type: boolean
                 groups:
                   type: array
                   items:
@@ -456,6 +458,8 @@ spec:
                         primary:
                           type: boolean
                           default: false
+                        verified:
+                          type: boolean
                   groups:
                     type: array
                     items:
@@ -602,6 +606,26 @@ spec:
                   type: array
                   items:
                     type: string
+                emailVerifications:
+                  type: array
+                  description: Verification evidence scoped to an exact normalized email address.
+                  items:
+                    type: object
+                    required: [email, status, method, provider]
+                    properties:
+                      email:
+                        type: string
+                      status:
+                        type: string
+                        enum: [verified, unverified, unknown]
+                      method:
+                        type: string
+                        enum: [github-api, oidc-claim, discord-api, magic-link]
+                      provider:
+                        type: string
+                      verifiedAt:
+                        type: string
+                        format: date-time
                 passkeyCount:
                   type: integer
                   description: Number of registered passkeys
@@ -773,6 +797,7 @@ spec:
                     type: string
                     enum:
                       - openid
+                      - email
                       - profile
                       - offline_access
                       - groups

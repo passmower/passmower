@@ -42,7 +42,7 @@ describe('email magic-link login (HTTP)', () => {
             response_types: ['code'],
             token_endpoint_auth_method: 'client_secret_basic',
             // extraClientMetadata fields real clients always carry (addGrant reads availableScopes)
-            availableScopes: ['openid'],
+            availableScopes: ['openid', 'email'],
             allowedCORSOrigins: [],
         })
     })
@@ -123,7 +123,7 @@ describe('email magic-link login (HTTP)', () => {
             client_id: RP.client_id,
             redirect_uri: RP.redirect_uri,
             response_type: 'code',
-            scope: 'openid',
+            scope: 'openid email',
             state: 'state-123',
             nonce: 'nonce-123',
             code_challenge: challenge,
@@ -168,5 +168,18 @@ describe('email magic-link login (HTTP)', () => {
         const idClaims = JSON.parse(Buffer.from(tokenRes.body.id_token.split('.')[1], 'base64url').toString())
         expect(idClaims.sub).toBe('testuser')
         expect(idClaims.nonce).toBe('nonce-123')
+        expect(idClaims.email).toBe('test@example.com')
+        expect(idClaims.email_verified).toBe(true)
+
+        const userinfo = await request(callback)
+            .get('/me')
+            .set('Authorization', `Bearer ${tokenRes.body.access_token}`)
+            .expect(200)
+        expect(userinfo.body.email).toBe('test@example.com')
+        expect(userinfo.body.email_verified).toBe(true)
+
+        expect(fakeKube.list('OIDCUser')[0].status.emailVerifications).toContainEqual(expect.objectContaining({
+            email: 'test@example.com', status: 'verified', method: 'magic-link', provider: 'passmower',
+        }))
     })
 })

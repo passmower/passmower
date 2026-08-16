@@ -8,7 +8,7 @@ import ScimLinkService from "../scim-link-service.js";
 
 // Map the validated id_token / userinfo claims onto the structure we persist
 // under identities.<provider> and the values createOrUpdateByEmails expects.
-const extractIdentity = (providerConfig, profile) => {
+export const extractIdentity = (providerConfig, profile) => {
     const primaryEmail = profile.email;
     let groups = [];
     if (providerConfig.groupsClaim && Array.isArray(profile[providerConfig.groupsClaim])) {
@@ -22,7 +22,11 @@ const extractIdentity = (providerConfig, profile) => {
         name: profile.name ?? null,
         company: null,
         primaryEmail,
-        emails: [{ email: primaryEmail, primary: true }],
+        emails: [{
+            email: primaryEmail,
+            primary: true,
+            verified: typeof profile.email_verified === 'boolean' ? profile.email_verified : undefined,
+        }],
         groups,
         preferredUsername: profile.preferred_username ?? profile.nickname,
         linkClaims: Object.fromEntries(providerConfig.linkingClaims

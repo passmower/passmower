@@ -355,7 +355,9 @@ export default (provider) => {
             })
         }
         auditLog(ctx, {uid: ctx.params.uid}, 'Completing email login on original device')
-        return new EmailLogin().completeLogin(ctx, provider, interactionDetails.result.email)
+        return new EmailLogin().completeLogin(
+            ctx, provider, interactionDetails.result.email, interactionDetails.result.emailVerifiedAt,
+        )
     });
 
     // ============================================
