@@ -62,21 +62,15 @@ export async function resolveHostIps(host, family = parseInt(process.env.REDIS_I
 let client;
 let timers = [];
 
-function createRedisClient(redisUrl, isInitial = false) {
-    const newClient = new Redis(redisUrl, {
+export function getRedisOptions(isInitial = false, env = process.env) {
+    return {
         keyPrefix: 'oidc:',
-        family: parseInt(process.env.REDIS_IP_FAMILY ?? '0'),
+        family: parseInt(env.REDIS_IP_FAMILY ?? '0'),
+        protocol: 3,
         // Only enable offline queue for initial connection, disable after ready
         enableOfflineQueue: isInitial,
         // Shorter timeouts for faster failover detection
         connectTimeout: 10000,
-        // Retry strategy with backoff
-        retryStrategy(times) {
-            if (times > 10) {
-                globalThis.logger?.warn('Redis: Max retry attempts reached, will keep trying...')
-            }
-            return Math.min(times * 100, 3000);
-        },
         // Reconnect on READONLY errors (replica promoted to master scenario)
         reconnectOnError(err) {
             const targetErrors = ['READONLY', 'MOVED', 'ASK', 'CLUSTERDOWN'];
@@ -87,7 +81,11 @@ function createRedisClient(redisUrl, isInitial = false) {
             }
             return false;
         },
-    });
+    };
+}
+
+function createRedisClient(redisUrl, isInitial = false) {
+    const newClient = new Redis(redisUrl, getRedisOptions(isInitial));
 
     newClient.on('error', (err) => {
         globalThis.logger?.error({ err }, 'Redis connection error')
