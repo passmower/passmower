@@ -61,10 +61,12 @@ for monitoring.
 
 Hook delivery is **at least once**, not exactly once. Kubernetes replays
 existing resources as `Added` when a watch starts. Passmower suppresses those
-replays across watch reconnects within one process, but a Passmower pod restart
-loses that in-memory history. If the deterministic Added Job has already been
-reaped, the replacement pod can create it again. Hook workloads must therefore
-handle repeated Added events idempotently.
+replays across watch reconnects within one process. If a known user's generation
+advanced during a watch gap, Passmower classifies the replay as `Modified` so
+that edge is not silently lost. A Passmower pod restart loses this in-memory
+history, however. If the deterministic Added Job has already been reaped, the
+replacement pod can create it again. Hook workloads must therefore handle
+repeated Added events idempotently.
 
 The operator is edge-triggered and does not persist a user-event journal. A
 Deleted event that occurs while Passmower is stopped or outside an active watch

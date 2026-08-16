@@ -72,6 +72,23 @@ describe('KubeOidcUserEventHookOperator', () => {
         })
     })
 
+    it('classifies an advanced generation replayed after a watch gap as Modified', async () => {
+        await operator()
+        adapter.seed('OIDCUser', rawUser())
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+        adapter.seed('OIDCUser', rawUser('alice', 2))
+
+        // A re-established Kubernetes watch reports existing resources as
+        // ADDED even when their spec changed while the watch was disconnected.
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+
+        expect(adapter.jobs.map(item => item.jobManifest.metadata.labels['codemowers.cloud/event']))
+            .toEqual(['added', 'modified'])
+        expect(adapter.list('OIDCUserEventHook')[0].status.lastAttemptedJob).toMatchObject({
+            event: 'Modified', generation: 2,
+        })
+    })
+
     it('enforces event filters and label selectors', async () => {
         adapter.seed('OIDCUserEventHook', rawHook('added-acme', {events: ['Added']}))
         await operator()
