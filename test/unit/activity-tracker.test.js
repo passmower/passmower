@@ -75,10 +75,10 @@ describe('ActivityTracker', () => {
         const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
         adapter.seed('OIDCUser', rawUser())
         adapter.seed('OIDCClient', rawClient())
-        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
-        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+        const mutate = adapter.mutateNamespacedCustomObjectStatus.bind(adapter)
+        adapter.mutateNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
             if (kind === 'OIDCUser') return undefined
-            return replace(kind, ...args)
+            return mutate(kind, ...args)
         })
         const tracker = new ActivityTracker({adapter, now: () => new Date('2026-08-05T12:00:00.000Z')})
         tracker.registerClient(new OidcClient().fromIncomingClient(adapter.list('OIDCClient')[0]))
@@ -95,10 +95,10 @@ describe('ActivityTracker', () => {
         const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
         adapter.seed('OIDCUser', rawUser())
         adapter.seed('OIDCClient', rawClient())
-        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        const mutate = adapter.mutateNamespacedCustomObjectStatus.bind(adapter)
         const tracker = new ActivityTracker({adapter})
         let fail = true
-        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+        adapter.mutateNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
             if (kind === 'OIDCUser' && fail) {
                 tracker.record({
                     accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
@@ -106,7 +106,7 @@ describe('ActivityTracker', () => {
                 })
                 return undefined
             }
-            return replace(kind, ...args)
+            return mutate(kind, ...args)
         })
         tracker.record({
             accountId: 'alice', clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
