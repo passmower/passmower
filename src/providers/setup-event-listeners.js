@@ -26,6 +26,16 @@ function activityFromContext(ctx) {
     }
 }
 
+export function interactionLogFields(interaction) {
+    return {
+        interactionId: interaction?.jti,
+        kind: interaction?.kind,
+        clientId: interaction?.params?.client_id,
+        prompt: interaction?.prompt?.name,
+        accountId: interaction?.session?.accountId ?? interaction?.result?.login?.accountId,
+    }
+}
+
 export default (provider) => {
     // https://github.com/panva/node-oidc-provider/blob/v8.x/docs/events.md
 
@@ -172,7 +182,7 @@ export default (provider) => {
     })
 
     provider.on('interaction.destroyed', (interaction) => {
-        logger.debug({interaction}, 'interaction.destroyed')
+        logger.debug(interactionLogFields(interaction), 'interaction.destroyed')
     })
 
     provider.on('interaction.ended', (ctx) => {
@@ -180,7 +190,7 @@ export default (provider) => {
     })
 
     provider.on('interaction.saved', (interaction) => {
-        logger.debug({interaction}, 'interaction.saved')
+        logger.debug(interactionLogFields(interaction), 'interaction.saved')
     })
 
     provider.on('interaction.started', (ctx, prompt) => {

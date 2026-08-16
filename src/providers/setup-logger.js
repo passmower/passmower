@@ -14,6 +14,7 @@ export const setupLogger = () => {
             'interaction.session.cookie',
             '*.jti',
             'interaction.result.token',
+            'interaction.result.oauth.token',
             'interaction.result.request.header.cookie',
             'interaction.result.request.url',
             '*.cookie',
