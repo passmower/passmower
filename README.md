@@ -344,6 +344,11 @@ Passmower can also accept automated user and group provisioning over SCIM 2.0.
 See [docs/scim-provisioning.md](docs/scim-provisioning.md) for endpoint,
 authentication, Entra configuration, and lifecycle behavior.
 
+Kubernetes-native lifecycle automation can run namespaced Jobs when matching
+users are added, changed, or deleted. See
+[docs/oidc-user-event-hooks.md](docs/oidc-user-event-hooks.md) for the hook CRD,
+event metadata, idempotency, and security model.
+
 ## Traefik middleware
 
 For legacy applications `forwardAuth` based middleware option is supported.

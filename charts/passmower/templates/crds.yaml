@@ -108,6 +108,116 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  name: oidcusereventhooks.codemowers.cloud
+spec:
+  group: codemowers.cloud
+  names:
+    plural: oidcusereventhooks
+    singular: oidcusereventhook
+    kind: OIDCUserEventHook
+    listKind: OIDCUserEventHookList
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              required: [events, jobSpec]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum: [Added, Modified, Deleted]
+                selector:
+                  type: object
+                  description: Kubernetes LabelSelector matched against OIDCUser metadata.labels.
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    matchExpressions:
+                      type: array
+                      items:
+                        type: object
+                        required: [key, operator]
+                        properties:
+                          key:
+                            type: string
+                          operator:
+                            type: string
+                            enum: [In, NotIn, Exists, DoesNotExist]
+                          values:
+                            type: array
+                            items:
+                              type: string
+                jobSpec:
+                  type: object
+                  description: batch/v1 JobSpec executed for each matching lifecycle event.
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                lastAttemptedJob:
+                  type: object
+                  required: [name, event, userName, userUID, generation, attemptedAt]
+                  properties:
+                    name:
+                      type: string
+                    event:
+                      type: string
+                      enum: [Added, Modified, Deleted]
+                    userName:
+                      type: string
+                    userUID:
+                      type: string
+                    generation:
+                      type: integer
+                      format: int64
+                    attemptedAt:
+                      type: string
+                      format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required: [type, status]
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ['True', 'False', 'Unknown']
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=='Ready')].status
+        - name: Last Job
+          type: string
+          jsonPath: .status.lastAttemptedJob.name
+  conversion:
+    strategy: None
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
   name: scimsubjects.codemowers.cloud
 spec:
   group: codemowers.cloud

@@ -98,7 +98,13 @@ export class FakeKubernetesAdapter {
     async createSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async patchSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async deleteSecret(namespace, id) { this.secrets.delete(`${namespace}/${id}`) }
-    async createJob(namespace, jobManifest) { this.jobs.push({ namespace, jobManifest: structuredClone(jobManifest) }); return { active: 1 } }
+    async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {
+        const existing = this.jobs.find(job => job.namespace === namespace
+            && job.jobManifest.metadata.name === jobManifest.metadata.name)
+        if (existing) return ignoreAlreadyExists ? {alreadyExists: true} : null
+        this.jobs.push({ namespace, jobManifest: structuredClone(jobManifest) })
+        return { active: 1 }
+    }
     async createEvent(namespace, involvedObject, reason, message, type = 'Warning') {
         const event = {namespace, involvedObject: structuredClone(involvedObject), reason, message, type}
         this.events.push(event)

@@ -18,6 +18,7 @@ import KubeScimConnectionOperator from "./operators/kube-scim-connection-operato
 import metricsServer from "./routes/metrics-server.js";
 import {getUsernameSource} from "./utils/username-source.js";
 import {getActivityTracker} from './services/activity-tracker.js';
+import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 
 const __dirname = dirname(import.meta.url);
 
@@ -53,6 +54,8 @@ export async function startOperators(provider) {
     await kubeMiddlewareClientOperator.watchClients()
     const kubeUserOperator = new KubeOidcUserOperator(provider)
     await kubeUserOperator.watchUsers()
+    const kubeUserEventHookOperator = new KubeOidcUserEventHookOperator()
+    await kubeUserEventHookOperator.watchUsers()
     const scimConnectionOperator = new KubeScimConnectionOperator()
     await scimConnectionOperator.watchConnections()
     activityTracker.start()
