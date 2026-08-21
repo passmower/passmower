@@ -5,9 +5,10 @@ import getLoginResult from "../../utils/user/get-login-result.js";
 import { auditLog } from "../../utils/session/audit-log.js";
 import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
 import ScimLinkService from "../scim-link-service.js";
+import {isEmailEnabled} from '../../utils/email-configuration.js';
 
 export const getOidcEmailError = (profile, env = process.env) => {
-    if (!profile.email && env.EMAIL_ENABLED !== 'false') return 'missing'
+    if (!profile.email && isEmailEnabled(env)) return 'missing'
     if (profile.email && profile.email_verified === false) return 'unverified'
     return null
 }

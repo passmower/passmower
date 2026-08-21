@@ -12,6 +12,15 @@ export const getGitHubScopes = (env = process.env) => [
     ...(env.GITHUB_ORGANIZATION ? ['read:org'] : []),
 ]
 
+export const getGitHubAuthorizeParams = (state, env = process.env) => {
+    const scopes = getGitHubScopes(env)
+    return {
+        redirect_uri: `${env.ISSUER_URL}interaction/callback/gh`,
+        ...(scopes.length ? {scope: scopes} : {}),
+        state,
+    }
+}
+
 export async function getGitHubEmails(token, fetchImpl = fetch, env = process.env) {
     if (!isEmailEnabled(env)) return []
     const response = await fetchImpl('https://api.github.com/user/emails', {
@@ -42,11 +51,7 @@ export default async (ctx, provider) => {
         })
         ctx.status = 302;
         auditLog(ctx, {interactionDetails, state}, 'Redirecting user to GitHub')
-        return ctx.redirect(ghOauth.getAuthorizeUrl({
-            redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
-            scope: getGitHubScopes(),
-            state,
-        }));
+        return ctx.redirect(ghOauth.getAuthorizeUrl(getGitHubAuthorizeParams(state)));
     }
 
     if (!token) {

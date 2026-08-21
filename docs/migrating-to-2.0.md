@@ -1,7 +1,7 @@
 # Migrating from Passmower 1.x to 2.0
 
-Passmower 2.0 is a major release. It carries three consumer-facing breaking changes
-(Helm values, one `OIDCClient` CRD field, and standard OIDC email scoping) plus a sweep of major dependency
+Passmower 2.0 is a major release. It carries four consumer-facing breaking changes
+(Helm values, one `OIDCClient` CRD field, standard OIDC email scoping, and strict email configuration) plus a sweep of major dependency
 upgrades. This note lists everything you must change, and what changed for the better.
 
 > The 2.0 line ships from the `develop` branch as `2.0.0-dev` (image
@@ -14,8 +14,32 @@ upgrades. This note lists everything you must change, and what changed for the b
 - Back up your `values.yaml` (or HelmRelease/ArgoCD Application values).
 - Back up your `OIDCClient` and `OIDCUser` custom resources:
   `kubectl get oidcclients,oidcusers,oidcmiddlewareclients -A -o yaml > passmower-crs.bak.yaml`.
-- Read the three **action required** sections below and edit your values / CRs before
+- Read the **action required** sections below and edit your values / CRs before
   upgrading.
+
+---
+
+## Email configuration is now enforced — **action required**
+
+`EMAIL_ENABLED` is now the global switch for every email-dependent feature, not
+only magic-link login. It defaults to enabled. When enabled, Passmower validates
+`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SSL`, `EMAIL_USERNAME`, and `EMAIL_PASSWORD` at
+boot and exits if any are missing. The Helm chart likewise rejects an enabled
+configuration without `passmower.emailCredentialsSecretRef`.
+
+Deployments that previously left email enabled but supplied incomplete or no SMTP
+configuration will crash-loop after upgrading. Before upgrading, choose one of:
+
+- configure a credentials Secret containing all five required variables and set
+  `passmower.emailCredentialsSecretRef`, or
+- set `passmower.emailEnabled: false` explicitly. This disables SMTP delivery,
+  magic-link login, ToS receipts, and email invitations while permitting users to
+  enroll through GitHub or another OIDC provider using their stable upstream
+  identity without an email address.
+
+SMTP delivery errors are no longer swallowed. A failed magic-link send now fails
+that login attempt; ToS acceptance remains successful if its receipt cannot be sent.
+See [email-configuration.md](email-configuration.md) for the complete behavior.
 
 ---
 
