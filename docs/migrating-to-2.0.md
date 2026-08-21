@@ -237,6 +237,19 @@ condition should switch to `status.termsOfService.acceptedAt`.
 
 ---
 
+### Non-person account types no longer permit ordinary login
+
+Passmower 2.0 enforces `OIDCUser.spec.type` at every server-controlled access
+boundary. Only `person` and legacy unset types may log in normally. `service`
+accounts may only be entered through an explicit admin impersonation link;
+`org`, `group`, `banned`, and unknown types cannot be impersonated or log in.
+
+If a 1.x deployment assigned one of these types to a login-capable user, change
+it to `person` before upgrading. See [account-types.md](account-types.md) for the
+complete matrix and the expiry limitation for already-issued JWT access tokens.
+
+---
+
 ## 5. RBAC change — automatic
 
 The chart's `ClusterRole` now grants `create` on `batch/jobs` instead of core `pods`

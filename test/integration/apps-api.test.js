@@ -23,10 +23,10 @@ process.env.ADMIN_GROUP = 'github.com:testorg:admins'
 const ISSUER = process.env.ISSUER_URL
 const ADMIN_GROUP = { prefix: 'github.com', name: 'testorg:admins' }
 
-const seedUser = (name, groups = []) => {
+const seedUser = (name, groups = [], type = 'person') => {
     fakeKube.seed('OIDCUser', {
         metadata: { name, labels: {} },
-        spec: { email: `${name}@example.com`, name },
+        spec: { email: `${name}@example.com`, name, type },
         passmower: { email: `${name}@example.com` },
         status: {
             primaryEmail: `${name}@example.com`,
@@ -105,6 +105,7 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
 
         seedUser('plain-user')
         seedUser('admin-user', [ADMIN_GROUP])
+        seedUser('banned-user', [], 'banned')
     })
 
     afterAll(async () => {
@@ -131,6 +132,11 @@ describe('apps list API over bearer access tokens (HTTP)', () => {
         it('rejects tokens without the `applications` scope', async () => {
             const token = await mint({ sub: 'plain-user', scope: 'openid profile groups' })
             await agent.get('/api/apps').set(bearer(token)).expect(403)
+        })
+
+        it('rejects an otherwise valid token after the account is banned', async () => {
+            const token = await mint({sub: 'banned-user', scope: 'openid applications'})
+            await agent.get('/api/apps').set(bearer(token)).expect(401)
         })
 
         it('lists the apps the caller can access, without session metadata', async () => {

@@ -366,6 +366,9 @@ users are added, changed, or deleted. See
 [docs/oidc-user-event-hooks.md](docs/oidc-user-event-hooks.md) for the hook CRD,
 event metadata, idempotency, and security model.
 
+Login and admin-impersonation behavior for each `OIDCUser.spec.type` is described
+in [docs/account-types.md](docs/account-types.md).
+
 ## Traefik middleware
 
 For legacy applications `forwardAuth` based middleware option is supported.

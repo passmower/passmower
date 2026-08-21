@@ -314,7 +314,9 @@ export default (provider) => {
         const impersonation = await ctx.sessionService.getImpersonation(ctx)
         const account = await Account.findAccount(ctx, impersonation.accountId)
         auditLog(ctx, {impersonation, account}, 'Impersonation used to log in')
-        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'Impersonation'), {
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(
+            ctx, provider, account, 'Impersonation', {impersonation: true},
+        ), {
             mergeWithLastSubmission: true,
         });
     });
