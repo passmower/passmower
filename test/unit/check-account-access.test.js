@@ -1,0 +1,45 @@
+import {afterEach, describe, expect, it, vi} from 'vitest'
+import Account from '../../src/models/account.js'
+import {getAccountAccessFailure} from '../../src/utils/user/check-account-access.js'
+
+const account = ({name = 'Alice', groups = [], terms = true} = {}) => new Account().fromKubernetes({
+    metadata: {name: 'alice', labels: {}},
+    spec: {},
+    status: {
+        profile: {name},
+        groups: groups.map(displayName => {
+            const [prefix, ...rest] = displayName.split(':')
+            return {prefix, name: rest.join(':')}
+        }),
+        conditions: [],
+        termsOfService: terms ? {
+            acceptedAt: '2026-08-21T10:00:00.000Z', contentHash: 'hash',
+        } : undefined,
+    },
+})
+
+afterEach(() => vi.unstubAllEnvs())
+
+describe('current account access policy', () => {
+    it('accepts an unchanged eligible account', () => {
+        expect(getAccountAccessFailure({}, account())).toBeNull()
+    })
+
+    it('rejects missing accounts, profile data, ToS, and client membership', () => {
+        expect(getAccountAccessFailure({}, null)).toBe('account_missing')
+        expect(getAccountAccessFailure({}, account({name: null}))).toBe('name_required')
+        expect(getAccountAccessFailure({}, account({terms: false}))).toBe('tos_required')
+        expect(getAccountAccessFailure({allowedGroups: ['local:staff']}, account()))
+            .toBe('client_access_required')
+    })
+
+    it('rechecks global approval against current groups', () => {
+        vi.stubEnv('REQUIRED_GROUP', 'local:staff')
+        expect(getAccountAccessFailure({}, account())).toBe('approval_required')
+        expect(getAccountAccessFailure({}, account({groups: ['local:staff']}))).toBeNull()
+
+        const admin = account()
+        admin.isAdmin = true
+        expect(getAccountAccessFailure({}, admin)).toBeNull()
+    })
+})
