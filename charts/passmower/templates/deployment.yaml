@@ -1,3 +1,6 @@
+{{- if and .Values.passmower.emailEnabled (not .Values.passmower.emailCredentialsSecretRef) }}
+{{- fail "passmower.emailCredentialsSecretRef is required when passmower.emailEnabled is true" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -161,7 +164,7 @@ spec:
           envFrom:
             - secretRef:
                 name: oidc-keys
-            {{- if .Values.passmower.emailCredentialsSecretRef }}
+            {{- if and .Values.passmower.emailEnabled .Values.passmower.emailCredentialsSecretRef }}
             - secretRef:
                 name: {{ .Values.passmower.emailCredentialsSecretRef }}
             {{- end }}

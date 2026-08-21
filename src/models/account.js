@@ -13,13 +13,14 @@ export const GroupPrefix = process.env.GROUP_PREFIX;
 
 // Stash the upstream identity in the interaction and halt the flow so the user
 // can pick a username via the enter-username form.
-async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername}) {
+async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity}) {
     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
     await provider.interactionResult(ctx.req, ctx.res, {
         requireCustomUsername: true,
         email,
         githubEmails,
         preferredUsername,
+        stableIdentity: identity,
         ...interactionDetails.result
     }, {
         mergeWithLastSubmission: true,
@@ -102,7 +103,7 @@ class Account {
             username,
             nickname: username,
         };
-        if (scope.split(' ').includes('email')) {
+        if (scope.split(' ').includes('email') && this.primaryEmail) {
             response.email = this.primaryEmail
             response.email_verified = this.isPrimaryEmailVerified()
         }
@@ -220,12 +221,12 @@ class Account {
     }
 
     getRemoteHeaders(headerMapping) {
-        return {
-            [headerMapping['user']]: this.accountId,
-            [headerMapping['name']]: this.profile.name,
-            [headerMapping['email']]: this.primaryEmail,
-            [headerMapping['groups']]: this.#mapGroups().map(g => g.displayName).join(',')
-        }
+        return Object.fromEntries([
+            [headerMapping['user'], this.accountId],
+            [headerMapping['name'], this.profile.name],
+            [headerMapping['email'], this.primaryEmail],
+            [headerMapping['groups'], this.#mapGroups().map(g => g.displayName).join(',')],
+        ].filter(([header, value]) => header && value != null))
     }
 
     getSpecs() {
@@ -467,19 +468,19 @@ class Account {
                 }
                 const source = getUsernameSource()
                 if (source === 'prompt') {
-                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername})
+                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity})
                 } else if (source === 'upstream') {
                     const candidate = sanitizeUsername(preferredUsername)
                     if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
                         username = candidate
                     } else {
                         // No usable upstream username — fall back to the prompt form.
-                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername})
+                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername, identity})
                     }
                 }
                 // source === 'generated' → leave username unset; getUid() below.
             }
-            user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
+            user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails, identity)
             if (user) {
                 auditLog(ctx, {emails, email, githubEmails, username}, 'Created new user')
             } else {

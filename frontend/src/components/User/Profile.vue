@@ -6,9 +6,9 @@
         </div>
         <p><strong>Name: </strong> {{ account.name }}</p>
         <p v-if="account.company"><strong>Company: </strong> {{ account.company }}</p>
-        <p><strong>Primary email: </strong> {{ account.email }}</p>
-        <p><strong>Emails: </strong></p>
-        <ul>
+        <p v-if="account.email"><strong>Primary email: </strong> {{ account.email }}</p>
+        <p v-if="account.emails.length"><strong>Emails: </strong></p>
+        <ul v-if="account.emails.length">
             <li v-for="email in account.emails" :key="email">{{ email }}</li>
         </ul>
         <p><strong>Phones: </strong></p>

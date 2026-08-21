@@ -30,12 +30,26 @@ describe('getOidcProviders', () => {
     })
 
     it('defaults groupPrefix to the issuer host and scopes to openid/email/profile', () => {
+        vi.stubEnv('EMAIL_ENABLED', 'true')
         vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({ gitlab: { issuer: 'https://gitlab.example.com' } }))
         vi.stubEnv('GITLAB_CLIENT_ID', 'id')
         vi.stubEnv('GITLAB_CLIENT_SECRET', 'secret')
         const [p] = getOidcProviders()
         expect(p.groupPrefix).toBe('gitlab.example.com')
         expect(p.scopes).toEqual(['openid', 'email', 'profile'])
+    })
+
+    it('does not request email by default when email is disabled but preserves explicit scopes', () => {
+        vi.stubEnv('EMAIL_ENABLED', 'false')
+        vi.stubEnv('GITLAB_CLIENT_ID', 'id')
+        vi.stubEnv('GITLAB_CLIENT_SECRET', 'secret')
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({gitlab: {issuer: 'https://gitlab.example.com'}}))
+        expect(getOidcProvider('gitlab').scopes).toEqual(['openid', 'profile'])
+
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
+            gitlab: {issuer: 'https://gitlab.example.com', scopes: ['openid', 'email']},
+        }))
+        expect(getOidcProvider('gitlab').scopes).toEqual(['openid', 'email'])
     })
 
     it('defaults tokenEndpointAuthMethod to client_secret_post and only allows basic as the alternative', () => {

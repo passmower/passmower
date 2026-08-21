@@ -4,6 +4,10 @@ Passmower tracks verification evidence for each normalized email address. It
 does not treat verification as an account-wide property: proving control of one
 address never verifies another address that later becomes primary.
 
+Email is optional when delivery is globally disabled. Accounts without a
+primary address omit both downstream email claims; see
+[email-configuration.md](email-configuration.md).
+
 Evidence is projected into `OIDCUser.status.emailVerifications` with its status,
 method, provider, and an optional verification timestamp. Provider-backed
 evidence is recomputed from the provider data stored on the user; magic-link
