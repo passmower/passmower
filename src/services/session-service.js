@@ -4,6 +4,8 @@ import Account from "../models/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {parseRequestMetadata} from "../utils/session/parse-request-headers.js";
+import {canImpersonateAccount, getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
+import {auditLog} from '../utils/session/audit-log.js';
 
 export class SessionService {
     constructor(provider) {
@@ -156,6 +158,14 @@ export class SessionService {
         return true
     }
 
+    async endAdminSession(ctx, session) {
+        if (session?.jti) await this.adminSessionRedis.destroy(session.jti)
+        ctx.cookies.set(this.provider.cookieName('admin_session'), null, {
+            ...instance(this.provider).configuration.cookies.long,
+            maxAge: 0,
+        })
+    }
+
     // Create a one-time impersonation link instead of activating impersonation
     // in the admin's own browser. The admin opens the link in a private/incognito
     // window (or another device) so their own and downstream apps' cookies never
@@ -163,7 +173,14 @@ export class SessionService {
     async createImpersonation(ctx, accountId) {
         const account = await Account.findAccount(ctx, accountId)
         if (!account) {
-            ctx.statusCode = 404
+            ctx.status = 404
+            return null
+        }
+        if (!canImpersonateAccount(account)) {
+            ctx.status = 403
+            auditLog(ctx, {accountId, accountType: account.type,
+                failure: getAccountTypeAccessFailure(account, {impersonation: true})},
+            'Admin impersonation link rejected for account type')
             return null
         }
         const impersonation = {

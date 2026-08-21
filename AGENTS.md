@@ -52,6 +52,9 @@ frontend/ styles/     # Vue frontend + SCSS (built into the image)
   `provider.interactionDetails`, `Interaction.find`, `provider.cookieName`. Policy
   prompts (`approval_required`, `tos`, `name`, `groups_required`) are defined in
   `src/providers/setup-policies.js` and gated by `src/conditions/*`.
+- **Account access is revalidated.** `getAccountAccessFailure()` centralizes account
+  type, approval, profile, current ToS, and client membership checks. Refresh tokens
+  and forward-auth re-evaluate it so post-login policy changes take effect.
 - **Adapters are injectable seams.** `KubeOIDCClientOperator`, `KubeOidcUserOperator`,
   and `KubeOIDCUserService` take an optional adapter:
   `constructor(provider, adapter = new KubernetesAdapter())`. Tests inject

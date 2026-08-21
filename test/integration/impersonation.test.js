@@ -68,4 +68,25 @@ describe('impersonation links', () => {
         expect(result.accountId).toBe('target-user')
         expect(result.link).toMatch(/\/impersonate\/[\w-]+$/)
     })
+
+    it('allows service impersonation but rejects non-login identities', async () => {
+        const { SessionService } = await import('../../src/services/session-service.js')
+        const service = new SessionService(provider)
+        const ctx = type => ({
+            headers: {},
+            adminSession: {accountId: 'admin'},
+            kubeOIDCUserService: {
+                async findUser() { return {accountId: `${type}-target`, type} },
+            },
+        })
+
+        await expect(service.createImpersonation(ctx('service'), 'service-target'))
+            .resolves.toMatchObject({accountId: 'service-target'})
+        for (const type of ['banned', 'org', 'group']) {
+            const requestContext = ctx(type)
+            await expect(service.createImpersonation(requestContext, `${type}-target`))
+                .resolves.toBeNull()
+            expect(requestContext.status).toBe(403)
+        }
+    })
 })

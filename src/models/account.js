@@ -8,6 +8,7 @@ import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/u
 import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
 import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
 import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
+import {canImpersonateAccount} from '../utils/user/account-type-access.js';
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -204,7 +205,8 @@ class Account {
             profile = {
                 ...profile,
                 accountId: this.accountId,
-                impersonationEnabled: requesterAccountId !== this.accountId,
+                type: this.type,
+                impersonationEnabled: requesterAccountId !== this.accountId && canImpersonateAccount(this),
                 approved: this.isAdmin || (new Approved()).check(this),
                 conditions: this.#conditions,
                 onboardedBy: this.#passmower?.onboardedBy ?? null,

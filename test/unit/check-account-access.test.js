@@ -2,9 +2,9 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 import Account from '../../src/models/account.js'
 import {getAccountAccessFailure} from '../../src/utils/user/check-account-access.js'
 
-const account = ({name = 'Alice', groups = [], terms = true} = {}) => new Account().fromKubernetes({
+const account = ({name = 'Alice', groups = [], terms = true, type} = {}) => new Account().fromKubernetes({
     metadata: {name: 'alice', labels: {}},
-    spec: {},
+    spec: type ? {type} : {},
     status: {
         profile: {name},
         groups: groups.map(displayName => {
@@ -49,5 +49,14 @@ describe('current account access policy', () => {
         expect(getAccountAccessFailure({}, account(), {
             text: 'Updated terms', contentHash: 'updated-hash',
         })).toBe('tos_required')
+    })
+
+    it.each([
+        ['banned', 'account_banned'],
+        ['service', 'account_type_not_login_capable'],
+        ['org', 'account_type_not_login_capable'],
+        ['group', 'account_type_not_login_capable'],
+    ])('rejects %s accounts before other policy checks', (type, failure) => {
+        expect(getAccountAccessFailure({}, account({type}), termsOfService)).toBe(failure)
     })
 })

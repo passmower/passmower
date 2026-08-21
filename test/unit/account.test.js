@@ -139,6 +139,19 @@ describe('Account.getProfileResponse', () => {
         expect(account().getProfileResponse(true).onboardedBy).toBeNull()
     })
 
+    it('projects account type and impersonation eligibility only to admins', () => {
+        const service = account({spec: {type: 'service'}})
+        expect(service.getProfileResponse()).not.toHaveProperty('type')
+        expect(service.getProfileResponse(true, 'admin')).toMatchObject({
+            type: 'service', impersonationEnabled: true,
+        })
+
+        const banned = account({spec: {type: 'banned'}})
+        expect(banned.getProfileResponse(true, 'admin')).toMatchObject({
+            type: 'banned', impersonationEnabled: false,
+        })
+    })
+
     it('projects the dedicated ToS acceptance timestamp without exposing its content hash', () => {
         const response = account({status: {termsOfService: {
             acceptedAt: '2026-08-06T12:00:00.000Z',

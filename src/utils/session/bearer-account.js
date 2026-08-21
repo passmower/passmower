@@ -1,5 +1,6 @@
 import * as jose from "jose";
 import Account from "../../models/account.js";
+import {getAccountTypeAccessFailure} from '../user/account-type-access.js';
 
 // Resource-bound (RFC 8707) access tokens use the self-contained JWT format
 // and are never persisted, so provider.AccessToken.find() cannot resolve
@@ -56,7 +57,7 @@ export const accountFromBearer = async (ctx, provider, requiredScope = null) => 
         return {status: 403}
     }
     const account = await Account.findAccount(ctx, accessToken.accountId)
-    if (!account) {
+    if (getAccountTypeAccessFailure(account)) {
         return {status: 401}
     }
     return {account, scopes}

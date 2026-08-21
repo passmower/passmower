@@ -587,6 +587,7 @@ spec:
                 type:
                   type: string
                   default: person
+                  description: Person and legacy unset accounts may sign in normally. Service accounts may only be used through admin impersonation. Organization, group, and banned accounts cannot sign in.
                   enum:
                     - person
                     - org
