@@ -19,7 +19,7 @@
     "@codemowers/oidc-key-manager": "^1.2.1",
     "@koa/ejs": "^5.1.0",
     "@koa/router": "^15.7.0",
-    "@kubernetes/client-node": "^1.4.0",
+    "@kubernetes/client-node": "^2.0.0",
     "@simplewebauthn/server": "^13.3.2",
     "@slack/web-api": "^8.0.0",
     "base64-arraybuffer": "^1.0.2",
