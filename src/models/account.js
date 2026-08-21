@@ -188,7 +188,7 @@ class Account {
         }
     }
 
-    getProfileResponse(forAdmin = false, requesterAccountId = null) {
+    getProfileResponse(forAdmin = false, requesterAccountId = null, termsOfService = getTermsOfServiceDocument()) {
         let profile =  {
             emails: this.emails,
             email: this.primaryEmail,
@@ -197,6 +197,7 @@ class Account {
             phones: this.profile.phones,
             isAdmin: this.isAdmin,
             groups: this.#mapGroups(),
+            terms_of_service_configured: !!termsOfService,
             tos_accepted_at: this.getTermsOfServiceAcceptance()?.acceptedAt,
         }
         if (forAdmin) {

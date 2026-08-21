@@ -143,10 +143,15 @@ describe('Account.getProfileResponse', () => {
         const response = account({status: {termsOfService: {
             acceptedAt: '2026-08-06T12:00:00.000Z',
             contentHash: 'content-hash',
-        }}}).getProfileResponse()
+        }}}).getProfileResponse(false, null, {text: 'Terms', contentHash: 'content-hash'})
 
         expect(response.tos_accepted_at).toBe('2026-08-06T12:00:00.000Z')
+        expect(response.terms_of_service_configured).toBe(true)
         expect(response.termsOfService).toBeUndefined()
+    })
+
+    it('reports when ToS is not configured so the profile does not link to a missing page', () => {
+        expect(account().getProfileResponse(false, null, null).terms_of_service_configured).toBe(false)
     })
 })
 
