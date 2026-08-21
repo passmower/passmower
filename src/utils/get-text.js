@@ -5,8 +5,8 @@ import { Marked } from 'marked';
 export const ApprovalTextName = 'approval'
 export const ToSTextName = 'tos'
 
-export function getText(name) {
-    let text = `Please add /app/${name}/${name}.{md|txt} using ConfigMap.`
+export function getConfiguredText(name) {
+    let text
     if (existsSync(`/app/${name}/${name}.md`)) {
         const marked = new Marked({
             mangle: false,
@@ -23,11 +23,27 @@ export function getText(name) {
         text = marked.parse(text)
     } else if (existsSync(`/app/${name}/${name}.txt`)) {
         text = readFileSync(`/app/${name}/${name}.txt`, 'utf8');
+        if (!text.trim()) return null
         text = htmlSafe(text)
-        text.replace(/\n/g, '<br/>')
+        text = text.replace(/\n/g, '<br/>')
+    } else {
+        return null
     }
 
-    return text
+    return text?.trim() ? text : null
+}
+
+export function getText(name) {
+    const text = getConfiguredText(name)
+    if (text !== null) return text
+    // Preserve the existing behavior for optional non-ToS text mounts: an
+    // explicitly empty file renders as empty rather than as setup guidance.
+    if (existsSync(`/app/${name}/${name}.md`) || existsSync(`/app/${name}/${name}.txt`)) return ''
+    return `Please add /app/${name}/${name}.{md|txt} using ConfigMap.`
+}
+
+export function getTermsOfService() {
+    return getConfiguredText(ToSTextName)
 }
 
 const renderer = {

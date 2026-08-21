@@ -225,10 +225,15 @@ non-breaking way:
 
 ToS acceptance is durable account state, not an observation about the current
 resource, so new acceptances are stored under `OIDCUser.status.termsOfService` with
-`acceptedAt` and `contentHash` fields. Passmower continues to recognize the legacy
+`acceptedAt` and `contentHash` fields. Empty or whitespace-only ToS content disables
+the acceptance prompt and receipt entirely. When configured content changes, its
+hash changes and people must accept the new version.
+
+Passmower continues to recognize the legacy
 `status.conditions[type=ToSv1]` entry and automatically replaces it on the next status
-write. No user action or renewed acceptance is required. External tooling that reads
-the old condition should switch to `status.termsOfService.acceptedAt`.
+write, using the currently configured content hash as its baseline. No user action or
+renewed acceptance is required during migration. External tooling that reads the old
+condition should switch to `status.termsOfService.acceptedAt`.
 
 ---
 

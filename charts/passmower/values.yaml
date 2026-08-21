@@ -156,6 +156,8 @@ passmower:
     termsOfService:
         #configMapRef:
         #  name: ""
+        # Empty or whitespace-only content disables ToS prompting and receipts.
+        # Changing configured content requires people to accept the new version.
         content: ""
     disableFrontendEdit:
         #configMapRef:
