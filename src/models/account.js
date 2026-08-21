@@ -7,19 +7,22 @@ import {getUsernameSource} from "../utils/username-source.js";
 import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
 import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
+import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
+import {canImpersonateAccount} from '../utils/user/account-type-access.js';
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
 
 // Stash the upstream identity in the interaction and halt the flow so the user
 // can pick a username via the enter-username form.
-async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername}) {
+async function requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity}) {
     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
     await provider.interactionResult(ctx.req, ctx.res, {
         requireCustomUsername: true,
         email,
         githubEmails,
         preferredUsername,
+        stableIdentity: identity,
         ...interactionDetails.result
     }, {
         mergeWithLastSubmission: true,
@@ -102,7 +105,7 @@ class Account {
             username,
             nickname: username,
         };
-        if (scope.split(' ').includes('email')) {
+        if (scope.split(' ').includes('email') && this.primaryEmail) {
             response.email = this.primaryEmail
             response.email_verified = this.isPrimaryEmailVerified()
         }
@@ -141,7 +144,7 @@ class Account {
         return response
     }
 
-    getIntendedStatus() {
+    getIntendedStatus(termsOfService = getTermsOfServiceDocument()) {
         const identities = Object.values(this.#identities ?? {})
         const activeIdentities = identities.filter(identity => identity.active !== false)
         const identityEmails = identities.flatMap(i => i.emails ?? [])
@@ -180,13 +183,13 @@ class Account {
             slackId: this.#slack?.id ?? null,
             passkeyCount: this.#webauthn?.credentials?.length ?? 0,
             conditions: this.#conditions.filter(condition => condition.type !== 'ToSv1'),
-            termsOfService: this.getTermsOfServiceAcceptance(),
+            termsOfService: this.#getIntendedTermsOfServiceAcceptance(termsOfService),
             recentApplications: this.#recentApplications,
             emailVerifications: this.getEmailVerifications(),
         }
     }
 
-    getProfileResponse(forAdmin = false, requesterAccountId = null) {
+    getProfileResponse(forAdmin = false, requesterAccountId = null, termsOfService = getTermsOfServiceDocument()) {
         let profile =  {
             emails: this.emails,
             email: this.primaryEmail,
@@ -195,13 +198,15 @@ class Account {
             phones: this.profile.phones,
             isAdmin: this.isAdmin,
             groups: this.#mapGroups(),
+            terms_of_service_configured: !!termsOfService,
             tos_accepted_at: this.getTermsOfServiceAcceptance()?.acceptedAt,
         }
         if (forAdmin) {
             profile = {
                 ...profile,
                 accountId: this.accountId,
-                impersonationEnabled: requesterAccountId !== this.accountId,
+                type: this.type,
+                impersonationEnabled: requesterAccountId !== this.accountId && canImpersonateAccount(this),
                 approved: this.isAdmin || (new Approved()).check(this),
                 conditions: this.#conditions,
                 onboardedBy: this.#passmower?.onboardedBy ?? null,
@@ -220,12 +225,12 @@ class Account {
     }
 
     getRemoteHeaders(headerMapping) {
-        return {
-            [headerMapping['user']]: this.accountId,
-            [headerMapping['name']]: this.profile.name,
-            [headerMapping['email']]: this.primaryEmail,
-            [headerMapping['groups']]: this.#mapGroups().map(g => g.displayName).join(',')
-        }
+        return Object.fromEntries([
+            [headerMapping['user'], this.accountId],
+            [headerMapping['name'], this.profile.name],
+            [headerMapping['email'], this.primaryEmail],
+            [headerMapping['groups'], this.#mapGroups().map(g => g.displayName).join(',')],
+        ].filter(([header, value]) => header && value != null))
     }
 
     getSpecs() {
@@ -272,6 +277,12 @@ class Account {
             acceptedAt: legacy.lastTransitionTime ?? null,
             contentHash: null,
         } : undefined
+    }
+
+    #getIntendedTermsOfServiceAcceptance(document) {
+        const acceptance = this.getTermsOfServiceAcceptance()
+        if (!acceptance || acceptance.contentHash !== null) return acceptance
+        return document ? {...acceptance, contentHash: document.contentHash} : acceptance
     }
 
     acceptTermsOfService(contentHash, acceptedAt = new Date()) {
@@ -467,19 +478,19 @@ class Account {
                 }
                 const source = getUsernameSource()
                 if (source === 'prompt') {
-                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername})
+                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity})
                 } else if (source === 'upstream') {
                     const candidate = sanitizeUsername(preferredUsername)
                     if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
                         username = candidate
                     } else {
                         // No usable upstream username — fall back to the prompt form.
-                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername})
+                        return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername: candidate ?? preferredUsername, identity})
                     }
                 }
                 // source === 'generated' → leave username unset; getUid() below.
             }
-            user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails)
+            user = await ctx.kubeOIDCUserService.createUser(username ?? this.getUid(), email, githubEmails, identity)
             if (user) {
                 auditLog(ctx, {emails, email, githubEmails, username}, 'Created new user')
             } else {

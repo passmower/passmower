@@ -50,7 +50,9 @@ passmower:
   webauthnEnabled: true
   # Enable GitHub OAuth login. Requires githubClientSecretRef to be set.
   githubEnabled: true
-  # Enable email magic-link login. Requires emailCredentialsSecretRef to be set.
+  # Enable all email delivery, including magic-link login and ToS receipts.
+  # When false, no SMTP credentials are mounted and upstream users may enroll
+  # using their stable provider identity without an email address.
   emailEnabled: true
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   emailCredentialsSecretRef: "email-credentials"
@@ -154,6 +156,8 @@ passmower:
     termsOfService:
         #configMapRef:
         #  name: ""
+        # Empty or whitespace-only content disables ToS prompting and receipts.
+        # Changing configured content requires people to accept the new version.
         content: ""
     disableFrontendEdit:
         #configMapRef:

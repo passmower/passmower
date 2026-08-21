@@ -30,12 +30,13 @@ export default {
         fetch('/admin/api/metadata').then((r) => r.json()).then((r) => {
             this.setGroupPrefix(r.groupPrefix)
             this.setRequireUsername(r.requireUsername)
+            this.setEmailEnabled(r.emailEnabled)
             this.setDisableEditing(r.disableEditing)
             this.setDisableEditingText(r.disableEditingText)
         })
     },
     methods: {
-        ...mapActions(userAdminStore, ['setGroupPrefix', 'setRequireUsername', 'setDisableEditing', 'setDisableEditingText']),
+        ...mapActions(userAdminStore, ['setGroupPrefix', 'setRequireUsername', 'setEmailEnabled', 'setDisableEditing', 'setDisableEditingText']),
     }
 }
 

@@ -123,8 +123,14 @@ continues to work unchanged.
 
 Passmower authenticates users against GitHub (a dedicated handler), email
 magic-links, and any number of **standards-compliant OIDC providers** through a
-single generic connector (discovery + PKCE + `id_token` validation). Users are
-linked across providers by verified email.
+single generic connector (discovery + PKCE + `id_token` validation). Stable
+provider subjects identify returning users; verified email can additionally
+link identities across providers.
+
+Set `passmower.emailEnabled: false` to run without SMTP credentials or email
+addresses. This disables all delivery and email-based login/invitations while
+allowing upstream enrollment by stable provider identity. See
+[docs/email-configuration.md](docs/email-configuration.md).
 
 OIDC providers are configured entirely at deploy time — adding Google, GitLab,
 EntraID, Keycloak, Okta, Authentik, Zitadel, etc. requires no code change, just
@@ -323,6 +329,11 @@ downstream clients through the `email` scope. See
 [docs/email-verification.md](docs/email-verification.md) for provider rules,
 magic-link fallback, and client configuration.
 
+Refresh-token exchanges re-check the current Kubernetes account and client
+access policies, so deleted or newly ineligible users cannot retain access for
+the full refresh-token lifetime. See
+[docs/refresh-token-authorization.md](docs/refresh-token-authorization.md).
+
 ```
 apiVersion: codemowers.cloud/v1
 kind: OIDCUser
@@ -354,6 +365,9 @@ Kubernetes-native lifecycle automation can run namespaced Jobs when matching
 users are added, changed, or deleted. See
 [docs/oidc-user-event-hooks.md](docs/oidc-user-event-hooks.md) for the hook CRD,
 event metadata, idempotency, and security model.
+
+Login and admin-impersonation behavior for each `OIDCUser.spec.type` is described
+in [docs/account-types.md](docs/account-types.md).
 
 ## Traefik middleware
 

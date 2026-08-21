@@ -1,9 +1,24 @@
 import {describe, expect, it} from 'vitest'
-import {extractIdentity} from '../../src/services/login/oidc-login.js'
+import {extractIdentity, getOidcEmailError} from '../../src/services/login/oidc-login.js'
 
 const provider = {groupsClaim: null, linkingClaims: []}
 
 describe('generic OIDC email verification evidence', () => {
+    it('requires email only while email support is enabled', () => {
+        expect(getOidcEmailError({sub: 'subject'}, {EMAIL_ENABLED: 'true'})).toBe('missing')
+        expect(getOidcEmailError({sub: 'subject'}, {EMAIL_ENABLED: 'false'})).toBeNull()
+        expect(getOidcEmailError(
+            {sub: 'subject', email: 'a@example.com', email_verified: false},
+            {EMAIL_ENABLED: 'false'},
+        )).toBe('unverified')
+    })
+
+    it('represents an email-less stable identity without an invalid email entry', () => {
+        expect(extractIdentity(provider, {sub: 'subject', name: 'Email Free'})).toMatchObject({
+            sub: 'subject', primaryEmail: undefined, emails: [], name: 'Email Free',
+        })
+    })
+
     it.each([
         [true, true],
         [false, false],

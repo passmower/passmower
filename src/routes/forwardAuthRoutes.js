@@ -6,6 +6,8 @@ import {isHostInProviderBaseDomain} from "../utils/session/base-domain.js";
 import RedisAdapter from "../adapters/redis.js";
 import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
 import {responseType, scope} from "../models/oidc-middleware-client.js";
+import {getAccountAccessFailure} from '../utils/user/check-account-access.js';
+import {auditLog} from '../utils/session/audit-log.js';
 
 export default (provider) => {
     const router = new Router();
@@ -48,12 +50,16 @@ export default (provider) => {
                 ctx.body = cookie.result.error
             } else {
                 const account = await Account.findAccount(ctx, cookie.accountId)
-                if (account) {
+                const failure = getAccountAccessFailure(client, account)
+                if (!failure) {
                     const remoteHeaders = account.getRemoteHeaders(client.headerMapping)
                     Object.keys(remoteHeaders).map(k => {
                         ctx.set(k, remoteHeaders[k])
                     })
                     ctx.status = 200
+                } else {
+                    auditLog(ctx, {accountId: cookie.accountId, clientId, failure},
+                        'Forward-auth account no longer satisfies access policy')
                 }
             }
         } else {

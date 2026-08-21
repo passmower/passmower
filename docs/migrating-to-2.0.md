@@ -1,7 +1,7 @@
 # Migrating from Passmower 1.x to 2.0
 
-Passmower 2.0 is a major release. It carries three consumer-facing breaking changes
-(Helm values, one `OIDCClient` CRD field, and standard OIDC email scoping) plus a sweep of major dependency
+Passmower 2.0 is a major release. It carries four consumer-facing breaking changes
+(Helm values, one `OIDCClient` CRD field, standard OIDC email scoping, and strict email configuration) plus a sweep of major dependency
 upgrades. This note lists everything you must change, and what changed for the better.
 
 > The 2.0 line ships from the `develop` branch as `2.0.0-dev` (image
@@ -14,8 +14,32 @@ upgrades. This note lists everything you must change, and what changed for the b
 - Back up your `values.yaml` (or HelmRelease/ArgoCD Application values).
 - Back up your `OIDCClient` and `OIDCUser` custom resources:
   `kubectl get oidcclients,oidcusers,oidcmiddlewareclients -A -o yaml > passmower-crs.bak.yaml`.
-- Read the three **action required** sections below and edit your values / CRs before
+- Read the **action required** sections below and edit your values / CRs before
   upgrading.
+
+---
+
+## Email configuration is now enforced — **action required**
+
+`EMAIL_ENABLED` is now the global switch for every email-dependent feature, not
+only magic-link login. It defaults to enabled. When enabled, Passmower validates
+`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SSL`, `EMAIL_USERNAME`, and `EMAIL_PASSWORD` at
+boot and exits if any are missing. The Helm chart likewise rejects an enabled
+configuration without `passmower.emailCredentialsSecretRef`.
+
+Deployments that previously left email enabled but supplied incomplete or no SMTP
+configuration will crash-loop after upgrading. Before upgrading, choose one of:
+
+- configure a credentials Secret containing all five required variables and set
+  `passmower.emailCredentialsSecretRef`, or
+- set `passmower.emailEnabled: false` explicitly. This disables SMTP delivery,
+  magic-link login, ToS receipts, and email invitations while permitting users to
+  enroll through GitHub or another OIDC provider using their stable upstream
+  identity without an email address.
+
+SMTP delivery errors are no longer swallowed. A failed magic-link send now fails
+that login attempt; ToS acceptance remains successful if its receipt cannot be sent.
+See [email-configuration.md](email-configuration.md) for the complete behavior.
 
 ---
 
@@ -201,10 +225,33 @@ non-breaking way:
 
 ToS acceptance is durable account state, not an observation about the current
 resource, so new acceptances are stored under `OIDCUser.status.termsOfService` with
-`acceptedAt` and `contentHash` fields. Passmower continues to recognize the legacy
+`acceptedAt` and `contentHash` fields. Empty or whitespace-only ToS content disables
+the acceptance prompt and receipt entirely. When configured content changes, its
+hash changes and people must accept the new version.
+
+Passmower continues to recognize the legacy
 `status.conditions[type=ToSv1]` entry and automatically replaces it on the next status
-write. No user action or renewed acceptance is required. External tooling that reads
-the old condition should switch to `status.termsOfService.acceptedAt`.
+write, using the currently configured content hash as its baseline. No user action or
+renewed acceptance is required during migration. External tooling that reads the old
+condition should switch to `status.termsOfService.acceptedAt`.
+
+---
+
+### Non-person account types no longer permit ordinary login
+
+Passmower 2.0 enforces `OIDCUser.spec.type` at every server-controlled access
+boundary. Only `person` and legacy unset types may log in normally. `service`
+accounts may only be entered through an explicit admin impersonation link;
+`org`, `group`, `banned`, and unknown types cannot be impersonated or log in.
+
+If a 1.x deployment assigned one of these types to a login-capable user, change
+it to `person` before upgrading. See [account-types.md](account-types.md) for the
+complete matrix and the expiry limitation for already-issued JWT access tokens.
+
+Forward-auth now rechecks the full account access policy on every request. A user
+whose approval, required profile name, current ToS acceptance, or client group/user
+membership is revoked receives 401 from legacy applications without waiting for the
+existing site session to expire.
 
 ---
 

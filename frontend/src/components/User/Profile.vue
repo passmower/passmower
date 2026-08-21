@@ -6,9 +6,9 @@
         </div>
         <p><strong>Name: </strong> {{ account.name }}</p>
         <p v-if="account.company"><strong>Company: </strong> {{ account.company }}</p>
-        <p><strong>Primary email: </strong> {{ account.email }}</p>
-        <p><strong>Emails: </strong></p>
-        <ul>
+        <p v-if="account.email"><strong>Primary email: </strong> {{ account.email }}</p>
+        <p v-if="account.emails.length"><strong>Emails: </strong></p>
+        <ul v-if="account.emails.length">
             <li v-for="email in account.emails" :key="email">{{ email }}</li>
         </ul>
         <p><strong>Phones: </strong></p>
@@ -20,8 +20,10 @@
             <li v-for="group in account.groups" :key="group.displayName">{{ group.displayName }}</li>
         </ul>
         <br/>
-        <p v-if="account.tos_accepted_at"><a target="_blank" href="/terms-of-service">Terms of Service</a> accepted at {{account.tos_accepted_at}}</p>
-        <p v-else>Terms of Service not accepted</p>
+        <template v-if="account.terms_of_service_configured">
+            <p v-if="account.tos_accepted_at"><a target="_blank" href="/terms-of-service">Terms of Service</a> accepted at {{account.tos_accepted_at}}</p>
+            <p v-else>Terms of Service not accepted</p>
+        </template>
     </div>
 </template>
 

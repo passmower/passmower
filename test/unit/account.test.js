@@ -82,15 +82,22 @@ describe('Account.getIntendedStatus', () => {
     })
 
     it('migrates legacy ToSv1 acceptance on the next status projection', () => {
-        const status = account({status: {conditions: [{
+        const legacy = account({status: {conditions: [{
             type: 'ToSv1', status: 'True', lastTransitionTime: '2025-01-01T00:00:00.000Z',
-        }, {type: 'Ready', status: 'True'}]}}).getIntendedStatus()
+        }, {type: 'Ready', status: 'True'}]}})
+        const status = legacy.getIntendedStatus()
 
         expect(status.termsOfService).toEqual({
             acceptedAt: '2025-01-01T00:00:00.000Z',
             contentHash: null,
         })
         expect(status.conditions).toEqual([{type: 'Ready', status: 'True'}])
+
+        expect(legacy.getIntendedStatus({text: 'Terms', contentHash: 'current-hash'}).termsOfService)
+            .toEqual({
+                acceptedAt: '2025-01-01T00:00:00.000Z',
+                contentHash: 'current-hash',
+            })
     })
 })
 
@@ -132,14 +139,32 @@ describe('Account.getProfileResponse', () => {
         expect(account().getProfileResponse(true).onboardedBy).toBeNull()
     })
 
+    it('projects account type and impersonation eligibility only to admins', () => {
+        const service = account({spec: {type: 'service'}})
+        expect(service.getProfileResponse()).not.toHaveProperty('type')
+        expect(service.getProfileResponse(true, 'admin')).toMatchObject({
+            type: 'service', impersonationEnabled: true,
+        })
+
+        const banned = account({spec: {type: 'banned'}})
+        expect(banned.getProfileResponse(true, 'admin')).toMatchObject({
+            type: 'banned', impersonationEnabled: false,
+        })
+    })
+
     it('projects the dedicated ToS acceptance timestamp without exposing its content hash', () => {
         const response = account({status: {termsOfService: {
             acceptedAt: '2026-08-06T12:00:00.000Z',
             contentHash: 'content-hash',
-        }}}).getProfileResponse()
+        }}}).getProfileResponse(false, null, {text: 'Terms', contentHash: 'content-hash'})
 
         expect(response.tos_accepted_at).toBe('2026-08-06T12:00:00.000Z')
+        expect(response.terms_of_service_configured).toBe(true)
         expect(response.termsOfService).toBeUndefined()
+    })
+
+    it('reports when ToS is not configured so the profile does not link to a missing page', () => {
+        expect(account().getProfileResponse(false, null, null).terms_of_service_configured).toBe(false)
     })
 })
 
@@ -156,6 +181,15 @@ describe('Account.claims', () => {
         expect(claims.username).toBe('u-test')
         expect(claims.email).toBe('a@x.com')
         expect(claims.email_verified).toBe(false)
+    })
+
+    it('omits both email claims when an account has no primary email', async () => {
+        const claims = await account({
+            status: {primaryEmail: undefined, emails: [], groups: [], profile: {}},
+        }).claims('id_token', 'openid email', {}, [])
+
+        expect(claims.email).toBeUndefined()
+        expect(claims.email_verified).toBeUndefined()
     })
 
     it('adds profile fields and emails for the profile scope', async () => {
@@ -288,5 +322,12 @@ describe('Account.getRemoteHeaders', () => {
         expect(headers['X-Name']).toBe('Jane')
         expect(headers['X-Email']).toBe('a@x.com')
         expect(headers['X-Groups'].split(',').sort()).toEqual(['gh:org', 'local:team'])
+    })
+
+    it('omits an email header when the account has no email', () => {
+        const headers = account({status: {profile: {name: 'Jane'}, groups: []}}).getRemoteHeaders({
+            user: 'X-User', name: 'X-Name', email: 'X-Email', groups: 'X-Groups',
+        })
+        expect(headers).not.toHaveProperty('X-Email')
     })
 })

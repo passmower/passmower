@@ -40,6 +40,19 @@ describe('KubeOIDCUserService over the fake Kubernetes adapter', () => {
         })
     })
 
+    it('creates an email-less user with its stable OIDC identity atomically', async () => {
+        const account = await service.createUser('subject-user', undefined, undefined, {
+            providerKey: 'dex', subject: 'subject-123',
+        })
+
+        expect(account.accountId).toBe('subject-user')
+        const stored = adapter.list('OIDCUser')[0]
+        expect(stored.passmower.email).toBeUndefined()
+        expect(stored.status.primaryEmail).toBeUndefined()
+        expect(stored.identities.dex).toEqual({sub: 'subject-123'})
+        expect((await service.findUserByIdentity('dex', 'subject-123')).accountId).toBe('subject-user')
+    })
+
     it('finds a user by id and by email', async () => {
         await service.createUser('bob', 'bob@example.com', [])
         expect((await service.findUser('bob')).accountId).toBe('bob')
