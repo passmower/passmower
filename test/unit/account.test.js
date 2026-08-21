@@ -82,15 +82,22 @@ describe('Account.getIntendedStatus', () => {
     })
 
     it('migrates legacy ToSv1 acceptance on the next status projection', () => {
-        const status = account({status: {conditions: [{
+        const legacy = account({status: {conditions: [{
             type: 'ToSv1', status: 'True', lastTransitionTime: '2025-01-01T00:00:00.000Z',
-        }, {type: 'Ready', status: 'True'}]}}).getIntendedStatus()
+        }, {type: 'Ready', status: 'True'}]}})
+        const status = legacy.getIntendedStatus()
 
         expect(status.termsOfService).toEqual({
             acceptedAt: '2025-01-01T00:00:00.000Z',
             contentHash: null,
         })
         expect(status.conditions).toEqual([{type: 'Ready', status: 'True'}])
+
+        expect(legacy.getIntendedStatus({text: 'Terms', contentHash: 'current-hash'}).termsOfService)
+            .toEqual({
+                acceptedAt: '2025-01-01T00:00:00.000Z',
+                contentHash: 'current-hash',
+            })
     })
 })
 

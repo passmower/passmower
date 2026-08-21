@@ -7,6 +7,7 @@ import {getUsernameSource} from "../utils/username-source.js";
 import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
 import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
+import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -142,7 +143,7 @@ class Account {
         return response
     }
 
-    getIntendedStatus() {
+    getIntendedStatus(termsOfService = getTermsOfServiceDocument()) {
         const identities = Object.values(this.#identities ?? {})
         const activeIdentities = identities.filter(identity => identity.active !== false)
         const identityEmails = identities.flatMap(i => i.emails ?? [])
@@ -181,7 +182,7 @@ class Account {
             slackId: this.#slack?.id ?? null,
             passkeyCount: this.#webauthn?.credentials?.length ?? 0,
             conditions: this.#conditions.filter(condition => condition.type !== 'ToSv1'),
-            termsOfService: this.getTermsOfServiceAcceptance(),
+            termsOfService: this.#getIntendedTermsOfServiceAcceptance(termsOfService),
             recentApplications: this.#recentApplications,
             emailVerifications: this.getEmailVerifications(),
         }
@@ -273,6 +274,12 @@ class Account {
             acceptedAt: legacy.lastTransitionTime ?? null,
             contentHash: null,
         } : undefined
+    }
+
+    #getIntendedTermsOfServiceAcceptance(document) {
+        const acceptance = this.getTermsOfServiceAcceptance()
+        if (!acceptance || acceptance.contentHash !== null) return acceptance
+        return document ? {...acceptance, contentHash: document.contentHash} : acceptance
     }
 
     acceptTermsOfService(contentHash, acceptedAt = new Date()) {

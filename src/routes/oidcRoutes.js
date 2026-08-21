@@ -17,7 +17,7 @@ import Account from "../models/account.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
 import crypto from "node:crypto";
 import {Approved} from "../conditions/approved.js";
-import {ApprovalTextName, getText, ToSTextName} from "../utils/get-text.js";
+import {ApprovalTextName, getText, getTermsOfService} from "../utils/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../utils/render-error.js";
 import {addGrant} from "../utils/session/add-grants.js";
@@ -124,8 +124,8 @@ export default (provider) => {
     router.get(['/', '/profile', '/privileges', '/privileges/:group', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
             if (ctx.path === '/terms-of-service') {
-                // TODO: proper implementation
-                const text = getText(ToSTextName)
+                const text = getTermsOfService()
+                if (text === null) ctx.throw(404, 'Terms of Service are not configured')
                 return render(provider, ctx, 'tos', 'Terms of Service', {text, save: false}, true)
             } else {
                 return ctx.render('frontend', { layout: false, title: 'Passmower' })
@@ -215,7 +215,12 @@ export default (provider) => {
                 });
             }
             case 'tos': {
-                const text = getText(ToSTextName)
+                const text = getTermsOfService()
+                if (text === null) {
+                    return provider.interactionFinished(ctx.req, ctx.res, {}, {
+                        mergeWithLastSubmission: true,
+                    })
+                }
                 await provider.interactionResult(ctx.req, ctx.res, {
                     tosTextChecksum: crypto.createHash('sha256').update(text, 'utf8').digest('hex'),
                 })
@@ -447,8 +452,8 @@ export default (provider) => {
     router.post('/interaction/:uid/confirm-tos', async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(interactionDetails.prompt.name, 'tos');
-        await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
-        auditLog(ctx, {interactionDetails}, 'ToS approved')
+        const accepted = await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
+        auditLog(ctx, {interactionDetails}, accepted ? 'ToS approved' : 'ToS no longer configured')
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });

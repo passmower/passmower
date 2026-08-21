@@ -21,14 +21,16 @@ const account = ({name = 'Alice', groups = [], terms = true} = {}) => new Accoun
 afterEach(() => vi.unstubAllEnvs())
 
 describe('current account access policy', () => {
+    const termsOfService = {text: 'Terms', contentHash: 'hash'}
+
     it('accepts an unchanged eligible account', () => {
-        expect(getAccountAccessFailure({}, account())).toBeNull()
+        expect(getAccountAccessFailure({}, account(), termsOfService)).toBeNull()
     })
 
     it('rejects missing accounts, profile data, ToS, and client membership', () => {
         expect(getAccountAccessFailure({}, null)).toBe('account_missing')
         expect(getAccountAccessFailure({}, account({name: null}))).toBe('name_required')
-        expect(getAccountAccessFailure({}, account({terms: false}))).toBe('tos_required')
+        expect(getAccountAccessFailure({}, account({terms: false}), termsOfService)).toBe('tos_required')
         expect(getAccountAccessFailure({allowedGroups: ['local:staff']}, account()))
             .toBe('client_access_required')
     })
@@ -41,5 +43,11 @@ describe('current account access policy', () => {
         const admin = account()
         admin.isAdmin = true
         expect(getAccountAccessFailure({}, admin)).toBeNull()
+    })
+
+    it('rejects an account that accepted a different ToS version', () => {
+        expect(getAccountAccessFailure({}, account(), {
+            text: 'Updated terms', contentHash: 'updated-hash',
+        })).toBe('tos_required')
     })
 })
