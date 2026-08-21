@@ -144,14 +144,18 @@ describe('Account.getProfileResponse', () => {
 })
 
 describe('Account.claims', () => {
-    it('returns sub/username/email for openid scope', async () => {
+    it('returns email claims only for the email scope', async () => {
         const a = account({
             status: { primaryEmail: 'a@x.com', emails: [{ email: 'a@x.com', primary: true }], groups: [], profile: {} },
         })
-        const claims = await a.claims('id_token', 'openid', {}, [])
+        const openidClaims = await a.claims('id_token', 'openid', {}, [])
+        const claims = await a.claims('id_token', 'openid email', {}, [])
+        expect(openidClaims.email).toBeUndefined()
+        expect(openidClaims.email_verified).toBeUndefined()
         expect(claims.sub).toBe('u-test')
         expect(claims.username).toBe('u-test')
         expect(claims.email).toBe('a@x.com')
+        expect(claims.email_verified).toBe(false)
     })
 
     it('adds profile fields and emails for the profile scope', async () => {
@@ -167,6 +171,83 @@ describe('Account.claims', () => {
         expect(claims.name).toBe('Jane')
         expect(claims.company).toBe('Acme')
         expect(claims.emails).toEqual([{ email: 'a@x.com', primary: true }])
+    })
+
+    it('marks a primary GitHub email verified only with explicit GitHub evidence', async () => {
+        const a = account({
+            github: {emails: [{email: 'a@x.com', primary: true, verified: true}]},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+        const legacy = account({
+            github: {emails: [{email: 'a@x.com', primary: true}]},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+
+        expect((await a.claims('id_token', 'openid email', {}, [])).email_verified).toBe(true)
+        expect((await legacy.claims('id_token', 'openid email', {}, [])).email_verified).toBe(false)
+    })
+
+    it('only marks generic OIDC email provenance verified when upstream explicitly confirmed it', async () => {
+        const verified = account({
+            identities: {google: {emails: [{email: 'a@x.com', primary: true, verified: true}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+        const unverified = account({
+            identities: {google: {emails: [{email: 'a@x.com', primary: true, verified: false}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+        const unspecified = account({
+            identities: {google: {emails: [{email: 'a@x.com', primary: true}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+
+        expect((await verified.claims('id_token', 'openid email', {}, [])).email_verified).toBe(true)
+        expect(unverified.getIntendedStatus().emailVerifications).toContainEqual({
+            email: 'a@x.com', status: 'unverified', method: 'oidc-claim', provider: 'google',
+        })
+        expect((await unspecified.claims('id_token', 'openid email', {}, [])).email_verified).toBe(false)
+        expect(unspecified.getIntendedStatus().emailVerifications).toContainEqual({
+            email: 'a@x.com', status: 'unknown', method: 'oidc-claim', provider: 'google',
+        })
+    })
+
+    it('does not transfer verification when the emitted primary email changes', async () => {
+        const a = account({
+            spec: {email: 'new@x.com'},
+            github: {emails: [{email: 'old@x.com', primary: true, verified: true}]},
+            status: {primaryEmail: 'new@x.com', emails: ['new@x.com', 'old@x.com'], groups: [], profile: {}},
+        })
+
+        expect((await a.claims('id_token', 'openid email', {}, [])).email_verified).toBe(false)
+    })
+
+    it('records durable magic-link evidence for the exact claimed address', () => {
+        const verifiedAt = '2026-08-16T21:00:00.000Z'
+        const status = account({
+            spec: {email: 'a@x.com'},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        }).verifyEmail('A@X.COM', {verifiedAt}).getIntendedStatus()
+
+        expect(status.emailVerifications).toContainEqual({
+            email: 'a@x.com', status: 'verified', method: 'magic-link',
+            provider: 'passmower', verifiedAt,
+        })
+    })
+
+    it('retains durable magic-link evidence while its address is unlinked', () => {
+        const status = account({
+            status: {
+                primaryEmail: null, emails: [], groups: [], profile: {},
+                emailVerifications: [{
+                    email: 'old@x.com', status: 'verified', method: 'magic-link',
+                    provider: 'passmower', verifiedAt: '2026-08-16T21:00:00.000Z',
+                }],
+            },
+        }).getIntendedStatus()
+
+        expect(status.emailVerifications).toContainEqual(expect.objectContaining({
+            email: 'old@x.com', status: 'verified', method: 'magic-link',
+        }))
     })
 
     it('omits namespaces when the enrichment webhook is not configured', async () => {

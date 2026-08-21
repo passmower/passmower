@@ -10,6 +10,17 @@ import {parseRequestMetadata} from "../../utils/session/parse-request-headers.js
 import {auditLog} from "../../utils/session/audit-log.js";
 import {IdentityIntegrityError} from "../../utils/user/identity-integrity.js";
 
+export async function recordMagicLinkVerification(service, account, email, verifiedAt) {
+    return await service.recordEmailVerification(account.accountId, email, {
+        method: 'magic-link', provider: 'passmower', verifiedAt,
+    }) ?? account
+}
+
+export async function recordSubmittedMagicLinkVerification(service, account, submission) {
+    if (!submission?.emailVerified || !submission.email) return account
+    return recordMagicLinkVerification(service, account, submission.email, submission.emailVerifiedAt)
+}
+
 export class EmailLogin {
     constructor() {
         this.adapter = new EmailAdapter()
@@ -91,7 +102,7 @@ export class EmailLogin {
 
         // Mark verified so the original device's polling can complete the login.
         const ttl = interaction.exp ? Math.max(1, Math.floor(interaction.exp - Date.now() / 1000)) : 3600
-        interaction.result = {...interaction.result, emailVerified: true}
+        interaction.result = {...interaction.result, emailVerified: true, emailVerifiedAt: new Date().toISOString()}
         await interaction.save(ttl)
         auditLog(ctx, {uid, email: interaction.result.email}, 'Email verified via login link')
 
@@ -103,7 +114,7 @@ export class EmailLogin {
         } catch { /* different device/browser — no interaction cookie */ }
 
         if (sameBrowser) {
-            return this.completeLogin(ctx, provider, interaction.result.email)
+            return this.completeLogin(ctx, provider, interaction.result.email, interaction.result.emailVerifiedAt)
         }
         return this.#renderMessage(ctx, 'Email verified',
             'Your email is verified. Return to the window or device where you started signing in — it will continue automatically.')
@@ -119,10 +130,14 @@ export class EmailLogin {
     // Complete the login in the original browser (interaction cookie present),
     // where account creation / username prompt have full context. Relies on the
     // server-side emailVerified flag, which only a valid token could have set.
-    async completeLogin(ctx, provider, email) {
-        const account = await Account.createOrUpdateByEmails(ctx, provider, email)
+    async completeLogin(ctx, provider, email, verifiedAt = new Date().toISOString()) {
+        let account = await Account.createOrUpdateByEmails(ctx, provider, email)
         if (!account) {
             auditLog(ctx, {email}, 'Unable to determine account from login link')
+        } else {
+            account = await recordMagicLinkVerification(
+                ctx.kubeOIDCUserService, account, email, verifiedAt,
+            )
         }
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'LoginLink'), {
             mergeWithLastSubmission: true,

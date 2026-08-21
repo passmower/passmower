@@ -37,6 +37,7 @@ class Account {
     #webauthn = null
     #conditions = []
     #termsOfService = null
+    #emailVerifications = []
     #labels = {}
     #metadata = {}
     #ctx = null
@@ -62,6 +63,7 @@ class Account {
         this.slackId = apiResponse.status?.slackId ?? null
         this.#conditions = apiResponse.status?.conditions ?? []
         this.#termsOfService = apiResponse.status?.termsOfService ?? null
+        this.#emailVerifications = apiResponse.status?.emailVerifications ?? []
         this.#recentApplications = apiResponse.status?.recentApplications ?? []
         this.#labels = apiResponse.metadata?.labels ?? {}
         this.#metadata = apiResponse.metadata
@@ -99,8 +101,11 @@ class Account {
             sub: username, // it is essential to always return a sub claim
             username,
             nickname: username,
-            email: this.primaryEmail,
         };
+        if (scope.split(' ').includes('email')) {
+            response.email = this.primaryEmail
+            response.email_verified = this.isPrimaryEmailVerified()
+        }
         if (scope.includes('profile')) {
             response = {
                 ...response,
@@ -177,6 +182,7 @@ class Account {
             conditions: this.#conditions.filter(condition => condition.type !== 'ToSv1'),
             termsOfService: this.getTermsOfServiceAcceptance(),
             recentApplications: this.#recentApplications,
+            emailVerifications: this.getEmailVerifications(),
         }
     }
 
@@ -310,6 +316,63 @@ class Account {
         ].map(canonicalizeEmail).filter(Boolean))]
     }
 
+    getEmailVerifications() {
+        const evidence = this.#emailVerifications
+            .filter(item => item.method === 'magic-link')
+            .map(item => ({...item, email: canonicalizeEmail(item.email)}))
+        for (const item of this.#github?.emails ?? []) {
+            const email = canonicalizeEmail(item.email)
+            if (!email) continue
+            evidence.push({
+                email,
+                status: item.verified === true ? 'verified' : item.verified === false ? 'unverified' : 'unknown',
+                method: 'github-api',
+                provider: 'github',
+            })
+        }
+        for (const [provider, identity] of Object.entries(this.#identities ?? {})) {
+            for (const item of identity.emails ?? []) {
+                const email = canonicalizeEmail(item.email)
+                if (!email) continue
+                evidence.push({
+                    email,
+                    status: item.verified === true ? 'verified' : item.verified === false ? 'unverified' : 'unknown',
+                    method: 'oidc-claim',
+                    provider,
+                })
+            }
+        }
+        return [...new Map(evidence.map(item => [
+            `${item.email}\0${item.method}\0${item.provider}`,
+            item,
+        ])).values()]
+    }
+
+    isPrimaryEmailVerified() {
+        const primaryEmail = canonicalizeEmail(this.primaryEmail)
+        if (!primaryEmail) return false
+        return this.getEmailVerifications().some(item =>
+            item.email === primaryEmail && item.status === 'verified')
+    }
+
+    verifyEmail(email, {method = 'magic-link', provider = 'passmower', verifiedAt = new Date()} = {}) {
+        email = canonicalizeEmail(email)
+        if (!email || !this.getClaimedEmails().includes(email)) return this
+        const verification = {
+            email, status: 'verified', method, provider,
+            verifiedAt: verifiedAt instanceof Date ? verifiedAt.toISOString() : verifiedAt,
+        }
+        this.#emailVerifications = [
+            ...this.#emailVerifications.filter(item => !(
+                canonicalizeEmail(item.email) === email
+                && item.method === method
+                && item.provider === provider
+            )),
+            verification,
+        ]
+        return this
+    }
+
     getIdentity(providerKey) {
         return this.#identities?.[providerKey]
     }
@@ -361,7 +424,8 @@ class Account {
                 const ghEmail = canonicalizeEmail(e.email)
                 return {
                     email: ghEmail,
-                    primary: e.primary
+                    primary: e.primary,
+                    verified: typeof e.verified === 'boolean' ? e.verified : undefined,
                 }
             })
             githubEmails = [...new Map(githubEmails.map(v => [v.email, v])).values()]

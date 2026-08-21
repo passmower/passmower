@@ -225,6 +225,7 @@ spec:
     - code
   availableScopes:
     - openid
+    - email
     - profile
   tokenEndpointAuthMethod: none
 ```
@@ -316,6 +317,11 @@ Passmower validates email ownership across those resources and blocks newer
 duplicates from authentication. See
 [docs/identity-integrity.md](docs/identity-integrity.md) for provider linking,
 normalization, conflict status, metrics, and remediation.
+
+Verified-email provenance is retained per normalized address and exposed to
+downstream clients through the `email` scope. See
+[docs/email-verification.md](docs/email-verification.md) for provider rules,
+magic-link fallback, and client configuration.
 
 ```
 apiVersion: codemowers.cloud/v1

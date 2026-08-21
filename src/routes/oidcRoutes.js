@@ -10,7 +10,7 @@ import Router from '@koa/router';
 import GithubLogin from "../services/login/github-login.js";
 import OidcLogin from "../services/login/oidc-login.js";
 import {getOidcProvider, getOidcProviders} from "../utils/oidc-providers.js";
-import {EmailLogin} from "../services/login/email-login.js";
+import {EmailLogin, recordSubmittedMagicLinkVerification} from "../services/login/email-login.js";
 import accessDenied from "../utils/session/access-denied.js";
 import getLoginResult from "../utils/user/get-login-result.js";
 import Account from "../models/account.js";
@@ -355,7 +355,9 @@ export default (provider) => {
             })
         }
         auditLog(ctx, {uid: ctx.params.uid}, 'Completing email login on original device')
-        return new EmailLogin().completeLogin(ctx, provider, interactionDetails.result.email)
+        return new EmailLogin().completeLogin(
+            ctx, provider, interactionDetails.result.email, interactionDetails.result.emailVerifiedAt,
+        )
     });
 
     // ============================================
@@ -490,7 +492,7 @@ export default (provider) => {
             }, true)
         }
 
-        const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        let account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
         // The Kubernetes create is the authoritative uniqueness check; the
         // pre-validation can miss a taken name on a transient API error. If
         // creation failed, re-render the form instead of crashing on a null account.
@@ -508,16 +510,21 @@ export default (provider) => {
             current => current.addCondition(condition),
         )
 
-        if (interactionDetails?.lastSubmission?.oauth?.provider) {
-            switch (interactionDetails.lastSubmission.oauth.provider) {
+        const submission = interactionDetails.lastSubmission
+        account = await recordSubmittedMagicLinkVerification(
+            ctx.kubeOIDCUserService, account, submission,
+        )
+
+        if (submission?.oauth?.provider) {
+            switch (submission.oauth.provider) {
                 case "GitHub":
                     await GithubLogin(ctx, provider)
                     break
                 default:
                     throw new Error('not implemented')
             }
-        } else if (interactionDetails?.lastSubmission?.oidc?.provider) {
-            const providerConfig = getOidcProvider(interactionDetails.lastSubmission.oidc.provider)
+        } else if (submission?.oidc?.provider) {
+            const providerConfig = getOidcProvider(submission.oidc.provider)
             if (!providerConfig) {
                 throw new Error('not implemented')
             }

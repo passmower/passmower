@@ -1,6 +1,10 @@
 import {afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import Account from '../../src/models/account.js';
-import {EmailLogin} from '../../src/services/login/email-login.js';
+import {
+    EmailLogin,
+    recordMagicLinkVerification,
+    recordSubmittedMagicLinkVerification,
+} from '../../src/services/login/email-login.js';
 import koaValidator, {checkIfEmailIsTaken} from '../../src/utils/session/validator.js';
 import {IdentityIntegrityError} from '../../src/utils/user/identity-integrity.js';
 
@@ -11,6 +15,32 @@ beforeAll(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('identity-integrity error boundaries', () => {
+    it('keeps the existing account when recording magic-link evidence fails', async () => {
+        const account = {accountId: 'alice'}
+        const service = {recordEmailVerification: vi.fn().mockResolvedValue(undefined)}
+
+        await expect(recordMagicLinkVerification(
+            service, account, 'alice@example.com', '2026-08-17T10:00:00.000Z',
+        )).resolves.toBe(account)
+        expect(service.recordEmailVerification).toHaveBeenCalledWith('alice', 'alice@example.com', {
+            method: 'magic-link', provider: 'passmower', verifiedAt: '2026-08-17T10:00:00.000Z',
+        })
+    })
+
+    it('records verified email submission after prompt-based user creation', async () => {
+        const account = {accountId: 'alice'}
+        const updated = {accountId: 'alice', verified: true}
+        const service = {recordEmailVerification: vi.fn().mockResolvedValue(updated)}
+
+        await expect(recordSubmittedMagicLinkVerification(service, account, {
+            email: 'alice@example.com', emailVerified: true,
+            emailVerifiedAt: '2026-08-17T10:00:00.000Z',
+        })).resolves.toBe(updated)
+        expect(service.recordEmailVerification).toHaveBeenCalledWith('alice', 'alice@example.com', {
+            method: 'magic-link', provider: 'passmower', verifiedAt: '2026-08-17T10:00:00.000Z',
+        })
+    })
+
     it('renders access denied when magic-link lookup encounters a conflict', async () => {
         vi.spyOn(Account, 'findByEmail').mockRejectedValue(new IdentityIntegrityError('duplicate'))
         const login = Object.create(EmailLogin.prototype)

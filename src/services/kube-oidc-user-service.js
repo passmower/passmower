@@ -229,6 +229,13 @@ export class KubeOIDCUserService {
         return await this.mutateUserStatus(accountId)
     }
 
+    async recordEmailVerification(accountId, email, verification) {
+        return await this.mutateUserStatus(
+            accountId,
+            account => account.verifyEmail(email, verification),
+        )
+    }
+
     // WebAuthn/Passkey methods
 
     /**
