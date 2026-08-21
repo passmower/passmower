@@ -38,11 +38,12 @@ describe('email magic-link login (HTTP)', () => {
             client_id: RP.client_id,
             client_secret: RP.client_secret,
             redirect_uris: [RP.redirect_uri],
-            grant_types: ['authorization_code'],
+            grant_types: ['authorization_code', 'refresh_token'],
             response_types: ['code'],
             token_endpoint_auth_method: 'client_secret_basic',
             // extraClientMetadata fields real clients always carry (addGrant reads availableScopes)
             availableScopes: ['openid', 'email'],
+            allowedGroups: ['local:staff'],
             allowedCORSOrigins: [],
         })
     })
@@ -59,12 +60,15 @@ describe('email magic-link login (HTTP)', () => {
         // has to clear the (auto-resolved) consent prompt.
         fakeKube.seed('OIDCUser', {
             metadata: { name: 'testuser', labels: {} },
-            spec: { email: 'test@example.com', name: 'Test User' },
+            spec: {
+                email: 'test@example.com', name: 'Test User',
+                groups: [{prefix: 'local', name: 'staff'}],
+            },
             passmower: { email: 'test@example.com' },
             status: {
                 primaryEmail: 'test@example.com',
                 emails: ['test@example.com'],
-                groups: [],
+                groups: [{prefix: 'local', name: 'staff'}],
                 profile: { name: 'Test User' },
                 conditions: [],
                 termsOfService: {
@@ -165,6 +169,7 @@ describe('email magic-link login (HTTP)', () => {
             .expect(200)
 
         expect(tokenRes.body.access_token).toBeTruthy()
+        expect(tokenRes.body.refresh_token).toBeTruthy()
         const idClaims = JSON.parse(Buffer.from(tokenRes.body.id_token.split('.')[1], 'base64url').toString())
         expect(idClaims.sub).toBe('testuser')
         expect(idClaims.nonce).toBe('nonce-123')
@@ -181,5 +186,38 @@ describe('email magic-link login (HTTP)', () => {
         expect(fakeKube.list('OIDCUser')[0].status.emailVerifications).toContainEqual(expect.objectContaining({
             email: 'test@example.com', status: 'verified', method: 'magic-link', provider: 'passmower',
         }))
+
+        // Refresh succeeds while the current Kubernetes account still passes
+        // the same compulsory policies used at the authorization endpoint.
+        await request(callback)
+            .post('/token')
+            .auth(RP.client_id, RP.client_secret)
+            .type('form')
+            .send({grant_type: 'refresh_token', refresh_token: tokenRes.body.refresh_token})
+            .expect(200)
+
+        // Losing a currently compulsory group immediately invalidates the
+        // existing refresh grant without waiting for its normal TTL.
+        const storedUser = fakeKube.store.get('OIDCUser/testuser')
+        storedUser.spec.groups = []
+        storedUser.status.groups = []
+        const denied = await request(callback)
+            .post('/token')
+            .auth(RP.client_id, RP.client_secret)
+            .type('form')
+            .send({grant_type: 'refresh_token', refresh_token: tokenRes.body.refresh_token})
+            .expect(400)
+        expect(denied.body.error).toBe('invalid_grant')
+
+        // A deleted account is also rejected even if the token and grant are
+        // otherwise still present in Redis.
+        fakeKube.store.delete('OIDCUser/testuser')
+        const deleted = await request(callback)
+            .post('/token')
+            .auth(RP.client_id, RP.client_secret)
+            .type('form')
+            .send({grant_type: 'refresh_token', refresh_token: tokenRes.body.refresh_token})
+            .expect(400)
+        expect(deleted.body.error).toBe('invalid_grant')
     })
 })

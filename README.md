@@ -323,6 +323,11 @@ downstream clients through the `email` scope. See
 [docs/email-verification.md](docs/email-verification.md) for provider rules,
 magic-link fallback, and client configuration.
 
+Refresh-token exchanges re-check the current Kubernetes account and client
+access policies, so deleted or newly ineligible users cannot retain access for
+the full refresh-token lifetime. See
+[docs/refresh-token-authorization.md](docs/refresh-token-authorization.md).
+
 ```
 apiVersion: codemowers.cloud/v1
 kind: OIDCUser

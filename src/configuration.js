@@ -4,9 +4,22 @@ import setupPolicies from "./providers/setup-policies.js";
 import {errors} from "oidc-provider";
 import isOrigin from "./utils/session/is-origin.js";
 import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
+import {getAccountAccessFailure} from './utils/user/check-account-access.js';
+import {auditLog} from './utils/session/audit-log.js';
 
 export default {
-    findAccount: Account.findAccount,
+    async findAccount(ctx, id, token) {
+        const account = await Account.findAccount(ctx, id, token)
+        if (token?.kind === 'RefreshToken') {
+            const failure = getAccountAccessFailure(ctx.oidc?.client, account)
+            if (failure) {
+                auditLog(ctx, {accountId: id, clientId: ctx.oidc?.client?.clientId, failure},
+                    'Refresh token no longer satisfies account access policy')
+                return null
+            }
+        }
+        return account
+    },
     renderError,
     interactions: {
         url(ctx, interaction) { // eslint-disable-line no-unused-vars
