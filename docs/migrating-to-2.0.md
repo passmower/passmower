@@ -248,6 +248,11 @@ If a 1.x deployment assigned one of these types to a login-capable user, change
 it to `person` before upgrading. See [account-types.md](account-types.md) for the
 complete matrix and the expiry limitation for already-issued JWT access tokens.
 
+Forward-auth now rechecks the full account access policy on every request. A user
+whose approval, required profile name, current ToS acceptance, or client group/user
+membership is revoked receives 401 from legacy applications without waiting for the
+existing site session to expire.
+
 ---
 
 ## 5. RBAC change — automatic
