@@ -123,8 +123,14 @@ continues to work unchanged.
 
 Passmower authenticates users against GitHub (a dedicated handler), email
 magic-links, and any number of **standards-compliant OIDC providers** through a
-single generic connector (discovery + PKCE + `id_token` validation). Users are
-linked across providers by verified email.
+single generic connector (discovery + PKCE + `id_token` validation). Stable
+provider subjects identify returning users; verified email can additionally
+link identities across providers.
+
+Set `passmower.emailEnabled: false` to run without SMTP credentials or email
+addresses. This disables all delivery and email-based login/invitations while
+allowing upstream enrollment by stable provider identity. See
+[docs/email-configuration.md](docs/email-configuration.md).
 
 OIDC providers are configured entirely at deploy time — adding Google, GitLab,
 EntraID, Keycloak, Okta, Authentik, Zitadel, etc. requires no code change, just

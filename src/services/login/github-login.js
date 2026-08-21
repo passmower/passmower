@@ -5,6 +5,21 @@ import accessDenied from "../../utils/session/access-denied.js";
 import getLoginResult from "../../utils/user/get-login-result.js";
 import {GitHubGroupPrefix} from "../../utils/kubernetes/kube-constants.js";
 import {auditLog} from "../../utils/session/audit-log.js";
+import {isEmailEnabled} from '../../utils/email-configuration.js';
+
+export const getGitHubScopes = (env = process.env) => [
+    ...(isEmailEnabled(env) ? ['user:email'] : []),
+    ...(env.GITHUB_ORGANIZATION ? ['read:org'] : []),
+]
+
+export async function getGitHubEmails(token, fetchImpl = fetch, env = process.env) {
+    if (!isEmailEnabled(env)) return []
+    const response = await fetchImpl('https://api.github.com/user/emails', {
+        method: 'GET',
+        headers: {'Authorization': `Bearer ${token}`},
+    })
+    return (await response.json()).filter(email => email.verified)
+}
 
 export default async (ctx, provider) => {
     const ghOauth = new OAuth2(process.env.GH_CLIENT_ID,
@@ -29,7 +44,7 @@ export default async (ctx, provider) => {
         auditLog(ctx, {interactionDetails, state}, 'Redirecting user to GitHub')
         return ctx.redirect(ghOauth.getAuthorizeUrl({
             redirect_uri: `${process.env.ISSUER_URL}interaction/callback/gh`,
-            scope: process.env.GITHUB_ORGANIZATION ? ['user:email,read:org'] : ['user:email'],
+            scope: getGitHubScopes(),
             state,
         }));
     }
@@ -61,14 +76,9 @@ export default async (ctx, provider) => {
         })
     }
 
-    const emails = await fetch('https://api.github.com/user/emails', {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${token}`
-        },
-    }).then((r) => r.json()).then((r) => r.filter((r) => r.verified)).catch(error => {
-        auditLog(ctx,{error, interactionDetails}, 'Error getting emails from GitHub')
-    });
+    const emails = await getGitHubEmails(token).catch(error => {
+            auditLog(ctx,{error, interactionDetails}, 'Error getting emails from GitHub')
+        });
 
     if (!emails) {
         return accessDenied(ctx, provider, 'Error getting emails from GitHub')

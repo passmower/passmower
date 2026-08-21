@@ -30,13 +30,14 @@ import {clientId, responseType, scope} from "../utils/session/self-oidc-client.j
 import {auditLog} from "../utils/session/audit-log.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
+import {isEmailEnabled} from '../utils/email-configuration.js';
 
 // Which login methods are surfaced on the sign-in page. Each is enabled
 // unless explicitly disabled via env var, preserving previous behaviour.
 const authMethodsEnabled = () => ({
     webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
     githubEnabled: process.env.GITHUB_ENABLED !== 'false',
-    emailEnabled: process.env.EMAIL_ENABLED !== 'false',
+    emailEnabled: isEmailEnabled(),
     oidcProviders: getOidcProviders(),
 });
 
@@ -492,7 +493,12 @@ export default (provider) => {
             }, true)
         }
 
-        let account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        let account = await ctx.kubeOIDCUserService.createUser(
+            username,
+            interactionDetails.lastSubmission?.email,
+            interactionDetails.lastSubmission?.githubEmails,
+            interactionDetails.lastSubmission?.stableIdentity,
+        )
         // The Kubernetes create is the authoritative uniqueness check; the
         // pre-validation can miss a taken name on a transient API error. If
         // creation failed, re-render the form instead of crashing on a null account.

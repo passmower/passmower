@@ -158,6 +158,15 @@ describe('Account.claims', () => {
         expect(claims.email_verified).toBe(false)
     })
 
+    it('omits both email claims when an account has no primary email', async () => {
+        const claims = await account({
+            status: {primaryEmail: undefined, emails: [], groups: [], profile: {}},
+        }).claims('id_token', 'openid email', {}, [])
+
+        expect(claims.email).toBeUndefined()
+        expect(claims.email_verified).toBeUndefined()
+    })
+
     it('adds profile fields and emails for the profile scope', async () => {
         const a = account({
             status: {
@@ -288,5 +297,12 @@ describe('Account.getRemoteHeaders', () => {
         expect(headers['X-Name']).toBe('Jane')
         expect(headers['X-Email']).toBe('a@x.com')
         expect(headers['X-Groups'].split(',').sort()).toEqual(['gh:org', 'local:team'])
+    })
+
+    it('omits an email header when the account has no email', () => {
+        const headers = account({status: {profile: {name: 'Jane'}, groups: []}}).getRemoteHeaders({
+            user: 'X-User', name: 'X-Name', email: 'X-Email', groups: 'X-Groups',
+        })
+        expect(headers).not.toHaveProperty('X-Email')
     })
 })

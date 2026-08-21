@@ -6,6 +6,12 @@ import { auditLog } from "../../utils/session/audit-log.js";
 import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
 import ScimLinkService from "../scim-link-service.js";
 
+export const getOidcEmailError = (profile, env = process.env) => {
+    if (!profile.email && env.EMAIL_ENABLED !== 'false') return 'missing'
+    if (profile.email && profile.email_verified === false) return 'unverified'
+    return null
+}
+
 // Map the validated id_token / userinfo claims onto the structure we persist
 // under identities.<provider> and the values createOrUpdateByEmails expects.
 export const extractIdentity = (providerConfig, profile) => {
@@ -22,11 +28,11 @@ export const extractIdentity = (providerConfig, profile) => {
         name: profile.name ?? null,
         company: null,
         primaryEmail,
-        emails: [{
+        emails: primaryEmail ? [{
             email: primaryEmail,
             primary: true,
             verified: typeof profile.email_verified === 'boolean' ? profile.email_verified : undefined,
-        }],
+        }] : [],
         groups,
         preferredUsername: profile.preferred_username ?? profile.nickname,
         linkClaims: Object.fromEntries(providerConfig.linkingClaims
@@ -123,11 +129,12 @@ export default async (ctx, provider, providerConfig) => {
         }
         const profile = { ...claims, ...userinfo };
 
-        if (!profile.email) {
+        const emailError = getOidcEmailError(profile)
+        if (emailError === 'missing') {
             auditLog(ctx, { error: true, interactionDetails }, `No email returned from ${displayName}`);
             return accessDenied(ctx, provider, `No email returned from ${displayName}`);
         }
-        if (profile.email_verified === false) {
+        if (emailError === 'unverified') {
             auditLog(ctx, { error: true, interactionDetails }, `Email not verified by ${displayName}`);
             return accessDenied(ctx, provider, `Email not verified by ${displayName}`);
         }

@@ -144,7 +144,10 @@ export class KubeOIDCUserService {
         return {accounts, ownership, conflictedUsers}
     }
 
-    async createUser(id, email, githubEmails) {
+    async createUser(id, email, githubEmails, identity = {}) {
+        const identities = identity.providerKey && identity.subject ? {
+            [identity.providerKey]: {sub: identity.subject},
+        } : undefined
         const user = await this.adapter.createNamespacedCustomObject(
             OIDCUserCrd,
             this.adapter.namespace,
@@ -155,8 +158,10 @@ export class KubeOIDCUserService {
                     email
                 },
                 github: {
-                    emails: githubEmails
-                }
+                    emails: githubEmails,
+                    ...(identity.githubId !== undefined ? {id: identity.githubId} : {}),
+                },
+                ...(identities ? {identities} : {}),
             },
             (apiResponse) => (new Account()).fromKubernetes(apiResponse),
             undefined,

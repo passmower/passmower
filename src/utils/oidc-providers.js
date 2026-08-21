@@ -20,7 +20,9 @@ import * as client from "openid-client";
 // where <KEY> is the provider key upper-cased with non-alphanumerics replaced
 // by underscores (e.g. key "google" -> GOOGLE_CLIENT_ID, key "entra-id" ->
 // ENTRA_ID_CLIENT_ID). A provider is only surfaced when both are present.
-const DEFAULT_SCOPES = ['openid', 'email', 'profile'];
+const defaultScopes = () => process.env.EMAIL_ENABLED === 'false'
+    ? ['openid', 'profile']
+    : ['openid', 'email', 'profile'];
 
 const envKey = (key) => key.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
 
@@ -71,7 +73,7 @@ const buildProvider = (def) => {
         issuer: def.issuer,
         clientId,
         clientSecret,
-        scopes: Array.isArray(def.scopes) && def.scopes.length ? def.scopes : DEFAULT_SCOPES,
+        scopes: Array.isArray(def.scopes) && def.scopes.length ? def.scopes : defaultScopes(),
         groupsClaim: def.groupsClaim || null,
         linkingClaims: Array.isArray(def.linkingClaims)
             ? [...new Set(def.linkingClaims.filter(claim => typeof claim === 'string' && /^[A-Za-z0-9_.:-]+$/.test(claim)))]

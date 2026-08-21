@@ -9,7 +9,8 @@ test('logs in through the Dex upstream OIDC provider', async ({ page }) => {
     await page.goto('/')
 
     // 2. Choose the Dex upstream. Dex's mockCallback connector returns a fixed
-    //    identity (kilgore@kilgore.trout / "Kilgore Trout") with no login form.
+    //    identity ("Kilgore Trout") with no login form. EMAIL_ENABLED=false
+    //    means Passmower requests no upstream email scope.
     await page.getByRole('button', { name: /Sign in with Dex/i }).click()
 
     // 3. First-time login requires accepting the Terms of Service; a returning
@@ -29,5 +30,5 @@ test('logs in through the Dex upstream OIDC provider', async ({ page }) => {
             return res.ok() ? await res.text() : ''
         },
         { timeout: 20_000, message: 'waiting for an authenticated /api/me' },
-    ).toContain('kilgore@kilgore.trout')
+    ).toContain('Kilgore Trout')
 })
