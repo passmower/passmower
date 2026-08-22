@@ -46,6 +46,12 @@ passmower:
   # Changing this on an existing installation may expose previously hidden conflicts;
   # see docs/identity-integrity.md.
   normalizeEmailAddresses: true
+  # Bind forward-auth/dashboard site sessions to the client IP that they were
+  # issued to; a session presented from a different address is destroyed and the
+  # user re-authenticates. Increases session-theft resistance at the cost of
+  # re-authentication whenever the user's network changes (mobile roaming,
+  # VPN toggles, some CGNAT setups).
+  siteSessionIpBinding: false
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
   webauthnEnabled: true
   # Enable GitHub OAuth login. Requires githubClientSecretRef to be set.

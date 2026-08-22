@@ -4,6 +4,8 @@ import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import {providerBaseDomain} from "./base-domain.js";
 import configuration from "../../configuration.js";
 import {clientId as selfClientId} from "./self-oidc-client.js";
+import {requestIp} from "./parse-request-headers.js";
+import {auditLog} from "./audit-log.js";
 
 const providerHostname = new URL(process.env.ISSUER_URL).hostname
 
@@ -54,6 +56,7 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         sessionId,
         accountId,
         domain: getSiteSessionScope(client.clientId),
+        ip: requestIp(ctx),
     }
     await redis.upsert(siteWideCookie.jti, siteWideCookie, instance(provider).configuration.ttl.SiteSession);
     return siteWideCookie
@@ -64,11 +67,25 @@ export const updateSiteSession = async (siteSession) => {
     await siteSessionRedis.upsert(siteSession.jti, siteSession, configuration.ttl.SiteSession)
 }
 
+// Opt-in binding of the site session to the requesting client address (#21).
+// Records created before the flag was enabled carry no ip and fail closed the
+// same way: one fresh authentication rebinds them.
+export const siteSessionIpMismatch = (siteSession, ip, env = process.env) => {
+    if (env.SITE_SESSION_IP_BINDING !== 'true') return false
+    return siteSession?.ip !== ip
+}
+
 export const validateSiteSession = async (ctx, clientId) => {
     const sessionRedis = new RedisAdapter('Session')
     const siteSessionRedis = new RedisAdapter('SiteSession')
     let siteSession = ctx.cookies.get(getFullSiteSessionCookieName(clientId))
     siteSession = await siteSessionRedis.find(siteSession)
+    if (siteSession && siteSessionIpMismatch(siteSession, requestIp(ctx))) {
+        auditLog(ctx, {accountId: siteSession.accountId, clientId},
+            'Site session rejected and destroyed: requesting address differs from the issuing address')
+        await siteSessionRedis.destroy(siteSession.jti)
+        return undefined
+    }
     let baseSession = siteSession?.sessionId ? await sessionRedis.find(siteSession?.sessionId) : true // Handle situation when siteSession does not yet have sessionId
     if (baseSession?.authorizations) {
         baseSession = baseSession?.authorizations?.[clientId]
