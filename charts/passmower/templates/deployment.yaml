@@ -116,6 +116,10 @@ spec:
               value: {{ .Values.passmower.incidents.enabled | quote }}
             - name: INCIDENT_TTL_SECONDS
               value: {{ .Values.passmower.incidents.ttlSeconds | quote }}
+            - name: NOTIFY_ON_LOGIN
+              value: {{ .Values.passmower.notifications.onLogin | quote }}
+            - name: NOTIFY_ON_IMPERSONATION
+              value: {{ .Values.passmower.notifications.onImpersonation | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY
