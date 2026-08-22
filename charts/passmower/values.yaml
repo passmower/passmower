@@ -54,6 +54,12 @@ passmower:
   # When false, no SMTP credentials are mounted and upstream users may enroll
   # using their stable provider identity without an email address.
   emailEnabled: true
+  # Accept upstream OIDC logins carrying an explicit email_verified: false when
+  # the upstream identity is already linked to an account holding Passmower
+  # magic-link verification for that exact address. Returning users are not
+  # locked out by an upstream flipping to unverified; first-time email-based
+  # linking still requires the upstream signal. See docs/email-verification.md.
+  passmowerVerifiedEmailOverride: false
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   emailCredentialsSecretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
@@ -100,6 +106,10 @@ passmower:
   #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
   #   linkingClaims   (optional) stable verified claims retained for SCIM subject
   #                   linking, e.g. [tid, oid] for Entra. Never use email here.
+  #   emailVerification (optional) oidc-claim or none. Google and GitLab.com
+  #                   default to oidc-claim; all other issuers default to none.
+  #                   Opt in only when the issuer documents email_verified as
+  #                   proof of control for the exact email claim.
   #   icon            (optional) custom sign-in button icon: inline SVG markup or
   #                   a data: URI. External image URLs are blocked by CSP. Falls
   #                   back to a built-in logo for well-known keys, else a generic icon.

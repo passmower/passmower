@@ -236,13 +236,23 @@ describe('Account.claims', () => {
         })
 
         expect((await verified.claims('id_token', 'openid email', {}, [])).email_verified).toBe(true)
+        expect((await verified.claims('userinfo', 'openid email', {}, [])).email_verified).toBe(true)
         expect(unverified.getIntendedStatus().emailVerifications).toContainEqual({
             email: 'a@x.com', status: 'unverified', method: 'oidc-claim', provider: 'google',
         })
         expect((await unspecified.claims('id_token', 'openid email', {}, [])).email_verified).toBe(false)
+        expect((await unverified.claims('userinfo', 'openid email', {}, [])).email_verified).toBe(false)
         expect(unspecified.getIntendedStatus().emailVerifications).toContainEqual({
             email: 'a@x.com', status: 'unknown', method: 'oidc-claim', provider: 'google',
         })
+    })
+
+    it('ignores provider evidence after an identity is deactivated', async () => {
+        const a = account({
+            identities: {google: {active: false, emails: [{email: 'a@x.com', primary: true, verified: true}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com']},
+        })
+        expect((await a.claims('id_token', 'openid email', {}, [])).email_verified).toBe(false)
     })
 
     it('does not transfer verification when the emitted primary email changes', async () => {

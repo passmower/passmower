@@ -21,13 +21,13 @@ export const getGitHubAuthorizeParams = (state, env = process.env) => {
     }
 }
 
-export async function getGitHubEmails(token, fetchImpl = fetch, env = process.env) {
+export async function getGitHubEmails(token, fetchImpl = fetch, env = process.env, observedAt = new Date().toISOString()) {
     if (!isEmailEnabled(env)) return []
     const response = await fetchImpl('https://api.github.com/user/emails', {
         method: 'GET',
         headers: {'Authorization': `Bearer ${token}`},
     })
-    return (await response.json()).filter(email => email.verified)
+    return (await response.json()).filter(email => email.verified).map(email => ({...email, observedAt}))
 }
 
 export default async (ctx, provider) => {
