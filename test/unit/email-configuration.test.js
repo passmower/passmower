@@ -22,4 +22,15 @@ describe('email configuration', () => {
         expect(isEmailEnabled({EMAIL_ENABLED: 'false'})).toBe(false)
         expect(() => validateEmailConfiguration({EMAIL_ENABLED: 'false'})).not.toThrow()
     })
+
+    it('accepts unauthenticated SMTP with a From address', () => {
+        const unauthenticated = {...configured, EMAIL_USERNAME: '', EMAIL_PASSWORD: ''}
+        expect(() => validateEmailConfiguration({...unauthenticated, EMAIL_FROM: 'passmower@example.com'}))
+            .not.toThrow()
+        expect(() => validateEmailConfiguration(unauthenticated)).toThrow(/EMAIL_FROM/)
+        expect(() => validateEmailConfiguration({...configured, EMAIL_PASSWORD: ''}))
+            .toThrow(/set together/)
+        expect(() => validateEmailConfiguration({...configured, EMAIL_USERNAME: '', EMAIL_FROM: 'a@example.com'}))
+            .toThrow(/set together/)
+    })
 })

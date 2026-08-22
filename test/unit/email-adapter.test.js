@@ -41,4 +41,21 @@ describe('EmailAdapter', () => {
             .rejects.toThrow('SMTP unavailable')
         expect(mocks.createTransport).toHaveBeenCalledOnce()
     })
+
+    it('omits AUTH and uses EMAIL_FROM against an unauthenticated relay', async () => {
+        for (const [key, value] of Object.entries({
+            EMAIL_ENABLED: 'true', EMAIL_HOST: 'mailhog', EMAIL_PORT: '1025',
+            EMAIL_SSL: 'false', EMAIL_FROM: 'passmower@example.com',
+        })) vi.stubEnv(key, value)
+        vi.stubEnv('EMAIL_USERNAME', '')
+        vi.stubEnv('EMAIL_PASSWORD', '')
+
+        await new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html')
+
+        expect(mocks.createTransport).toHaveBeenCalledWith(
+            expect.objectContaining({host: 'mailhog', auth: undefined}))
+        expect(mocks.sendMail).toHaveBeenCalledWith(expect.objectContaining({
+            headers: {From: 'passmower@example.com'},
+        }))
+    })
 })
