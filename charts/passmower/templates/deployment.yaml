@@ -88,6 +88,8 @@ spec:
             {{- end }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
+            - name: SITE_SESSION_IP_BINDING
+              value: {{ .Values.passmower.siteSessionIpBinding | quote }}
             - name: WEBAUTHN_ENABLED
               value: {{ .Values.passmower.webauthnEnabled | quote }}
             - name: GITHUB_ENABLED
