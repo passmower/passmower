@@ -418,6 +418,9 @@ spec:
                         default: false
                       verified:
                         type: boolean
+                      observedAt:
+                        type: string
+                        format: date-time
                 groups:
                   type: array
                   items:
@@ -460,6 +463,9 @@ spec:
                           default: false
                         verified:
                           type: boolean
+                        observedAt:
+                          type: string
+                          format: date-time
                   groups:
                     type: array
                     items:
@@ -625,6 +631,9 @@ spec:
                       provider:
                         type: string
                       verifiedAt:
+                        type: string
+                        format: date-time
+                      observedAt:
                         type: string
                         format: date-time
                 passkeyCount:

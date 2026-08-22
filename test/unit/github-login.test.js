@@ -35,7 +35,20 @@ describe('email-free GitHub login', () => {
         ]})
 
         expect(getGitHubScopes({EMAIL_ENABLED: 'true'})).toEqual(['user:email'])
-        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}))
-            .resolves.toEqual([{email: 'verified@example.com', verified: true}])
+        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}, '2026-08-22T10:00:00.000Z'))
+            .resolves.toEqual([{
+                email: 'verified@example.com', verified: true,
+                observedAt: '2026-08-22T10:00:00.000Z',
+            }])
+    })
+
+    it('preserves GitHub primary/verified/private metadata as exact-address evidence', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({json: async () => [{
+            email: 'private@example.com', primary: true, verified: true, visibility: null,
+        }]})
+        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}, '2026-08-22T10:00:00.000Z'))
+            .resolves.toMatchObject([{
+                email: 'private@example.com', primary: true, verified: true, visibility: null,
+            }])
     })
 })

@@ -12,6 +12,7 @@ import {isEmailEnabled} from './email-configuration.js';
 //      "groupsClaim": "groups",                    // optional
 //      "groupPrefix": "google.com",                // optional, defaults to issuer host
 //      "linkingClaims": ["tid", "oid"],             // optional stable claims retained for SCIM linking
+//      "emailVerification": "oidc-claim",             // optional explicit trust opt-in
 //      "tokenEndpointAuthMethod": "client_secret_post", // optional, or client_secret_basic
 //      "enabled": true }}                          // optional, defaults to true
 //
@@ -26,6 +27,18 @@ const defaultScopes = () => isEmailEnabled()
     : ['openid', 'profile'];
 
 const envKey = (key) => key.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+
+const defaultEmailVerification = (issuer) => {
+    try {
+        const url = new URL(issuer);
+        if (url.protocol === 'https:' && ['accounts.google.com', 'gitlab.com'].includes(url.hostname)) {
+            return 'oidc-claim';
+        }
+    } catch {
+        // Invalid issuers are rejected by buildProvider below.
+    }
+    return 'none';
+};
 
 const parseProviderDefinitions = () => {
     if (!process.env.OIDC_PROVIDERS) {
@@ -79,6 +92,12 @@ const buildProvider = (def) => {
         linkingClaims: Array.isArray(def.linkingClaims)
             ? [...new Set(def.linkingClaims.filter(claim => typeof claim === 'string' && /^[A-Za-z0-9_.:-]+$/.test(claim)))]
             : [],
+        // Trust is a provider capability, not a generic consequence of a claim
+        // named email_verified. Only issuers whose semantics we know are enabled
+        // automatically; other providers require an administrator to opt in.
+        emailVerification: ['oidc-claim', 'none'].includes(def.emailVerification)
+            ? def.emailVerification
+            : defaultEmailVerification(def.issuer),
         groupPrefix,
         // client_secret_post is the default: oauth4webapi's client_secret_basic
         // form-urlencodes credentials per RFC 6749 §2.3.1, which several major

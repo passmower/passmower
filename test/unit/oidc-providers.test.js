@@ -37,6 +37,24 @@ describe('getOidcProviders', () => {
         const [p] = getOidcProviders()
         expect(p.groupPrefix).toBe('gitlab.example.com')
         expect(p.scopes).toEqual(['openid', 'email', 'profile'])
+        expect(p.emailVerification).toBe('none')
+    })
+
+    it('only auto-trusts audited issuers and allows an explicit override', () => {
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
+            google: {issuer: 'https://accounts.google.com'},
+            gitlab: {issuer: 'https://gitlab.com', emailVerification: 'none'},
+            dex: {issuer: 'https://dex.example.com', emailVerification: 'oidc-claim'},
+            unknown: {issuer: 'https://unknown.example.com'},
+        }))
+        for (const key of ['google', 'gitlab', 'dex', 'unknown']) {
+            vi.stubEnv(`${key.toUpperCase()}_CLIENT_ID`, 'id')
+            vi.stubEnv(`${key.toUpperCase()}_CLIENT_SECRET`, 'secret')
+        }
+
+        expect(Object.fromEntries(getOidcProviders().map(p => [p.key, p.emailVerification]))).toEqual({
+            dex: 'oidc-claim', gitlab: 'none', google: 'oidc-claim', unknown: 'none',
+        })
     })
 
     it('does not request email by default when email is disabled but preserves explicit scopes', () => {

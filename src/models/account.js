@@ -339,9 +339,11 @@ class Account {
                 status: item.verified === true ? 'verified' : item.verified === false ? 'unverified' : 'unknown',
                 method: 'github-api',
                 provider: 'github',
+                ...(item.observedAt ? {observedAt: item.observedAt} : {}),
             })
         }
         for (const [provider, identity] of Object.entries(this.#identities ?? {})) {
+            if (identity.active === false) continue
             for (const item of identity.emails ?? []) {
                 const email = canonicalizeEmail(item.email)
                 if (!email) continue
@@ -350,6 +352,7 @@ class Account {
                     status: item.verified === true ? 'verified' : item.verified === false ? 'unverified' : 'unknown',
                     method: 'oidc-claim',
                     provider,
+                    ...(item.observedAt ? {observedAt: item.observedAt} : {}),
                 })
             }
         }
@@ -437,6 +440,7 @@ class Account {
                     email: ghEmail,
                     primary: e.primary,
                     verified: typeof e.verified === 'boolean' ? e.verified : undefined,
+                    observedAt: e.observedAt,
                 }
             })
             githubEmails = [...new Map(githubEmails.map(v => [v.email, v])).values()]

@@ -6,6 +6,7 @@ import { auditLog } from "../../utils/session/audit-log.js";
 import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
 import ScimLinkService from "../scim-link-service.js";
 import {isEmailEnabled} from '../../utils/email-configuration.js';
+import {canonicalizeEmail} from '../../utils/user/identity-integrity.js';
 
 export const getOidcEmailError = (profile, env = process.env) => {
     if (!profile.email && isEmailEnabled(env)) return 'missing'
@@ -15,7 +16,7 @@ export const getOidcEmailError = (profile, env = process.env) => {
 
 // Map the validated id_token / userinfo claims onto the structure we persist
 // under identities.<provider> and the values createOrUpdateByEmails expects.
-export const extractIdentity = (providerConfig, profile) => {
+export const extractIdentity = (providerConfig, profile, observedAt = new Date().toISOString()) => {
     const primaryEmail = profile.email;
     let groups = [];
     if (providerConfig.groupsClaim && Array.isArray(profile[providerConfig.groupsClaim])) {
@@ -32,7 +33,9 @@ export const extractIdentity = (providerConfig, profile) => {
         emails: primaryEmail ? [{
             email: primaryEmail,
             primary: true,
-            verified: typeof profile.email_verified === 'boolean' ? profile.email_verified : undefined,
+            verified: providerConfig.emailVerification === 'oidc-claim'
+                && typeof profile.email_verified === 'boolean' ? profile.email_verified : undefined,
+            observedAt,
         }] : [],
         groups,
         preferredUsername: profile.preferred_username ?? profile.nickname,
@@ -40,6 +43,22 @@ export const extractIdentity = (providerConfig, profile) => {
             .filter(claim => ['string', 'number'].includes(typeof profile[claim]))
             .map(claim => [claim, String(profile[claim])])),
     };
+};
+
+// UserInfo may replace the ID-token email. Only carry ID-token verification
+// across when both responses identify the same normalized address. When the
+// two validated responses disagree about verification, fail closed.
+export const mergeOidcProfile = (claims = {}, userinfo = {}) => {
+    const profile = {...claims, ...userinfo};
+    const selectedEmail = canonicalizeEmail(profile.email);
+    const matchingSignals = [claims, userinfo]
+        .filter(source => canonicalizeEmail(source.email) === selectedEmail)
+        .map(source => source.email_verified)
+        .filter(value => typeof value === 'boolean');
+    if (matchingSignals.includes(false)) profile.email_verified = false;
+    else if (matchingSignals.includes(true)) profile.email_verified = true;
+    else delete profile.email_verified;
+    return profile;
 };
 
 // Generic OpenID Connect upstream login. Handles any standards-compliant
@@ -128,7 +147,7 @@ export default async (ctx, provider, providerConfig) => {
             // userinfo is best-effort — the id_token already carries sub/email.
             auditLog(ctx, { error: error.message, interactionDetails }, `Error getting userinfo from ${displayName}`);
         }
-        const profile = { ...claims, ...userinfo };
+        const profile = mergeOidcProfile(claims, userinfo);
 
         const emailError = getOidcEmailError(profile)
         if (emailError === 'missing') {
