@@ -99,6 +99,15 @@ passmower:
     recentApplicationLimit: 20
     inactiveAfterDays: 90
 
+  # Record denied-access events (a signed-in user tried to open an application
+  # their groups or account state do not allow) to Redis with a TTL and show
+  # them in the admin panel with a suggested fix. One record is kept per
+  # account/client/failure combination; repeats bump its counter and refresh
+  # the TTL.
+  incidents:
+    enabled: true
+    ttlSeconds: 604800
+
   # Generic OIDC upstream login providers. Add a provider-keyed entry — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:

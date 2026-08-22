@@ -112,6 +112,10 @@ spec:
               value: {{ .Values.passmower.activityTracking.recentApplicationLimit | quote }}
             - name: CLIENT_INACTIVE_AFTER_DAYS
               value: {{ .Values.passmower.activityTracking.inactiveAfterDays | quote }}
+            - name: INCIDENTS_ENABLED
+              value: {{ .Values.passmower.incidents.enabled | quote }}
+            - name: INCIDENT_TTL_SECONDS
+              value: {{ .Values.passmower.incidents.ttlSeconds | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY

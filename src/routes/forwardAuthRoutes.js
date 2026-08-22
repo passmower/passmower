@@ -8,6 +8,7 @@ import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-
 import {responseType, scope} from "../models/oidc-middleware-client.js";
 import {getAccountAccessFailure} from '../utils/user/check-account-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
+import {recordIncident} from '../utils/session/incident-log.js';
 
 export default (provider) => {
     const router = new Router();
@@ -60,6 +61,14 @@ export default (provider) => {
                 } else {
                     auditLog(ctx, {accountId: cookie.accountId, clientId, failure},
                         'Forward-auth account no longer satisfies access policy')
+                    await recordIncident(ctx, {
+                        source: 'forward-auth',
+                        accountId: cookie.accountId,
+                        clientId,
+                        failure,
+                        allowedGroups: client.allowedGroups,
+                        allowedUsers: client.allowedUsers,
+                    })
                 }
             }
         } else {
