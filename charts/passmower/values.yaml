@@ -120,6 +120,15 @@ passmower:
     # session for their account.
     onImpersonation: true
 
+  # Let a signed-in user who fails a client's group access policy request
+  # membership from the denial page. Requests appear in the admin panel next
+  # to the client's allowed groups; retention follows incidents.ttlSeconds.
+  groupRequests:
+    enabled: false
+    # Only accounts already belonging to at least one group may request
+    # access, so blank enrollments cannot spam administrators.
+    requireExistingGroup: true
+
   # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
   metrics:
     # Per-group member-count gauge (passmower_group_members). Off by default:

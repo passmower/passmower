@@ -17,6 +17,7 @@ import {getUsernameSource} from "../utils/username-source.js";
 import {isEmailEnabled} from '../utils/email-configuration.js';
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {listIncidents} from '../utils/session/incident-log.js';
+import {dismissAccessRequest, listAccessRequests} from '../utils/session/access-requests.js';
 
 export default (provider) => {
     const router = new Router();
@@ -73,6 +74,23 @@ export default (provider) => {
         ctx.body = {
             incidents: await listIncidents(),
         }
+    })
+
+    router.get('/admin/api/access-requests', async (ctx, next) => {
+        ctx.body = {
+            requests: await listAccessRequests(),
+        }
+    })
+
+    router.post('/admin/api/access-requests/dismiss', async (ctx, next) => {
+        const id = ctx.request.body?.id
+        if (typeof id !== 'string' || !id) {
+            ctx.status = 400
+            return
+        }
+        await dismissAccessRequest(id)
+        auditLog(ctx, {id}, 'Admin dismissed access request')
+        ctx.body = {}
     })
 
     router.post('/admin/api/accounts', async (ctx, next) => {
