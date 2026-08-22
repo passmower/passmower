@@ -8,6 +8,10 @@ import ScimLinkService from "../scim-link-service.js";
 import {isEmailEnabled} from '../../utils/email-configuration.js';
 import {canonicalizeEmail} from '../../utils/user/identity-integrity.js';
 
+// An explicit upstream `email_verified: false` is heeded from every issuer,
+// trusted or not: a negative signal can only deny email-based account linking,
+// never grant it, so acting on it is always safe. The per-provider
+// emailVerification setting governs only whether `true` is trusted.
 export const getOidcEmailError = (profile, env = process.env) => {
     if (!profile.email && isEmailEnabled(env)) return 'missing'
     if (profile.email && profile.email_verified === false) return 'unverified'
@@ -44,6 +48,29 @@ export const extractIdentity = (providerConfig, profile, observedAt = new Date()
             .map(claim => [claim, String(profile[claim])])),
     };
 };
+
+// PASSMOWER_VERIFIED_EMAIL_OVERRIDE relaxes the explicit-false login error for
+// returning users only: the upstream identity (provider + sub) must already be
+// linked to an account, and that account must hold durable magic-link evidence
+// for the exact address. First-time email-based linking still requires the
+// upstream signal, so a stranger holding the address unverified upstream cannot
+// ride the victim's own Passmower verification into their account.
+export const shouldOverrideUnverifiedEmail = async (ctx, providerKey, sub, email, env = process.env) => {
+    if (env.PASSMOWER_VERIFIED_EMAIL_OVERRIDE !== 'true') return false
+    const address = canonicalizeEmail(email)
+    if (!address || !sub) return false
+    let account
+    try {
+        account = await ctx.kubeOIDCUserService.findUserByIdentity(providerKey, sub)
+    } catch {
+        // Identity conflicts and lookup failures fail closed; phase 3 linking
+        // surfaces and audits the underlying integrity problem.
+        return false
+    }
+    if (!account) return false
+    return account.getEmailVerifications().some(item =>
+        item.email === address && item.method === 'magic-link' && item.status === 'verified')
+}
 
 // UserInfo may replace the ID-token email. Only carry ID-token verification
 // across when both responses identify the same normalized address. When the
@@ -155,8 +182,15 @@ export default async (ctx, provider, providerConfig) => {
             return accessDenied(ctx, provider, `No email returned from ${displayName}`);
         }
         if (emailError === 'unverified') {
-            auditLog(ctx, { error: true, interactionDetails }, `Email not verified by ${displayName}`);
-            return accessDenied(ctx, provider, `Email not verified by ${displayName}`);
+            if (await shouldOverrideUnverifiedEmail(ctx, key, profile.sub, profile.email)) {
+                auditLog(ctx, { interactionDetails }, `Accepting upstream-unverified email from ${displayName}: address is Passmower-verified for the already-linked account`);
+            } else {
+                auditLog(ctx, { error: true, interactionDetails }, `Email not verified by ${displayName}`);
+                const remediation = isEmailEnabled()
+                    ? `Verify ${profile.email} at ${displayName} and sign in again, or use email login to verify it with Passmower.`
+                    : `Verify ${profile.email} at ${displayName} and sign in again.`;
+                return accessDenied(ctx, provider, `Email not verified by ${displayName}. ${remediation}`);
+            }
         }
 
         identity = extractIdentity(providerConfig, profile);

@@ -50,7 +50,22 @@ passmower:
 Use `emailVerification: none` to override an automatic Google or GitLab.com
 default. Passmower accepts provider login when the signal is missing, but stores
 unknown evidence and emits downstream `email_verified: false`. An explicit
-upstream `false` remains a login error. ID-token evidence is used for a UserInfo
+upstream `false` remains a login error from every issuer, trusted or not. The
+asymmetry is deliberate: a negative signal can only deny email-based account
+linking, never grant it, so heeding it is always safe, while `emailVerification`
+governs only whether a positive claim is trusted. The login error directs the
+user to verify the address upstream or, when Passmower email support is enabled,
+through Passmower's own email login.
+
+The `passmowerVerifiedEmailOverride` chart value (env
+`PASSMOWER_VERIFIED_EMAIL_OVERRIDE`) relaxes this error for returning users
+only: the login proceeds when the upstream identity is already linked to an
+account holding Passmower magic-link verification for the exact upstream
+address. The provider observation is still recorded as `unverified`; downstream
+`email_verified` stays `true` through the durable magic-link evidence. The
+override never applies to a first login from an upstream identity, so an
+attacker holding the address unverified at a configured provider cannot use the
+victim's own Passmower verification to get linked into their account. ID-token evidence is used for a UserInfo
 email only when both responses contain the same normalized address; disagreement
 cannot transfer verification to a replacement primary address.
 
@@ -59,7 +74,9 @@ cannot transfer verification to a replacement primary address.
 - Reauthenticate with GitHub or the OIDC provider to replace legacy or stale
   provider observations.
 - Use Passmower magic-link login when the provider has no trustworthy signal or
-  when recent mailbox control matters.
+  when recent mailbox control matters. With `passmowerVerifiedEmailOverride`
+  enabled, that same magic-link evidence also keeps an already-linked upstream
+  identity signed in after its issuer starts reporting `email_verified: false`.
 - Deactivate or remove a linked identity to stop its provider evidence from
   affecting downstream claims. Durable magic-link evidence is retained, but is
   effective only while its exact address remains the selected primary email.

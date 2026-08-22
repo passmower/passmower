@@ -94,6 +94,8 @@ spec:
               value: {{ .Values.passmower.githubEnabled | quote }}
             - name: EMAIL_ENABLED
               value: {{ .Values.passmower.emailEnabled | quote }}
+            - name: PASSMOWER_VERIFIED_EMAIL_OVERRIDE
+              value: {{ .Values.passmower.passmowerVerifiedEmailOverride | quote }}
             - name: AUDIT_ENABLED
               value: {{ .Values.passmower.audit.enabled | quote }}
             - name: AUDIT_INCLUDE_SOURCE_ADDRESS

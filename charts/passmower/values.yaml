@@ -54,6 +54,12 @@ passmower:
   # When false, no SMTP credentials are mounted and upstream users may enroll
   # using their stable provider identity without an email address.
   emailEnabled: true
+  # Accept upstream OIDC logins carrying an explicit email_verified: false when
+  # the upstream identity is already linked to an account holding Passmower
+  # magic-link verification for that exact address. Returning users are not
+  # locked out by an upstream flipping to unverified; first-time email-based
+  # linking still requires the upstream signal. See docs/email-verification.md.
+  passmowerVerifiedEmailOverride: false
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
   emailCredentialsSecretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET

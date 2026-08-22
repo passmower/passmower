@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {extractIdentity, getOidcEmailError, mergeOidcProfile} from '../../src/services/login/oidc-login.js'
+import {extractIdentity, getOidcEmailError, mergeOidcProfile, shouldOverrideUnverifiedEmail} from '../../src/services/login/oidc-login.js'
 
 const provider = {groupsClaim: null, linkingClaims: [], emailVerification: 'oidc-claim'}
 
@@ -55,6 +55,34 @@ describe('generic OIDC email verification evidence', () => {
             {email: 'old@example.com', email_verified: true},
             {email: 'new@example.com'},
         )).toEqual({email: 'new@example.com'})
+    })
+
+    it('overrides an upstream-unverified email only for an already-linked, Passmower-verified identity', async () => {
+        const flag = {PASSMOWER_VERIFIED_EMAIL_OVERRIDE: 'true'}
+        const ctx = (account) => ({kubeOIDCUserService: {findUserByIdentity: async () => account}})
+        const linked = (evidence) => ({getEmailVerifications: () => evidence})
+        const magicLink = [{email: 'person@example.com', method: 'magic-link', status: 'verified'}]
+
+        await expect(shouldOverrideUnverifiedEmail(ctx(linked(magicLink)), 'dex', 'sub', 'Person@EXAMPLE.com', flag))
+            .resolves.toBe(true)
+        // flag off
+        await expect(shouldOverrideUnverifiedEmail(ctx(linked(magicLink)), 'dex', 'sub', 'person@example.com', {}))
+            .resolves.toBe(false)
+        // first login: identity not linked to any account yet
+        await expect(shouldOverrideUnverifiedEmail(ctx(undefined), 'dex', 'sub', 'person@example.com', flag))
+            .resolves.toBe(false)
+        // provider evidence alone is not Passmower verification
+        await expect(shouldOverrideUnverifiedEmail(
+            ctx(linked([{email: 'person@example.com', method: 'oidc-claim', status: 'verified'}])),
+            'dex', 'sub', 'person@example.com', flag)).resolves.toBe(false)
+        // evidence covers a different address
+        await expect(shouldOverrideUnverifiedEmail(
+            ctx(linked([{email: 'other@example.com', method: 'magic-link', status: 'verified'}])),
+            'dex', 'sub', 'person@example.com', flag)).resolves.toBe(false)
+        // identity conflicts fail closed
+        const conflicted = {kubeOIDCUserService: {findUserByIdentity: async () => { throw new Error('conflict') }}}
+        await expect(shouldOverrideUnverifiedEmail(conflicted, 'dex', 'sub', 'person@example.com', flag))
+            .resolves.toBe(false)
     })
 
     it('uses exact-address evidence from either response and fails closed on conflict', () => {
