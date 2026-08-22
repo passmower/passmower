@@ -1,0 +1,9 @@
+<% if (requested) { %>
+<p>Your access request has been sent to the administrators. You will be able to
+sign in once they have added you to an allowed group.</p>
+<% } else { %>
+<p>Your account is not permitted to access this resource.</p>
+<form autocomplete="off" action="/interaction/<%= uid %>/request-access" method="post">
+  <button autofocus type="submit" class="login login-submit">Request access</button>
+</form>
+<% } %>

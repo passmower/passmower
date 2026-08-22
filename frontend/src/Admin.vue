@@ -3,6 +3,7 @@
         <div class="card card-wide">
             <h1>Passmower admin</h1>
             <InviteUser />
+            <AccessRequests />
             <Incidents />
             <Accounts />
         </div>
@@ -17,10 +18,12 @@ import {mapActions} from "pinia";
 import {userAdminStore} from "./stores/admin";
 import InviteUser from "./components/Admin/InviteUser.vue";
 import Incidents from "./components/Admin/Incidents.vue";
+import AccessRequests from "./components/Admin/AccessRequests.vue";
 
 export default {
     components: {
       InviteUser,
+        AccessRequests,
         Incidents,
         Accounts,
         WidgetContainerModal: container,

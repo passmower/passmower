@@ -120,6 +120,10 @@ spec:
               value: {{ .Values.passmower.notifications.onLogin | quote }}
             - name: NOTIFY_ON_IMPERSONATION
               value: {{ .Values.passmower.notifications.onImpersonation | quote }}
+            - name: GROUP_REQUESTS_ENABLED
+              value: {{ .Values.passmower.groupRequests.enabled | quote }}
+            - name: GROUP_REQUESTS_REQUIRE_EXISTING_GROUP
+              value: {{ .Values.passmower.groupRequests.requireExistingGroup | quote }}
             - name: METRICS_GROUP_MEMBERSHIP
               value: {{ .Values.passmower.metrics.groupMembershipCounts | quote }}
             - name: OIDC_PROVIDERS

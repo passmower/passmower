@@ -108,3 +108,15 @@ passmower:
 
 Incidents are an ephemeral admin convenience view. The audit log remains the
 durable record of the same denials.
+
+## Group membership requests
+
+With `passmower.groupRequests.enabled`, a signed-in user denied by a client's
+group access policy sees a "Request access" button on the denial page instead
+of a dead end. Requests are stored per account/client (repeats bump a counter)
+and appear in the admin panel next to the client's allowed groups, where an
+administrator grants access through the normal group editing and dismisses the
+request. By default only accounts that already belong to at least one group may
+request access (`groupRequests.requireExistingGroup`), so blank enrollments
+cannot spam administrators. Retention follows `incidents.ttlSeconds`; requests
+are audit-logged like any other flow.

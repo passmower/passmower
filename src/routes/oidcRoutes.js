@@ -28,6 +28,7 @@ import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-
 import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import {recordIncident} from "../utils/session/incident-log.js";
+import {canRequestAccess, recordAccessRequest} from "../utils/session/access-requests.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
 import {isEmailEnabled} from '../utils/email-configuration.js';
@@ -256,6 +257,9 @@ export default (provider) => {
                     allowedGroups: client?.allowedGroups,
                     allowedUsers: client?.allowedUsers,
                 })
+                if (canRequestAccess(ctx.currentAccount, client)) {
+                    return render(provider, ctx, 'request-access', 'Access denied', {requested: false}, true)
+                }
                 return render(provider, ctx, 'message', 'Access denied', {
                     message: 'Your account is not permitted to access this resource'
                 }, true)
@@ -300,6 +304,25 @@ export default (provider) => {
         }
         const nonce = ctx.res.locals.cspNonce;
         return ctx.render('repost', { layout: false, upstream, nonce});
+    });
+
+    router.post('/interaction/:uid/request-access', async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+        if (interactionDetails?.prompt?.name !== 'groups_required') {
+            ctx.throw(404, 'No pending access denial to request membership for')
+        }
+        const client = await provider.Client.find(interactionDetails.params.client_id)
+        if (!ctx.currentAccount || !canRequestAccess(ctx.currentAccount, client)) {
+            ctx.throw(403, 'Requesting access is not available for this account')
+        }
+        await recordAccessRequest({
+            accountId: ctx.currentAccount.accountId,
+            clientId: interactionDetails.params.client_id,
+            allowedGroups: client.allowedGroups,
+        })
+        auditLog(ctx, {clientId: interactionDetails.params.client_id},
+            'User requested group membership for client access')
+        return render(provider, ctx, 'request-access', 'Access requested', {requested: true}, true)
     });
 
     router.post('/interaction/:uid/email', async (ctx) => {
