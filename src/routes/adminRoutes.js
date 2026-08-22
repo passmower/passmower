@@ -16,6 +16,7 @@ import {getText} from "../utils/get-text.js";
 import {getUsernameSource} from "../utils/username-source.js";
 import {isEmailEnabled} from '../utils/email-configuration.js';
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
+import {listIncidents} from '../utils/session/incident-log.js';
 
 export default (provider) => {
     const router = new Router();
@@ -65,6 +66,12 @@ export default (provider) => {
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true, ctx.adminSession.accountId))
+        }
+    })
+
+    router.get('/admin/api/incidents', async (ctx, next) => {
+        ctx.body = {
+            incidents: await listIncidents(),
         }
     })
 

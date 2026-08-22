@@ -84,3 +84,27 @@ configuration. Passmower retains the resource and generated Secret, so setting
 it back to `false` restores the same client ID and credentials. Passmower does
 not automatically disable or delete inactive clients; use the condition or
 metric to drive an administrator-reviewed policy.
+
+## Recent access incidents
+
+When a signed-in user is denied access to an application — their groups do not
+satisfy the client's access policy, or their account state (approval, ToS,
+name, type) blocks the login — Passmower records the event to Redis and shows
+it in the admin panel under "Recent access incidents", together with a
+suggested fix (for group-policy denials, the client's allowed groups).
+
+Records are deduplicated per account/client/failure combination: repeats bump
+a counter and refresh the TTL. Recording is best-effort and never blocks the
+login flow. Nothing is written for anonymous traffic; incidents describe
+authenticated users hitting an access policy.
+
+```yaml
+passmower:
+  incidents:
+    enabled: true
+    # Seconds a record is retained after the last occurrence.
+    ttlSeconds: 604800
+```
+
+Incidents are an ephemeral admin convenience view. The audit log remains the
+durable record of the same denials.

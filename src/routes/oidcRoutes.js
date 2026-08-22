@@ -27,6 +27,7 @@ import {checkAccountGroups} from "../utils/user/check-account-groups.js";
 import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
 import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
 import {auditLog} from "../utils/session/audit-log.js";
+import {recordIncident} from "../utils/session/incident-log.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
 import {isEmailEnabled} from '../utils/email-configuration.js';
@@ -247,6 +248,14 @@ export default (provider) => {
                     });
                 }
                 auditLog(ctx, {interactionDetails}, 'User does not satisfy client access policy')
+                await recordIncident(ctx, {
+                    source: 'oidc-login',
+                    accountId: ctx.currentAccount?.accountId,
+                    clientId: params.client_id,
+                    failure: 'client_access_required',
+                    allowedGroups: client?.allowedGroups,
+                    allowedUsers: client?.allowedUsers,
+                })
                 return render(provider, ctx, 'message', 'Access denied', {
                     message: 'Your account is not permitted to access this resource'
                 }, true)
