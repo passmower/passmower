@@ -120,6 +120,12 @@ passmower:
     # session for their account.
     onImpersonation: true
 
+  # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
+  metrics:
+    # Per-group member-count gauge (passmower_group_members). Off by default:
+    # group memberships can leak sensitive information into Prometheus.
+    groupMembershipCounts: false
+
   # Generic OIDC upstream login providers. Add a provider-keyed entry — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:

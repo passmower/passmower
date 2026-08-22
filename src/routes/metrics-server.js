@@ -2,6 +2,7 @@ import {collectDefaultMetrics, Gauge, register} from "prom-client";
 import Koa from 'koa';
 import Router from "@koa/router";
 import { setupOidcMetrics } from "../utils/session/handle-oidc-flow-metrics.js";
+import { setupUsageMetrics } from "../utils/usage-metrics.js";
 import {KubeOIDCUserService} from "../services/kube-oidc-user-service.js";
 import RedisAdapter from "../adapters/redis.js";
 
@@ -37,6 +38,7 @@ export default async () => {
         help: 'Number of OIDCUser resources rejected because an older user owns one or more claimed emails',
     })
     setupOidcMetrics()
+    setupUsageMetrics()
 
     const userService = new KubeOIDCUserService();
 

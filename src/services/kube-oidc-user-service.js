@@ -6,6 +6,7 @@ import mergeWith from "lodash/mergeWith.js";
 import cloneDeep from "lodash/cloneDeep.js";
 import isArray from "lodash/isArray.js";
 import {assessEmailOwnership, canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
+import {setGroupMembershipMetrics} from '../utils/usage-metrics.js';
 
 // Custom merge that replaces arrays instead of merging by index
 function mergeReplacingArrays(objValue, srcValue) {
@@ -140,6 +141,7 @@ export class KubeOIDCUserService {
             }
         }
         globalThis.metrics?.oidcUserEmailConflicts?.set(conflictedUsers)
+        setGroupMembershipMetrics(accounts)
         if (errors.length) throw new AggregateError(errors, `Failed to reconcile ${errors.length} OIDCUser email condition(s)`)
         return {accounts, ownership, conflictedUsers}
     }

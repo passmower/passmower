@@ -82,6 +82,7 @@ export default (provider) => {
         const activity = activityFromContext(ctx)
         if (activity) {
             activityTracker.record(activity)
+            globalThis.metrics?.authorizationSuccess?.inc({client_id: activity.clientId, kind: activity.clientKind})
             audit.write({
                 event: 'application.login.succeeded',
                 result: 'success',
