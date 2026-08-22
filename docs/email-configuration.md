@@ -29,7 +29,11 @@ passmower:
 ```
 
 When email is enabled, Passmower fails at startup unless `EMAIL_HOST`,
-`EMAIL_PORT`, `EMAIL_SSL`, `EMAIL_USERNAME`, and `EMAIL_PASSWORD` are present.
+`EMAIL_PORT`, and `EMAIL_SSL` are present. SMTP authentication is optional for
+unauthenticated relays (an internal relay, MailHog in dev): `EMAIL_USERNAME`
+and `EMAIL_PASSWORD` must be set together or not at all, and without a username
+`EMAIL_FROM` is required as the sender address. When no credentials are
+configured, Nodemailer skips AUTH entirely.
 The Helm chart likewise requires `passmower.emailCredentialsSecretRef`. A
 temporary ToS receipt failure is logged but does not undo acceptance or block
 login; magic-link delivery failures remain fatal to that login attempt.
