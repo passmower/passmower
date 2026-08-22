@@ -251,6 +251,24 @@ function uidKeyFor(uid) {
     return `uid:${uid}`;
 }
 
+// Read the raw values of every key matching `pattern` (full key names,
+// including the "oidc:" prefix). SCAN's MATCH argument is not affected by the
+// ioredis keyPrefix, but MGET arguments are, so the prefix is stripped before
+// reading.
+export async function scanKeyValues(pattern, {batch = 500} = {}) {
+    const c = getClient();
+    const keys = [];
+    let cursor = '0';
+    do {
+        const [next, found] = await c.scan(cursor, 'MATCH', pattern, 'COUNT', batch);
+        cursor = next;
+        keys.push(...found);
+    } while (cursor !== '0');
+    if (!keys.length) return [];
+    const prefix = getRedisOptions().keyPrefix;
+    return await c.mget(keys.map(key => key.startsWith(prefix) ? key.slice(prefix.length) : key));
+}
+
 class RedisAdapter {
     constructor(name) {
         this.name = name;

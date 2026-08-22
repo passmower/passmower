@@ -116,6 +116,8 @@ spec:
               value: {{ .Values.passmower.incidents.enabled | quote }}
             - name: INCIDENT_TTL_SECONDS
               value: {{ .Values.passmower.incidents.ttlSeconds | quote }}
+            - name: METRICS_GROUP_MEMBERSHIP
+              value: {{ .Values.passmower.metrics.groupMembershipCounts | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY
