@@ -6,6 +6,7 @@ import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {parseRequestMetadata} from "../utils/session/parse-request-headers.js";
 import {canImpersonateAccount, getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
+import {impersonationNotificationsEnabled, notifyAccount} from './notification-service.js';
 
 export class SessionService {
     constructor(provider) {
@@ -206,6 +207,12 @@ export class SessionService {
         }
         impersonation.activated = true
         await this.impersonationRedis.upsert(jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
+        if (impersonationNotificationsEnabled()) {
+            const account = await Account.findAccount(ctx, impersonation.accountId)
+            // Fire-and-forget: notifyAccount never rejects.
+            void notifyAccount(account, 'Your Passmower account is being impersonated',
+                `Administrator ${impersonation.actor} activated an impersonation session for your account ${impersonation.accountId} on ${new URL(process.env.ISSUER_URL).host}. Contact an administrator if this is unexpected.`)
+        }
         ctx.cookies.set(
             this.provider.cookieName('impersonation'),
             jti,

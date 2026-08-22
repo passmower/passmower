@@ -108,6 +108,18 @@ passmower:
     enabled: true
     ttlSeconds: 604800
 
+  # Security notifications broadcast to the affected user over every channel
+  # they have: email (when emailEnabled) and a Slack DM (when
+  # slackClientSecretRef is configured and the user is linked). Delivery is
+  # best-effort and never blocks the flow that triggered it.
+  notifications:
+    # Notify on every fresh interactive sign-in (method, source address,
+    # browser, OS). Off by default: noisy for active users.
+    onLogin: false
+    # Notify the user when an administrator activates an impersonation
+    # session for their account.
+    onImpersonation: true
+
   # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
   metrics:
     # Per-group member-count gauge (passmower_group_members). Off by default:
