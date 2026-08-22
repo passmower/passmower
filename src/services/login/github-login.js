@@ -16,7 +16,10 @@ export const getGitHubAuthorizeParams = (state, env = process.env) => {
     const scopes = getGitHubScopes(env)
     return {
         redirect_uri: `${env.ISSUER_URL}interaction/callback/gh`,
-        ...(scopes.length ? {scope: scopes} : {}),
+        // Must be a single space-delimited value: an array querystring-encodes
+        // as repeated scope= params and GitHub honors only one of them, issuing
+        // a token without user:email.
+        ...(scopes.length ? {scope: scopes.join(' ')} : {}),
         state,
     }
 }
@@ -27,7 +30,13 @@ export async function getGitHubEmails(token, fetchImpl = fetch, env = process.en
         method: 'GET',
         headers: {'Authorization': `Bearer ${token}`},
     })
-    return (await response.json()).filter(email => email.verified).map(email => ({...email, observedAt}))
+    const body = await response.json().catch(() => undefined)
+    if (!Array.isArray(body)) {
+        // A JSON error object (missing user:email scope, revoked token) —
+        // surface what GitHub said instead of a bare TypeError.
+        throw new Error(`GitHub /user/emails returned ${response.status}: ${JSON.stringify(body)?.slice(0, 200)}`)
+    }
+    return body.filter(email => email.verified).map(email => ({...email, observedAt}))
 }
 
 export default async (ctx, provider) => {
@@ -82,7 +91,8 @@ export default async (ctx, provider) => {
     }
 
     const emails = await getGitHubEmails(token).catch(error => {
-            auditLog(ctx,{error, interactionDetails}, 'Error getting emails from GitHub')
+            // Error instances serialize to {} in the log; keep the message.
+            auditLog(ctx,{error: error?.message ?? error, interactionDetails}, 'Error getting emails from GitHub')
         });
 
     if (!emails) {

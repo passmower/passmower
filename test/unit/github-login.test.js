@@ -28,6 +28,26 @@ describe('email-free GitHub login', () => {
         expect(params).not.toHaveProperty('scope')
     })
 
+    it('sends multiple scopes as one space-delimited value', () => {
+        // An array here querystring-encodes as repeated scope= params and
+        // GitHub honors only one, issuing a token without user:email.
+        const params = getGitHubAuthorizeParams('state', {
+            EMAIL_ENABLED: 'true',
+            GITHUB_ORGANIZATION: 'codemowers',
+            ISSUER_URL: 'https://passmower.example/',
+        })
+        expect(params.scope).toBe('user:email read:org')
+    })
+
+    it('surfaces the GitHub error body when the email API rejects the token', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue({
+            status: 404,
+            json: async () => ({message: 'Not Found'}),
+        })
+        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}))
+            .rejects.toThrow(/404.*Not Found/)
+    })
+
     it('retains only verified GitHub addresses when enabled', async () => {
         const fetchImpl = vi.fn().mockResolvedValue({json: async () => [
             {email: 'verified@example.com', verified: true},
