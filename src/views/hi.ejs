@@ -1,5 +1,9 @@
 <div>
+    <% if (welcomeSubtitleHref) { %>
+    <h2 class="welcome-subtitle"><a href="<%= welcomeSubtitleHref %>" target="_blank" rel="noreferrer noopener"><%= welcomeSubtitle %></a></h2>
+    <% } else { %>
     <h2 class="welcome-subtitle"><%= welcomeSubtitle %></h2>
+    <% } %>
     <a href="<%= url %>" class="button">
         Sign in
     </a>
