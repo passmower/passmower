@@ -608,7 +608,6 @@ spec:
                   items:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
-                    x-kubernetes-embedded-resource: true
                 emails:
                   type: array
                   items:
@@ -896,7 +895,6 @@ spec:
                   items:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
-                    x-kubernetes-embedded-resource: true
                 instance:
                   type: string
                 lastUsedAt:
@@ -1010,7 +1008,6 @@ spec:
                   items:
                     type: object
                     x-kubernetes-preserve-unknown-fields: true
-                    x-kubernetes-embedded-resource: true
                 instance:
                   type: string
                 lastUsedAt:

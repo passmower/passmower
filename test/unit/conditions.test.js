@@ -25,3 +25,15 @@ describe('Approved condition', () => {
         expect(new Approved().check(nonMember)).toBeFalsy()
     })
 })
+
+describe('condition shape', () => {
+    it('emits plain metav1.Condition objects without apiVersion/kind', () => {
+        // The CRD schema used to mark conditions as embedded resources, which
+        // required apiVersion/kind inside every item and made any CR whose
+        // conditions lacked them fail validation on every subsequent update.
+        const condition = new Approved().toKubeCondition()
+        expect(condition.type).toBe('Approved')
+        expect(condition.apiVersion).toBeUndefined()
+        expect(condition.kind).toBeUndefined()
+    })
+})
