@@ -6,12 +6,18 @@ outbound email path. Passmower does not initialize Nodemailer, does not mount
 invitations, and records Terms of Service acceptance without attempting to send
 a receipt.
 
+`EMAIL_ENABLED` governs **outbound delivery only**. Email identity collection
+and downstream email claims are independent of it: GitHub logins always request
+`user:email` and store per-address verification evidence, generic providers
+default to the `openid email profile` scopes, and clients allowed the `email`
+scope keep receiving `email`/`email_verified` — so delivery-disabled
+deployments can still provision addresses to downstream applications. Override
+a provider's `scopes` if its issuer rejects the `email` scope.
+
 Email-free installations can enroll users from GitHub or generic OIDC by the
-provider's stable identity (GitHub numeric ID or OIDC provider key plus `sub`).
-Generic providers default to the `openid profile` scopes in this mode, and
-GitHub does not request `user:email` or call the email API. Provider definitions
-may still explicitly request `email`; an address returned in that case is
-retained for identity linking and downstream claims, but it is not required.
+provider's stable identity (GitHub numeric ID or OIDC provider key plus `sub`):
+while delivery is disabled, an upstream that returns no address is tolerated
+at login instead of being an error.
 
 Accounts without a primary address omit `email` and `email_verified` from ID
 tokens and UserInfo, even when a downstream client requests the `email` scope.

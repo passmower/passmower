@@ -46,7 +46,10 @@ configuration will crash-loop after upgrading. Before upgrading, choose one of:
 - set `passmower.emailEnabled: false` explicitly. This disables SMTP delivery,
   magic-link login, ToS receipts, and email invitations while permitting users to
   enroll through GitHub or another OIDC provider using their stable upstream
-  identity without an email address.
+  identity without an email address. Since 2.1, this switch governs delivery
+  only: email identity collection from upstreams and downstream email claims
+  keep working while it is off (in 2.0.x, disabling it also stopped requesting
+  and storing upstream emails).
 
 SMTP delivery errors are no longer swallowed. A failed magic-link send now fails
 that login attempt; ToS acceptance remains successful if its receipt cannot be sent.

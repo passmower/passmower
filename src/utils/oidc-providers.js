@@ -1,5 +1,4 @@
 import * as client from "openid-client";
-import {isEmailEnabled} from './email-configuration.js';
 
 // Generic OIDC upstream providers. GitHub is intentionally NOT here — its API
 // is not standards-compliant OIDC and keeps its own handler (github-login.js).
@@ -22,9 +21,10 @@ import {isEmailEnabled} from './email-configuration.js';
 // where <KEY> is the provider key upper-cased with non-alphanumerics replaced
 // by underscores (e.g. key "google" -> GOOGLE_CLIENT_ID, key "entra-id" ->
 // ENTRA_ID_CLIENT_ID). A provider is only surfaced when both are present.
-const defaultScopes = () => isEmailEnabled()
-    ? ['openid', 'email', 'profile']
-    : ['openid', 'profile'];
+// EMAIL_ENABLED governs outbound delivery only — email identity collection and
+// downstream email claims work regardless, so the email scope is always
+// requested by default. Providers that reject it can override `scopes`.
+const defaultScopes = () => ['openid', 'email', 'profile'];
 
 const envKey = (key) => key.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
 
