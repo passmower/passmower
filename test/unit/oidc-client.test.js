@@ -47,3 +47,20 @@ describe('OIDCClient model — user ACL', () => {
             .toMatchObject({OIDC_ALLOWED_USERS: 'alice,bob'})
     })
 })
+
+describe('OIDCClient model — scopes delimiter', () => {
+    it('joins OIDC_AVAILABLE_SCOPES with a comma by default and honors the CR delimiter', () => {
+        const urlFor = route => `https://oidc.example/${route}`
+        const base = incomingClient({availableScopes: ['openid', 'email', 'profile']})
+
+        expect(new OIDCClient().fromIncomingClient(base).toClientSecret({urlFor}))
+            .toMatchObject({OIDC_AVAILABLE_SCOPES: 'openid,email,profile'})
+
+        const spaced = incomingClient({
+            availableScopes: ['openid', 'email', 'profile'],
+            availableScopesDelimiter: ' ',
+        })
+        expect(new OIDCClient().fromIncomingClient(spaced).toClientSecret({urlFor}))
+            .toMatchObject({OIDC_AVAILABLE_SCOPES: 'openid email profile'})
+    })
+})

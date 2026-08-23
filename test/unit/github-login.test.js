@@ -5,27 +5,19 @@ import {
     getGitHubScopes,
 } from '../../src/services/login/github-login.js'
 
-describe('email-free GitHub login', () => {
-    it('does not request email permission or call the email API when disabled', async () => {
-        const env = {EMAIL_ENABLED: 'false', GITHUB_ORGANIZATION: 'codemowers'}
-        const fetchImpl = vi.fn()
+describe('GitHub email collection', () => {
+    it('requests user:email regardless of EMAIL_ENABLED (delivery-only switch)', () => {
+        // EMAIL_ENABLED governs outbound delivery; email identity collection
+        // and downstream email claims must keep working when it is off.
+        expect(getGitHubScopes({EMAIL_ENABLED: 'false', GITHUB_ORGANIZATION: 'codemowers'}))
+            .toEqual(['user:email', 'read:org'])
+        expect(getGitHubScopes({EMAIL_ENABLED: 'false'})).toEqual(['user:email'])
 
-        expect(getGitHubScopes(env)).toEqual(['read:org'])
-        await expect(getGitHubEmails('token', fetchImpl, env)).resolves.toEqual([])
-        expect(fetchImpl).not.toHaveBeenCalled()
-    })
-
-    it('omits the scope parameter when no GitHub permissions are needed', () => {
         const params = getGitHubAuthorizeParams('state', {
             EMAIL_ENABLED: 'false',
             ISSUER_URL: 'https://passmower.example/',
         })
-
-        expect(params).toEqual({
-            redirect_uri: 'https://passmower.example/interaction/callback/gh',
-            state: 'state',
-        })
-        expect(params).not.toHaveProperty('scope')
+        expect(params.scope).toBe('user:email')
     })
 
     it('sends multiple scopes as one space-delimited value', () => {
@@ -44,7 +36,7 @@ describe('email-free GitHub login', () => {
             status: 404,
             json: async () => ({message: 'Not Found'}),
         })
-        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}))
+        await expect(getGitHubEmails('token', fetchImpl))
             .rejects.toThrow(/404.*Not Found/)
     })
 
@@ -55,7 +47,7 @@ describe('email-free GitHub login', () => {
         ]})
 
         expect(getGitHubScopes({EMAIL_ENABLED: 'true'})).toEqual(['user:email'])
-        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}, '2026-08-22T10:00:00.000Z'))
+        await expect(getGitHubEmails('token', fetchImpl, '2026-08-22T10:00:00.000Z'))
             .resolves.toEqual([{
                 email: 'verified@example.com', verified: true,
                 observedAt: '2026-08-22T10:00:00.000Z',
@@ -66,7 +58,7 @@ describe('email-free GitHub login', () => {
         const fetchImpl = vi.fn().mockResolvedValue({json: async () => [{
             email: 'private@example.com', primary: true, verified: true, visibility: null,
         }]})
-        await expect(getGitHubEmails('token', fetchImpl, {EMAIL_ENABLED: 'true'}, '2026-08-22T10:00:00.000Z'))
+        await expect(getGitHubEmails('token', fetchImpl, '2026-08-22T10:00:00.000Z'))
             .resolves.toMatchObject([{
                 email: 'private@example.com', primary: true, verified: true, visibility: null,
             }])

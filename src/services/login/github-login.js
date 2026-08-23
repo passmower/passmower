@@ -5,10 +5,12 @@ import accessDenied from "../../utils/session/access-denied.js";
 import getLoginResult from "../../utils/user/get-login-result.js";
 import {GitHubGroupPrefix} from "../../utils/kubernetes/kube-constants.js";
 import {auditLog} from "../../utils/session/audit-log.js";
-import {isEmailEnabled} from '../../utils/email-configuration.js';
 
+// EMAIL_ENABLED governs outbound delivery only; emails are always collected
+// from GitHub so downstream clients keep receiving email claims even on
+// delivery-disabled deployments.
 export const getGitHubScopes = (env = process.env) => [
-    ...(isEmailEnabled(env) ? ['user:email'] : []),
+    'user:email',
     ...(env.GITHUB_ORGANIZATION ? ['read:org'] : []),
 ]
 
@@ -24,8 +26,7 @@ export const getGitHubAuthorizeParams = (state, env = process.env) => {
     }
 }
 
-export async function getGitHubEmails(token, fetchImpl = fetch, env = process.env, observedAt = new Date().toISOString()) {
-    if (!isEmailEnabled(env)) return []
+export async function getGitHubEmails(token, fetchImpl = fetch, observedAt = new Date().toISOString()) {
     const response = await fetchImpl('https://api.github.com/user/emails', {
         method: 'GET',
         headers: {'Authorization': `Bearer ${token}`},

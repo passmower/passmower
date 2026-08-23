@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {isEmailEnabled, validateEmailConfiguration} from '../../src/utils/email-configuration.js'
+import {isOutboundEmailEnabled, validateEmailConfiguration} from '../../src/utils/email-configuration.js'
 
 const configured = {
     EMAIL_ENABLED: 'true',
@@ -12,14 +12,14 @@ const configured = {
 
 describe('email configuration', () => {
     it('defaults to enabled and validates every documented SMTP setting', () => {
-        expect(isEmailEnabled({})).toBe(true)
+        expect(isOutboundEmailEnabled({})).toBe(true)
         expect(() => validateEmailConfiguration(configured)).not.toThrow()
         expect(() => validateEmailConfiguration({...configured, EMAIL_HOST: ''}))
             .toThrow(/EMAIL_HOST/)
     })
 
     it('has no SMTP configuration dependency when explicitly disabled', () => {
-        expect(isEmailEnabled({EMAIL_ENABLED: 'false'})).toBe(false)
+        expect(isOutboundEmailEnabled({EMAIL_ENABLED: 'false'})).toBe(false)
         expect(() => validateEmailConfiguration({EMAIL_ENABLED: 'false'})).not.toThrow()
     })
 
@@ -32,5 +32,15 @@ describe('email configuration', () => {
             .toThrow(/set together/)
         expect(() => validateEmailConfiguration({...configured, EMAIL_USERNAME: '', EMAIL_FROM: 'a@example.com'}))
             .toThrow(/set together/)
+    })
+})
+
+describe('outbound email switch naming', () => {
+    it('honors OUTBOUND_EMAIL_ENABLED with EMAIL_ENABLED as legacy fallback', () => {
+        expect(isOutboundEmailEnabled({OUTBOUND_EMAIL_ENABLED: 'false'})).toBe(false)
+        expect(isOutboundEmailEnabled({EMAIL_ENABLED: 'false'})).toBe(false)
+        // the new name wins when both are set
+        expect(isOutboundEmailEnabled({OUTBOUND_EMAIL_ENABLED: 'true', EMAIL_ENABLED: 'false'})).toBe(true)
+        expect(isOutboundEmailEnabled({})).toBe(true)
     })
 })

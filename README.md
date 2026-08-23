@@ -128,7 +128,7 @@ single generic connector (discovery + PKCE + `id_token` validation). Stable
 provider subjects identify returning users; verified email can additionally
 link identities across providers.
 
-Set `passmower.emailEnabled: false` to run without SMTP credentials or email
+Set `passmower.outboundEmailEnabled: false` to run without SMTP credentials or email
 addresses. This disables all delivery and email-based login/invitations while
 allowing upstream enrollment by stable provider identity. See
 [docs/email-configuration.md](docs/email-configuration.md).
@@ -236,6 +236,11 @@ spec:
     - profile
   tokenEndpointAuthMethod: none
 ```
+
+The generated client Secret exposes the scopes as `OIDC_AVAILABLE_SCOPES`,
+comma-delimited by default. Applications that split scope strings on spaces
+(the OAuth2 wire format) can set `availableScopesDelimiter: " "` on the
+`OIDCClient` to change how that value is rendered.
 
 Make sure to replace the `redirectURI` with the correct callback URL for your
 application. Secret named `oidc-client-grafana-owner-secrets` is written

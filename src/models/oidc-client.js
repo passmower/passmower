@@ -38,6 +38,7 @@ class OIDCClient {
     #allowedUsers = null
     #overrideIncomingScopes = null
     #availableScopes = null
+    #availableScopesDelimiter = ','
     #instanceUri = null
     #uri = null
     #displayName = null
@@ -94,6 +95,9 @@ class OIDCClient {
         this.#allowedUsers = incomingClient.spec.allowedUsers || []
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
+        // OAuth2 scope strings are space-delimited, but the generated secret
+        // historically used a comma; the CR can pick what its consumer expects.
+        this.#availableScopesDelimiter = incomingClient.spec.availableScopesDelimiter ?? ','
         this.#instanceUri = process.env.ISSUER_URL
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
@@ -120,7 +124,7 @@ class OIDCClient {
             [OIDCClientSecretRedirectUrisKey]: this.#redirectUris.join(','),
             [OIDCClientSecretIdpUriKey]: this.#instanceUri,
             [OIDCClientSecretWellKnownUriKey]: new URL('.well-known/openid-configuration', this.#instanceUri).href,
-            [OIDCClientSecretAvailableScopesKey]: this.#availableScopes.join(','),
+            [OIDCClientSecretAvailableScopesKey]: this.#availableScopes.join(this.#availableScopesDelimiter),
             [OIDCClientSecretAuthUriKey]: provider.urlFor('authorization'),
             [OIDCClientSecretTokenUriKey]: provider.urlFor('token'),
             [OIDCClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
