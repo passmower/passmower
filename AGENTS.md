@@ -92,7 +92,7 @@ These are the working agreements — follow them:
   since `master` is the default branch — close them manually, referencing the PR.)
 - **Two release tracks, both driven by `Chart.yaml` `version`:**
   - push to `develop` → `docker-dev.yml` + `release-charts-dev.yml` publish the
-    image and chart under the chart version (currently `2.0.0-dev`). No git tag/release.
+    image and chart under the chart version (`-dev`-suffixed on develop). No git tag/release.
   - push to `master` → `docker.yml` + `release-charts.yml` build the image, create a
     `v<version>` tag + GitHub release (pre-release if the version contains `-`), and
     publish the chart.

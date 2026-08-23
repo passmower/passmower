@@ -4,10 +4,8 @@ Passmower 2.0 is a major release. It carries four consumer-facing breaking chang
 (Helm values, one `OIDCClient` CRD field, standard OIDC email scoping, and strict email configuration) plus a sweep of major dependency
 upgrades. This note lists everything you must change, and what changed for the better.
 
-> The 2.0 line ships from the `develop` branch as `2.0.0-dev` (image
-> `ghcr.io/passmower/passmower:2.0.0-dev`, chart
-> `oci://ghcr.io/passmower/charts/passmower --version 2.0.0-dev`) until `2.0.0` is
-> cut on `master`. Use it on non-production / dev clusters first.
+> Passmower 2.0.0 ships from `master` (image `ghcr.io/passmower/passmower:2.0.0`,
+> chart `oci://ghcr.io/passmower/charts/passmower --version 2.0.0`).
 
 ## Before you start
 
@@ -302,7 +300,7 @@ After editing your values (section 1) and any `OIDCClient`s that used
 
 ```sh
 helm upgrade --install passmower \
-  oci://ghcr.io/passmower/charts/passmower --version 2.0.0-dev \
+  oci://ghcr.io/passmower/charts/passmower --version 2.0.0 \
   --set passmower.host=auth.your.domain \
   -f your-values.yaml
 ```
