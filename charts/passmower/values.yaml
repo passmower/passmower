@@ -4,83 +4,190 @@ fullnameOverride: ""
 passmower:
   # Hostname on which Passmower will be deployed to. Will be used as ingress host.
   host: ""
+  # Heading shown on the welcome / sign-in landing page (only rendered when more
+  # than one login method is enabled; a single method skips straight to sign-in).
+  # Empty falls back to "Welcome to Passmower".
+  welcomeMessage: ""
+  # Smaller copy shown below the logo and heading on the welcome page.
+  # Empty falls back to "One login. Every cluster. The Kubernetes-native OpenID provider.".
+  welcomeSubtitle: ""
   # Local groups will be created with given prefix.
-  group_prefix: "passmower"
+  groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
-  admin_group: "github.com:foo:bar"
+  adminGroup: ""
   # If set, require all users to be member of the given local or remote group.
-  required_group: ""
-  # GitHub organization to pull groups from. Set to keep users other organizations private from Passmower.
-  github_organization: "passmower"
+  requiredGroup: ""
+  # Authenticated, read-only directory of members of selected groups. Empty by
+  # default: no roles or user contact details are exposed until explicitly set.
+  # Entries use the full "prefix:name" group identifier.
+  privilegeDirectoryGroups: []
+  # GitHub organization whose team memberships are mapped into groups (named "<org>:<team>") on GitHub login.
+  # This enriches users with group memberships only — it does NOT restrict who may log in; users outside the
+  # organization simply sign in with no GitHub groups. To actually gate access, pair this with requiredGroup.
+  # Scoping to a single organization also keeps the user's memberships in other organizations private from Passmower.
+  githubOrganization: ""
   # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
   #   generated - random system-generated id (u<...>)
   #   prompt    - user must pick a custom username via a form
   #   upstream  - derived from the upstream provider (GitHub login, OIDC preferred_username),
   #               falling back to the prompt form when unavailable/taken/invalid
   # `sub` always equals the stored accountId regardless of this setting.
-  username_source: prompt
-  # DEPRECATED, no longer wired by this chart — use username_source (upstream) instead.
-  use_github_username: false
-  # Allow enrolling new users automatically. Actual access will be based on required_group parameter. Disable to only manually provision users.
-  enroll_users: true
+  usernameSource: prompt
+  # Allow enrolling new users automatically. Actual access will be based on requiredGroup parameter. Disable to only manually provision users.
+  enrollUsers: true
   # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
-  disable_frontend_edit: false
+  disableFrontendEdit: false
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.
-  namespace_selector: "*"
+  namespaceSelector: "*"
   # Domain which will be preferred for determining primary emails.
-  preferred_email_domain: "gmail.com"
-  # DEPRECATED, no longer wired by this chart — use username_source (prompt) instead.
-  require_custom_username: true
-  # Normalize incoming email addresses by removing aliases (e.g. username+alias@gmail.com) etc.
-  normalize_email_addresses: true
+  preferredEmailDomain: "gmail.com"
+  # Normalize all upstream and OIDCUser email claims before identity matching and
+  # duplicate detection, including provider-specific aliases such as Gmail +tags.
+  # Changing this on an existing installation may expose previously hidden conflicts;
+  # see docs/identity-integrity.md.
+  normalizeEmailAddresses: true
+  # Bind forward-auth/dashboard site sessions to the client IP that they were
+  # issued to; a session presented from a different address is destroyed and the
+  # user re-authenticates. Increases session-theft resistance at the cost of
+  # re-authentication whenever the user's network changes (mobile roaming,
+  # VPN toggles, some CGNAT setups).
+  siteSessionIpBinding: false
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
-  webauthn_enabled: true
-  # Enable GitHub OAuth login. Requires github_client_secretRef to be set.
-  github_enabled: true
-  # Enable email magic-link login. Requires email_credentials_secretRef to be set.
-  email_enabled: true
+  webauthnEnabled: true
+  # Enable GitHub OAuth login. Requires githubClientSecretRef to be set.
+  githubEnabled: true
+  # Enable all email delivery, including magic-link login and ToS receipts.
+  # When false, no SMTP credentials are mounted and upstream users may enroll
+  # using their stable provider identity without an email address.
+  emailEnabled: true
+  # Accept upstream OIDC logins carrying an explicit email_verified: false when
+  # the upstream identity is already linked to an account holding Passmower
+  # magic-link verification for that exact address. Returning users are not
+  # locked out by an upstream flipping to unverified; first-time email-based
+  # linking still requires the upstream signal. See docs/email-verification.md.
+  passmowerVerifiedEmailOverride: false
   # Email credentials secret name. Secret must contain EMAIL_HOST, EMAIL_PASSWORD, EMAIL_PORT, EMAIL_SSL and EMAIL_USERNAME
-  email_credentials_secretRef: "email-credentials"
+  emailCredentialsSecretRef: "email-credentials"
   # GitHub OAuth client secret name. Secret must contain GH_CLIENT_ID and GH_CLIENT_SECRET
-  github_client_secretRef: "github-client"
-  # Generic OIDC upstream login providers. Add an entry per provider — any
+  githubClientSecretRef: "github-client"
+
+  # Generic claims-enrichment webhook: at token issuance passmower POSTs the
+  # caller context ({sub, groups, client_id, scope}) to this URL and merges the
+  # returned JSON into claims backed by the `namespaces` scope. Fail-open with
+  # a 2s timeout — an outage never blocks login. Empty = feature off.
+  extraClaimsWebhookUrl: ""
+  # Secret holding EXTRA_CLAIMS_WEBHOOK_TOKEN, presented to the webhook as a
+  # bearer token.
+  extraClaimsWebhookTokenSecretRef: ""
+
+  # Emit a minimal, versioned JSON audit record for successful application
+  # authorizations and token exchanges. Records go to stdout and should be
+  # collected into a durable audit backend; see docs/audit-logging.md.
+  audit:
+    enabled: true
+    # Personal data is excluded by default. Enable only when required by your
+    # audit policy and protect the resulting log stream accordingly.
+    includeSourceAddress: false
+    includeUserAgent: false
+
+  # Project recent successful application activity into OIDCUser/OIDCClient
+  # status. Writes are aggregated so login traffic does not become Kubernetes
+  # API traffic one-for-one.
+  activityTracking:
+    enabled: true
+    flushIntervalSeconds: 900
+    recentApplicationLimit: 20
+    inactiveAfterDays: 90
+
+  # Record denied-access events (a signed-in user tried to open an application
+  # their groups or account state do not allow) to Redis with a TTL and show
+  # them in the admin panel with a suggested fix. One record is kept per
+  # account/client/failure combination; repeats bump its counter and refresh
+  # the TTL.
+  incidents:
+    enabled: true
+    ttlSeconds: 604800
+
+  # Security notifications broadcast to the affected user over every channel
+  # they have: email (when emailEnabled) and a Slack DM (when
+  # slackClientSecretRef is configured and the user is linked). Delivery is
+  # best-effort and never blocks the flow that triggered it.
+  notifications:
+    # Notify on every fresh interactive sign-in (method, source address,
+    # browser, OS). Off by default: noisy for active users.
+    onLogin: false
+    # Notify the user when an administrator activates an impersonation
+    # session for their account.
+    onImpersonation: true
+
+  # Let a signed-in user who fails a client's group access policy request
+  # membership from the denial page. Requests appear in the admin panel next
+  # to the client's allowed groups; retention follows incidents.ttlSeconds.
+  groupRequests:
+    enabled: false
+    # Only accounts already belonging to at least one group may request
+    # access, so blank enrollments cannot spam administrators.
+    requireExistingGroup: true
+
+  # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
+  metrics:
+    # Per-group member-count gauge (passmower_group_members). Off by default:
+    # group memberships can leak sensitive information into Prometheus.
+    groupMembershipCounts: false
+
+  # Generic OIDC upstream login providers. Add a provider-keyed entry — any
   # standards-compliant OIDC provider works (Google, GitLab, EntraID, Keycloak,
   # Okta, Authentik, Zitadel, ...). Each entry:
-  #   key             unique slug; also the env-var prefix for credentials and
-  #                   the callback path /interaction/callback/<key>
+  # The map key is the unique slug, env-var prefix, and callback path key.
+  #   order           (optional) numeric sign-in button order; unordered/equal
+  #                   entries are sorted by provider key
   #   displayName     label shown on the sign-in button
   #   issuer          OIDC issuer URL used for discovery
   #   scopes          (optional) defaults to [openid, email, profile]
   #   groupsClaim     (optional) token claim to read group/role membership from
   #   groupPrefix     (optional) prefix for synced groups; defaults to issuer host
+  #   linkingClaims   (optional) stable verified claims retained for SCIM subject
+  #                   linking, e.g. [tid, oid] for Entra. Never use email here.
+  #   emailVerification (optional) oidc-claim or none. Google and GitLab.com
+  #                   default to oidc-claim; all other issuers default to none.
+  #                   Opt in only when the issuer documents email_verified as
+  #                   proof of control for the exact email claim.
   #   icon            (optional) custom sign-in button icon: inline SVG markup or
   #                   a data: URI. External image URLs are blocked by CSP. Falls
   #                   back to a built-in logo for well-known keys, else a generic icon.
   #   enabled         (optional) defaults to true
+  #   tokenEndpointAuthMethod (optional) client_secret_post (default) or
+  #                   client_secret_basic. Note: basic sends RFC 6749 §2.3.1
+  #                   form-urlencoded credentials, which some providers
+  #                   (notably Google) reject with invalid_client.
   #   clientSecretRef the Kubernetes secret holding this provider's credentials;
   #                   it MUST contain <KEY>_CLIENT_ID and <KEY>_CLIENT_SECRET
   #                   (KEY = key upper-cased, e.g. GOOGLE_CLIENT_ID). Several
   #                   providers may share one secret.
   # The provider only appears once its credentials are present.
-  oidcProviders: []
-  #  - key: google
+  oidcProviders: {}
+  #  google:
+  #    order: 10
   #    displayName: Google
   #    issuer: https://accounts.google.com
   #    clientSecretRef: google-client
-  #  - key: gitlab
+  #  gitlab:
+  #    order: 20
   #    displayName: GitLab
   #    issuer: https://gitlab.com
   #    groupsClaim: groups_direct
   #    groupPrefix: gitlab.com
   #    clientSecretRef: gitlab-client
-  #  - key: entraid
+  #  entraid:
+  #    order: 30
   #    displayName: Microsoft
   #    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
   #    groupsClaim: groups
   #    groupPrefix: entraid
   #    clientSecretRef: entraid-client
-  # Slack API client secret name. Secret must contain SLACK_TOKEN
-  # slack_client_secretRef: "slack-client"
+  # Slack API client secret name. Secret must contain SLACK_TOKEN and may contain
+  # SLACK_TEAM_ID to avoid resolving the workspace ID through auth.test.
+  # slackClientSecretRef: "slack-client"
   # Different texts displayed and sent to the user
   texts:
     approval:
@@ -90,19 +197,21 @@ passmower:
     emails:
       #configMapRef:
       #  name: ""
-      login_link:
+      loginLink:
         subject: "Passmower login link"
         text: "Open the following link to log in: <%= url %>"
         body: ""
-      terms_of_service:
+      termsOfService:
         subject: "Terms of Service agreement confirmation"
         text: ""
         body: ""
-    terms_of_service:
+    termsOfService:
         #configMapRef:
         #  name: ""
+        # Empty or whitespace-only content disables ToS prompting and receipts.
+        # Changing configured content requires people to accept the new version.
         content: ""
-    disable_frontend_edit:
+    disableFrontendEdit:
         #configMapRef:
         #  name: ""
         content: "Editing profile is disabled. Please see [our Git](https://github.com)"
@@ -152,6 +261,13 @@ podMonitor:
   # Scrape interval
   interval: 30s
 
+prometheusRule:
+  # Enable a PrometheusRule alerting on failed secret-refresh Jobs (requires
+  # kube-state-metrics). See OIDCClient spec.secretRefreshJobSpec.
+  enabled: false
+  # Additional labels for the PrometheusRule (e.g. to match your Prometheus ruleSelector)
+  labels: {}
+
 service:
   type: ClusterIP
   port: 80
@@ -169,7 +285,7 @@ ingress:
 image:
   repository: ghcr.io/passmower/passmower
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
+  # Overrides the image tag whose default is the chart version.
   # tag: "develop"
 
 podSecurityContext: {}

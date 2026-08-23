@@ -49,8 +49,6 @@ export default {
             position: 'top-right'
           });
         })
-      } else {
-
       }
 
       fetch('/api/session/end', {

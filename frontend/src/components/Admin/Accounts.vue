@@ -1,21 +1,48 @@
 <template>
     <div class="profile-section">
-        <Notice
-            v-if="impersonation"
-            :text="`You are now impersonating ${impersonation.accountId}. Your own session cookie has been removed. Navigate to desired client service and initiate login - login prompt will enable you to act as impersonated user.`"
-            button-text="End impersonation"
-            :button-action="endImpersonation"
-        />
+        <div v-if="impersonationLink" class="notice">
+            <Exclamation />
+            <div>
+                <p>
+                    Impersonation link for <strong>{{ impersonationFor }}</strong>.
+                    Open it in a <strong>private/incognito window</strong> or another device.
+                    Opening it in this browser (with your existing session) will be refused,
+                    to avoid mixing your and applications' cookies with the impersonated user's.
+                </p>
+                <p><a :href="impersonationLink">{{ impersonationLink }}</a></p>
+                <button @click="copyImpersonationLink">Copy link</button>
+                <button @click="impersonationLink = null">Dismiss</button>
+            </div>
+        </div>
         <div class="profile-section-header">
             <h2>Users</h2>
         </div>
-        <div class="item" v-for="account in accounts">
+        <div class="item" v-for="account in accounts" :key="account.accountId">
             <div class="item-details">
                 <h3>{{ account.accountId }}</h3>
+                <p>Type: {{ account.type || 'person (legacy)' }}</p>
                 <p>Name: {{ account.name }}</p>
-                <p>Primary email: {{ account.email }}</p>
+                <p v-if="account.email">Primary email: {{ account.email }}</p>
+                <p v-if="account.onboardedBy">Invited by: {{ account.onboardedBy }}</p>
+                <p v-if="account.tos_accepted_at">
+                    Terms of Service accepted: {{ formatDate(account.tos_accepted_at) }}
+                </p>
                 <p>Conditions: {{ account.conditions.filter(c => c.status === 'True').map(c => c.type).join(', ') }}</p>
+                <p v-if="emailConflict(account)" class="notice">
+                    Email conflict: {{ emailConflict(account).message }}
+                </p>
                 <p v-if="account.groups.length">Groups: {{ account.groups.map(g => g.displayName).join(', ') }}</p>
+                <div class="recent-applications" v-if="account.recentApplications?.length">
+                    <p>Recent applications:</p>
+                    <ul>
+                        <li v-for="application in account.recentApplications" :key="application.clientId">
+                            <strong>{{ application.namespace }}/{{ application.name }}</strong>
+                            <span> ({{ application.kind === 'OIDCMiddlewareClient' ? 'forward auth' : 'OIDC' }})</span>
+                            — <time :datetime="application.lastAuthenticatedAt">{{ formatDate(application.lastAuthenticatedAt) }}</time>
+                        </li>
+                    </ul>
+                </div>
+                <p v-else>No recent application activity</p>
             </div>
             <div class="item-actions">
                 <Check v-if="!account.approved" @click="approve(account)" />
@@ -32,8 +59,7 @@ import {useAccountsStore} from "@/stores/accounts";
 import Impersonate from "@/components/Icons/Impersonate.vue";
 import Info from "@/components/Icons/Info.vue";
 import {useToast} from "vue-toast-notification";
-import {useImpersonationStore} from "@/stores/impersonation";
-import Notice from "@/components/Admin/Notice.vue";
+import Exclamation from "@/components/Icons/Exclamation.vue";
 import EditProfile from "@/components/Admin/Modals/EditProfile.vue";
 import {openModal} from "jenesius-vue-modal";
 import {useAccountStore} from "@/stores/account";
@@ -41,24 +67,36 @@ import Check from "../Icons/Check.vue";
 
 export default {
     name: "Accounts",
-    components: {Check, Notice, Info, Impersonate},
+    components: {Check, Exclamation, Info, Impersonate},
+    data() {
+        return {
+            impersonationLink: null,
+            impersonationFor: null,
+        }
+    },
     created() {
-        fetch('/admin/api/account/impersonation').then((r) => r.json()).then((r) => {
-            this.setImpersonation(r.impersonation)
-        })
-
         fetch('/admin/api/accounts').then((r) => r.json()).then((r) => {
             this.setAccounts(r.accounts)
         })
     },
     computed: {
         ...mapState(useAccountsStore, ['accounts']),
-        ...mapState(useImpersonationStore, ['impersonation']),
     },
     methods: {
         ...mapActions(useAccountStore, ['setAccount', 'originalAccount']),
         ...mapActions(useAccountsStore, ['setAccounts']),
-        ...mapActions(useImpersonationStore, ['setImpersonation']),
+        formatDate(value) {
+            if (!value) return 'Never'
+            return new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            }).format(new Date(value))
+        },
+        emailConflict(account) {
+            return account.conditions.find(condition =>
+                condition.type === 'EmailUnique' && condition.status === 'False'
+            )
+        },
         async editProfile(account) {
             this.setAccount(account)
             const modal = await openModal(EditProfile);
@@ -75,7 +113,11 @@ export default {
                     'Content-Type': 'application/json'
                 },
             }).then((r) => r.json()).then((r) => {
-                this.setImpersonation(r.impersonation)
+                if (!r.impersonation) {
+                    throw new Error('Impersonation link was not created')
+                }
+                this.impersonationLink = r.impersonation.link
+                this.impersonationFor = r.impersonation.accountId
             }).catch((e) => {
                 console.error(e)
                 const $toast = useToast();
@@ -84,21 +126,14 @@ export default {
                 });
             })
         },
-        endImpersonation() {
-            fetch('/admin/api/account/impersonation/end', {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                },
-            }).then((r) => r.json()).then((r) => {
-                this.setImpersonation(r.impersonation)
-            }).catch((e) => {
-                console.error(e)
-                const $toast = useToast();
-                $toast.error('Ending impersonation failed', {
-                    position: 'top-right'
-                });
-            })
+        async copyImpersonationLink() {
+            const $toast = useToast();
+            try {
+                await navigator.clipboard.writeText(this.impersonationLink)
+                $toast.success('Link copied', {position: 'top-right'})
+            } catch {
+                $toast.error('Could not copy — select and copy manually', {position: 'top-right'})
+            }
         },
         approve(account) {
               fetch('/admin/api/account/approve', {

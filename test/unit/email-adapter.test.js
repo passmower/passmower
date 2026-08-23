@@ -1,0 +1,73 @@
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+    createTransport: vi.fn(),
+    sendMail: vi.fn(),
+}))
+
+vi.mock('nodemailer', () => ({
+    default: {
+        createTransport: mocks.createTransport,
+    },
+}))
+
+import EmailAdapter from '../../src/adapters/email.js'
+
+beforeEach(() => {
+    mocks.sendMail.mockReset().mockResolvedValue({messageId: 'sent'})
+    mocks.createTransport.mockReset().mockReturnValue({sendMail: mocks.sendMail})
+})
+
+afterEach(() => vi.unstubAllEnvs())
+
+describe('EmailAdapter', () => {
+    it('does not initialize Nodemailer when email is disabled', async () => {
+        vi.stubEnv('EMAIL_ENABLED', 'false')
+        await expect(new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html'))
+            .rejects.toThrow('Email delivery is disabled')
+        expect(mocks.createTransport).not.toHaveBeenCalled()
+    })
+
+    it('initializes lazily and propagates transport failures when enabled', async () => {
+        for (const [key, value] of Object.entries({
+            EMAIL_ENABLED: 'true', EMAIL_HOST: 'smtp.example.com', EMAIL_PORT: '587',
+            EMAIL_SSL: 'false', EMAIL_USERNAME: 'passmower', EMAIL_PASSWORD: 'secret',
+        })) vi.stubEnv(key, value)
+        mocks.sendMail.mockRejectedValueOnce(new Error('SMTP unavailable'))
+        const adapter = new EmailAdapter()
+
+        expect(mocks.createTransport).not.toHaveBeenCalled()
+        await expect(adapter.sendMail('a@example.com', 'subject', 'text', 'html'))
+            .rejects.toThrow('SMTP unavailable')
+        expect(mocks.createTransport).toHaveBeenCalledOnce()
+    })
+
+    it('omits AUTH and uses EMAIL_FROM against an unauthenticated relay', async () => {
+        for (const [key, value] of Object.entries({
+            EMAIL_ENABLED: 'true', EMAIL_HOST: 'mailhog', EMAIL_PORT: '1025',
+            EMAIL_SSL: 'false', EMAIL_FROM: 'passmower@example.com',
+        })) vi.stubEnv(key, value)
+        vi.stubEnv('EMAIL_USERNAME', '')
+        vi.stubEnv('EMAIL_PASSWORD', '')
+
+        await new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html')
+
+        expect(mocks.createTransport).toHaveBeenCalledWith(
+            expect.objectContaining({host: 'mailhog', auth: undefined, secure: false}))
+        expect(mocks.sendMail).toHaveBeenCalledWith(expect.objectContaining({
+            headers: {From: 'passmower@example.com'},
+        }))
+    })
+
+    it('maps EMAIL_SSL onto Nodemailer secure (implicit TLS)', async () => {
+        for (const [key, value] of Object.entries({
+            EMAIL_ENABLED: 'true', EMAIL_HOST: 'smtp.example.com', EMAIL_PORT: '465',
+            EMAIL_SSL: 'true', EMAIL_USERNAME: 'passmower', EMAIL_PASSWORD: 'secret',
+        })) vi.stubEnv(key, value)
+
+        await new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html')
+
+        expect(mocks.createTransport).toHaveBeenCalledWith(
+            expect.objectContaining({secure: true}))
+    })
+})

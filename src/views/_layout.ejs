@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <link rel="icon" type="image/x-icon" href="/openid.png">
+    <link rel="icon" type="image/svg+xml" href="/passmower.svg">
     <title><%= title %></title>
     <link rel="stylesheet" href="/style.css">
   </head>
@@ -20,6 +20,9 @@
           <p id="error"></p>
         </div>
       </div>
+      <% if (typeof welcome !== 'undefined' && welcome) { %>
+      <img class="welcome-logo" src="/passmower.svg" alt="Passmower">
+      <% } %>
       <h1><%= title %></h1>
       <%- body %>
       <% if (uid) { %>

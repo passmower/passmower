@@ -4,6 +4,7 @@ import {
     OIDCClientCrd,
     OIDCClientId,
     OIDCClientSecretAllowedGroupsKey,
+    OIDCClientSecretAllowedUsersKey,
     OIDCClientSecretAuthUriKey,
     OIDCClientSecretAvailableScopesKey,
     OIDCClientSecretClientIdKey,
@@ -21,6 +22,7 @@ import {
 } from "../utils/kubernetes/kube-constants.js";
 import {KubeOwnerMetadata} from "../utils/kubernetes/kube-owner-metadata.js";
 import sortObject from "../utils/sort-object.js";
+import {ClientActivityState} from './client-activity-state.js';
 
 class OIDCClient {
     #clientName = null
@@ -30,25 +32,24 @@ class OIDCClient {
     #responseTypes = null
     #tokenEndpointAuthMethod = null
     #idTokenSignedResponseAlg = null
+    #applicationType = null
     #redirectUris = null
     #allowedGroups = null
+    #allowedUsers = null
     #overrideIncomingScopes = null
     #availableScopes = null
     #instanceUri = null
     #uri = null
     #displayName = null
     #resourceVersion = null
-    #status = {
-        instance: null
-    }
     #uid = null
     #pkce = true
-    #conditions = {}
     #allowedCORSOrigins = null
     #secretMetadata = null
-    #secretRefreshPod = null
+    #secretRefreshJobSpec = null
     #displayOrder = 0
-    #description = null
+    #disabled = false
+    #activityState = null
 
     constructor() {
     }
@@ -57,14 +58,16 @@ class OIDCClient {
         return {
             client_id: this.getClientId(),
             client_name: this.#clientName,
-            client_namespace: this.#clientNamespace,
+            clientNamespace: this.#clientNamespace,
             client_secret: this.#clientSecret,
             grant_types: this.#grantTypes,
             token_endpoint_auth_method: this.#tokenEndpointAuthMethod,
             id_token_signed_response_alg: this.#idTokenSignedResponseAlg,
+            application_type: this.#applicationType,
             response_types: this.#responseTypes,
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
+            allowedUsers: this.#allowedUsers,
             availableScopes: this.#availableScopes,
             instanceUri: this.#instanceUri,
             uri: this.#uri,
@@ -73,7 +76,8 @@ class OIDCClient {
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
             displayOrder: this.#displayOrder,
-            description: this.#description,
+            description: this.#activityState.description,
+            kind: OIDCClientCrd,
         }
     }
 
@@ -84,23 +88,24 @@ class OIDCClient {
         this.#responseTypes = incomingClient.spec.responseTypes
         this.#tokenEndpointAuthMethod = incomingClient.spec.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
+        this.#applicationType = incomingClient.spec.applicationType || configuration.clientDefaults.application_type
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
+        this.#allowedUsers = incomingClient.spec.allowedUsers || []
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
         this.#instanceUri = process.env.ISSUER_URL
         this.#uri = incomingClient.spec.uri
         this.#displayName = incomingClient.spec.displayName
         this.#resourceVersion = incomingClient.metadata.resourceVersion
-        this.#status = {...this.#status, ...incomingClient.status}
         this.#uid = incomingClient.metadata.uid
         this.#pkce = incomingClient.spec.pkce ?? true
-        this.#conditions = incomingClient.status?.conditions ?? []
         this.#secretMetadata = incomingClient.spec?.secretMetadata ?? {}
-        this.#secretRefreshPod = incomingClient.spec?.secretRefreshPod ?? null // TODO: validate
+        this.#secretRefreshJobSpec = incomingClient.spec?.secretRefreshJobSpec ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
-        this.#description = incomingClient.metadata?.annotations?.['kubernetes.io/description'] ?? null
+        this.#disabled = incomingClient.spec?.disabled === true
+        this.#activityState = new ClientActivityState(incomingClient)
         return this
     }
 
@@ -120,6 +125,7 @@ class OIDCClient {
             [OIDCClientSecretTokenUriKey]: provider.urlFor('token'),
             [OIDCClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
             [OIDCClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
+            [OIDCClientSecretAllowedUsersKey]: this.#allowedUsers.join(','),
         })
     }
 
@@ -137,11 +143,11 @@ class OIDCClient {
     }
 
     getConditions() {
-        return this.#conditions
+        return this.#activityState.conditions
     }
 
     setConditions(conditions) {
-        this.#conditions = conditions
+        this.#activityState.conditions = conditions
         return this
     }
 
@@ -167,8 +173,12 @@ class OIDCClient {
         return OIDCClientId(this.#clientNamespace, this.#clientName)
     }
 
+    getKind() {
+        return OIDCClientCrd
+    }
+
     getInstance() {
-        return this.#status.instance
+        return this.#activityState.status.instance
     }
 
     getClientName() {
@@ -183,22 +193,77 @@ class OIDCClient {
         return this.#resourceVersion
     }
 
-    getSecretRefreshPod() {
-        let podSpec = this.#secretRefreshPod
-        if (!podSpec) {
+    isDisabled() {
+        return this.#disabled
+    }
+
+    getLastUsedAt() {
+        return this.#activityState.lastUsedAt
+    }
+
+    setLastUsedAt(lastUsedAt) {
+        this.#activityState.lastUsedAt = lastUsedAt
+        return this
+    }
+
+    getIntendedStatus() {
+        return this.#activityState.getIntendedStatus()
+    }
+
+    updateActivityCondition(now, inactiveAfterDays) {
+        this.#activityState.updateActivityCondition(now, inactiveAfterDays)
+        return this
+    }
+
+    updateReadyCondition(ready, reason, message, now) {
+        return this.#activityState.updateReadyCondition(ready, reason, message, now)
+    }
+
+    getMetadata() {
+        return new KubeOwnerMetadata(
+            OIDCClientCrd,
+            this.#clientName,
+            this.#uid
+        )
+    }
+
+    getReconcileFingerprint() {
+        return this.#activityState.getReconcileFingerprint()
+    }
+
+    // Build the secret-refresh Job from the user-supplied JobSpec. Using a Job
+    // (instead of a bare Pod) gets Kubernetes scheduler retries and a
+    // kube_job_failed metric for alerting; labels make alert rules specific and
+    // the ownerReference garbage-collects the Job with its OIDCClient (#70).
+    getSecretRefreshJob() {
+        const jobSpec = this.#secretRefreshJobSpec
+        if (!jobSpec) {
             return undefined
         }
-        podSpec.metadata = podSpec.metadata || {}
-        podSpec.metadata.name = podSpec.metadata.name || `${this.getClientName()}-${this.getResourceVersion()}`
-        podSpec.metadata.ownerReferences = [
-            new KubeOwnerMetadata(
-                OIDCClientCrd,
-                this.getClientName(),
-                this.#uid
-            )
-        ];
-        podSpec.spec.restartPolicy = podSpec.spec.restartPolicy || 'Never'
-        return podSpec
+        // Jobs require restartPolicy Never|OnFailure on the pod template.
+        jobSpec.template = jobSpec.template || {}
+        jobSpec.template.spec = jobSpec.template.spec || {}
+        jobSpec.template.spec.restartPolicy = jobSpec.template.spec.restartPolicy || 'OnFailure'
+        // Reap finished refresh Jobs instead of letting them pile up across
+        // rotations (they're owner-referenced to the client, so only the
+        // client's deletion would otherwise clean them). Overridable per client.
+        jobSpec.ttlSecondsAfterFinished = jobSpec.ttlSecondsAfterFinished ?? 3600
+        return {
+            apiVersion: 'batch/v1',
+            kind: 'Job',
+            metadata: {
+                name: `${this.getClientName()}-secret-refresh-${this.getResourceVersion()}`,
+                ownerReferences: [
+                    new KubeOwnerMetadata(OIDCClientCrd, this.getClientName(), this.#uid)
+                ],
+                labels: {
+                    'app.kubernetes.io/managed-by': 'passmower',
+                    'app.kubernetes.io/component': 'secret-refresh',
+                    'codemowers.cloud/oidc-client': this.getClientName(),
+                },
+            },
+            spec: jobSpec,
+        }
     }
 }
 

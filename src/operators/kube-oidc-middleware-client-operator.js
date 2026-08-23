@@ -7,13 +7,16 @@ import {
 import OidcMiddlewareClient from "../models/oidc-middleware-client.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {Claimed} from "../conditions/claimed.js";
+import {getActivityTracker} from '../services/activity-tracker.js';
+import {ClientReconcileState} from '../models/client-activity-state.js';
 
 export class KubeOIDCMiddlewareClientOperator {
-    constructor(provider) {
-        this.redisAdapter = new RedisAdapter('Client')
+    constructor(provider, adapter = new KubernetesAdapter(), redisAdapter = new RedisAdapter('Client')) {
+        this.redisAdapter = redisAdapter
         this.provider = provider
-        this.adapter = new KubernetesAdapter()
+        this.adapter = adapter
         this.instance = this.adapter.instance
+        this.reconcileState = new ClientReconcileState(getActivityTracker())
     }
 
     async watchClients() {
@@ -29,29 +32,60 @@ export class KubeOIDCMiddlewareClientOperator {
     }
 
     async #createOIDCClient (OIDCMiddlewareClient) {
-        if (OIDCMiddlewareClient.getInstance() === this.instance) {
-            if (!await this.redisAdapter.find(OIDCMiddlewareClient.getClientId())) {
+        this.reconcileState.register(OIDCMiddlewareClient)
+        try {
+            if (OIDCMiddlewareClient.getInstance() === this.instance) {
                 await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                if (!OIDCMiddlewareClient.isDisabled()) await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+            } else if (!OIDCMiddlewareClient.getInstance()) {
+                // Continue with the claimed resourceVersion for the readiness write.
+                const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+                if (claimedClient?.getInstance() === this.instance) {
+                    OIDCMiddlewareClient = claimedClient
+                    await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
+                    if (!OIDCMiddlewareClient.isDisabled()) await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+                } else {
+                    return
+                }
+            } else {
+                return
             }
-        } else if (!OIDCMiddlewareClient.getInstance()) {
-            // Claim that client
-            const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
-            if (claimedClient?.getInstance() === this.instance) {
-                await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-                await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+            if (OIDCMiddlewareClient.isDisabled()) {
+                await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
+                await this.#reportReady(OIDCMiddlewareClient, 'Disabled', 'Client is disabled and absent from Redis')
+            } else {
+                await this.#reportReady(OIDCMiddlewareClient, 'Reconciled', 'Traefik Middleware and Redis record are up to date')
             }
+        } catch (error) {
+            await this.#reportFailure(OIDCMiddlewareClient, error)
         }
     }
 
     async #updateOIDCClient(OIDCMiddlewareClient) {
-        await new Promise(res => setTimeout(res, 1000)); // Wait second as the client is momentarily updated after creation, resulting 404.
-        await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
-        await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
-
+        if (!this.reconcileState.shouldReconcile(OIDCMiddlewareClient)) return
+        if (OIDCMiddlewareClient.getInstance() !== this.instance) {
+            if (OIDCMiddlewareClient.getInstance()) return
+            const claimedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+            if (claimedClient?.getInstance() !== this.instance) return
+            OIDCMiddlewareClient = claimedClient
+        }
+        try {
+            if (OIDCMiddlewareClient.isDisabled()) {
+                await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
+                await this.#reportReady(OIDCMiddlewareClient, 'Disabled', 'Client is disabled and absent from Redis')
+                return
+            }
+            await new Promise(res => setTimeout(res, 1000)); // Wait second as the client is momentarily updated after creation, resulting 404.
+            await this.#createOrReplaceClientMiddleware(OIDCMiddlewareClient)
+            await this.redisAdapter.upsert(OIDCMiddlewareClient.getClientId(), OIDCMiddlewareClient.toRedis())
+            await this.#reportReady(OIDCMiddlewareClient, 'Reconciled', 'Traefik Middleware and Redis record are up to date')
+        } catch (error) {
+            await this.#reportFailure(OIDCMiddlewareClient, error)
+        }
     }
 
     async #deleteOIDCClient (OIDCMiddlewareClient) {
+        this.reconcileState.unregister(OIDCMiddlewareClient)
         if (OIDCMiddlewareClient.getInstance() === this.instance) {
             await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
         }
@@ -67,7 +101,7 @@ export class KubeOIDCMiddlewareClientOperator {
             TraefikMiddlewareApiGroupVersion
         )
         if (!existingMiddleware) {
-            return await this.adapter.createNamespacedCustomObject(
+            const middleware = await this.adapter.createNamespacedCustomObject(
                 TraefikMiddleware,
                 OIDCMiddlewareClient.getClientNamespace(),
                 OIDCMiddlewareClient.getClientName(),
@@ -80,8 +114,10 @@ export class KubeOIDCMiddlewareClientOperator {
                 TraefikMiddlewareApiGroup,
                 TraefikMiddlewareApiGroupVersion
             )
+            if (!middleware) throw this.#reconcileError('MiddlewareReconcileFailed', 'Failed to create Traefik Middleware')
+            return middleware
         } else {
-            return await this.adapter.patchNamespacedCustomObject(
+            const middleware = await this.adapter.patchNamespacedCustomObject(
                 TraefikMiddleware,
                 OIDCMiddlewareClient.getClientNamespace(),
                 OIDCMiddlewareClient.getClientName(),
@@ -91,15 +127,41 @@ export class KubeOIDCMiddlewareClientOperator {
                 TraefikMiddlewareApiGroup,
                 TraefikMiddlewareApiGroupVersion
             )
+            if (!middleware) throw this.#reconcileError('MiddlewareReconcileFailed', 'Failed to update Traefik Middleware')
+            return middleware
         }
+    }
+
+    #reconcileError(reason, message) {
+        return Object.assign(new Error(message), {reason})
+    }
+
+    async #reportReady(OIDCMiddlewareClient, reason, message) {
+        const changed = OIDCMiddlewareClient.updateReadyCondition(true, reason, message)
+        const updatedClient = await this.#replaceClientStatus(OIDCMiddlewareClient)
+        if (changed && updatedClient) {
+            await this.adapter.createEvent(
+                OIDCMiddlewareClient.getClientNamespace(), OIDCMiddlewareClient.getMetadata(), reason, message, 'Normal'
+            )
+        }
+    }
+
+    async #reportFailure(OIDCMiddlewareClient, error) {
+        const reason = error.reason ?? 'ReconcileFailed'
+        const message = error.message ?? 'Middleware client reconciliation failed'
+        const changed = OIDCMiddlewareClient.updateReadyCondition(false, reason, message)
+        await this.#replaceClientStatus(OIDCMiddlewareClient)
+        if (changed) {
+            await this.adapter.createEvent(
+                OIDCMiddlewareClient.getClientNamespace(), OIDCMiddlewareClient.getMetadata(), reason, message
+            )
+        }
+        globalThis.logger.error({error, client: OIDCMiddlewareClient.getClientId()}, 'Failed to reconcile OIDCMiddlewareClient')
     }
 
     async #replaceClientStatus (OIDCMiddlewareClient) {
         OIDCMiddlewareClient = new Claimed().setStatus(true).set(OIDCMiddlewareClient)
-        const status = {
-            instance: this.instance,
-            conditions: OIDCMiddlewareClient.getConditions(),
-        }
+        const status = {...OIDCMiddlewareClient.getIntendedStatus(), instance: this.instance}
         return await this.adapter.replaceNamespacedCustomObjectStatus(
             OIDCMiddlewareClientCrd,
             OIDCMiddlewareClient.getClientNamespace(),

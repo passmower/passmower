@@ -1,9 +1,9 @@
 import {interactionPolicy} from "oidc-provider";
-import {ToSv1} from "../conditions/tosv1.js";
 import {Approved} from "../conditions/approved.js";
 import {updateSiteSession, validateSiteSession} from "../utils/session/site-session.js";
 import {OIDCMiddlewareClientCrd} from "../utils/kubernetes/kube-constants.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
+import {tosRequired} from "../utils/user/tos-required.js";
 import {clientId} from "../utils/session/self-oidc-client.js";
 
 export default () => {
@@ -36,7 +36,7 @@ export default () => {
     const tosPolicy = new Prompt(
         { name: 'tos', requestable: true },
         new Check('tos_not_accepted', 'ToS needs to be accepted', 'interaction_required', async (ctx) => {
-                return !(new ToSv1()).check(ctx.currentAccount)
+                return tosRequired(ctx.currentAccount)
             },
         ),
     )
@@ -44,7 +44,7 @@ export default () => {
 
     const allowedGroupsPolicy = new Prompt(
         { name: 'groups_required', requestable: true },
-        new Check('allowed_groups_required', 'Allowed groups required', 'interaction_required', async (ctx) => {
+        new Check('allowed_groups_required', 'Client access policy not satisfied', 'interaction_required', async (ctx) => {
                 const { oidc } = ctx;
                 return !checkAccountGroups(oidc?.entities?.Client, ctx.currentAccount)
             },

@@ -1,9 +1,22 @@
-import {collectDefaultMetrics, register} from "prom-client";
+import {collectDefaultMetrics, Gauge, register} from "prom-client";
 import Koa from 'koa';
 import Router from "@koa/router";
 import { setupOidcMetrics } from "../utils/session/handle-oidc-flow-metrics.js";
+import { setupUsageMetrics } from "../utils/usage-metrics.js";
 import {KubeOIDCUserService} from "../services/kube-oidc-user-service.js";
-import {getSelfOidcClient} from "../utils/session/self-oidc-client.js";
+import RedisAdapter from "../adapters/redis.js";
+
+// Health check: verifies the Kubernetes API is reachable AND that Redis is
+// actually writable (a read-only replica or failing writes would pass a
+// read-only check but break the app — #77). Throws if a dependency is down.
+export const checkHealth = async (userService) => {
+    const redis = new RedisAdapter('HealthCheck')
+    const token = `${Date.now()}-${process.pid}`
+    await redis.upsert('probe', { token }, 60)
+    const probe = await redis.find('probe')
+    const usersReachable = Array.isArray(await userService.listUsers())
+    return Boolean(usersReachable && probe?.token === token)
+}
 
 export default async () => {
     collectDefaultMetrics({
@@ -15,7 +28,17 @@ export default async () => {
         deployment: process.env.DEPLOYMENT_NAME,
     })
     globalThis.metrics = {}
+    globalThis.metrics.oidcClientLastUsed = new Gauge({
+        name: 'passmower_oidc_client_last_used_timestamp_seconds',
+        help: 'Unix timestamp of the latest successful OIDC activity for a client, or zero if never used',
+        labelNames: ['kind', 'namespace', 'client'],
+    })
+    globalThis.metrics.oidcUserEmailConflicts = new Gauge({
+        name: 'passmower_oidc_user_email_conflicts',
+        help: 'Number of OIDCUser resources rejected because an older user owns one or more claimed emails',
+    })
     setupOidcMetrics()
+    setupUsageMetrics()
 
     const userService = new KubeOIDCUserService();
 
@@ -26,7 +49,12 @@ export default async () => {
     })
 
     router.get('/health', async (ctx, next) => {
-        ctx.status = await userService.listUsers() && await getSelfOidcClient() ? 200 : 500;
+        try {
+            ctx.status = await checkHealth(userService) ? 200 : 500;
+        } catch (err) {
+            globalThis.logger?.error({ err }, 'health check failed');
+            ctx.status = 500;
+        }
     })
     metricsServer.use(router.routes())
     metricsServer.listen(9090)

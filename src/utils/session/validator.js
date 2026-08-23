@@ -3,6 +3,15 @@ import Account from "../../models/account.js";
 import validatorLib from "validator";
 import {getText} from "../get-text.js";
 import {USERNAME_RULES} from "../user/username.js";
+import {IdentityIntegrityError} from "../user/identity-integrity.js";
+
+// Display-name / company validation (#64). Upstream IdPs (GitHub, OIDC) legitimately
+// supply names with unicode letters, accents, apostrophes, hyphens, "&", etc. — an
+// en-US alphanumeric allowlist rejected those, so a name pulled from GitHub could not
+// be re-submitted on edit. Accept any printable input and reject only genuinely unsafe
+// characters: angle brackets (HTML/markup injection) and control chars (incl. newlines,
+// which would otherwise allow Remote-* forward-auth header injection).
+export const isSafeDisplayName = (value) => /^[^<>\x00-\x1f\x7f]*$/.test(value ?? '')
 
 // Custom validators
 const customValidators = {
@@ -32,15 +41,17 @@ const customValidators = {
         } else {
             Account.findByEmail(ctx, value).then(user => {
                 resolve(!user)
-            }).catch(reject);
+            }).catch(error => {
+                if (error instanceof IdentityIntegrityError) {
+                    resolve(false)
+                } else {
+                    reject(error)
+                }
+            });
         }
     }),
-    isValidName: (value) => validatorLib.isAlphanumeric(value, 'en-US', {
-        ignore: ' ÜÕÖÄüõöä'
-    }),
-    isValidCompanyName: (value) => validatorLib.isAlphanumeric(value, 'en-US', {
-        ignore: ' ÜÕÖÄüõöä'
-    }),
+    isValidName: (value) => isSafeDisplayName(value),
+    isValidCompanyName: (value) => isSafeDisplayName(value),
     disableFrontendEdit: () => process.env.DISABLE_FRONTEND_EDIT !== 'true'
 }
 

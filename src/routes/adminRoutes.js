@@ -14,6 +14,10 @@ import validator, {
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import {getText} from "../utils/get-text.js";
 import {getUsernameSource} from "../utils/username-source.js";
+import {isEmailEnabled} from '../utils/email-configuration.js';
+import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
+import {listIncidents} from '../utils/session/incident-log.js';
+import {dismissAccessRequest, listAccessRequests} from '../utils/session/access-requests.js';
 
 export default (provider) => {
     const router = new Router();
@@ -22,6 +26,14 @@ export default (provider) => {
     router.use(async (ctx, next) => {
         let session = await ctx.sessionService.getAdminSession(ctx)
         if (session) {
+            const account = await Account.findAccount(ctx, session.accountId)
+            const failure = getAccountTypeAccessFailure(account)
+            if (failure) {
+                await ctx.sessionService.endAdminSession(ctx, session)
+                auditLog(ctx, {accountId: session.accountId, accountType: account?.type, failure},
+                    'Admin session terminated because account type is not allowed to log in')
+                return
+            }
             ctx.adminSession = session
             return next()
         } else {
@@ -45,6 +57,7 @@ export default (provider) => {
         ctx.body = {
             groupPrefix: GroupPrefix,
             requireUsername: getUsernameSource() !== 'generated',
+            emailEnabled: isEmailEnabled(),
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
             disableEditingText: getText('disable_frontend_edit'),
         }
@@ -55,6 +68,29 @@ export default (provider) => {
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true, ctx.adminSession.accountId))
         }
+    })
+
+    router.get('/admin/api/incidents', async (ctx, next) => {
+        ctx.body = {
+            incidents: await listIncidents(),
+        }
+    })
+
+    router.get('/admin/api/access-requests', async (ctx, next) => {
+        ctx.body = {
+            requests: await listAccessRequests(),
+        }
+    })
+
+    router.post('/admin/api/access-requests/dismiss', async (ctx, next) => {
+        const id = ctx.request.body?.id
+        if (typeof id !== 'string' || !id) {
+            ctx.status = 400
+            return
+        }
+        await dismissAccessRequest(id)
+        auditLog(ctx, {id}, 'Admin dismissed access request')
+        ctx.body = {}
     })
 
     router.post('/admin/api/accounts', async (ctx, next) => {
@@ -96,8 +132,8 @@ export default (provider) => {
             return
         }
         const accountId = ctx.request.body.accountId
-        const impersonation = await ctx.sessionService.impersonate(ctx, accountId)
-        auditLog(ctx, {accountId}, 'Admin enabled impersonation')
+        const impersonation = await ctx.sessionService.createImpersonation(ctx, accountId)
+        if (impersonation) auditLog(ctx, {accountId}, 'Admin created impersonation link')
         ctx.body = {
             impersonation
         }
@@ -126,6 +162,9 @@ export default (provider) => {
     })
 
     router.post('/admin/api/account/invite', async (ctx, next) => {
+        if (!isEmailEnabled()) {
+            ctx.throw(404, 'Email-based invitations are disabled')
+        }
         const email = ctx.request.body.email
         let username = ctx.request.body.username
 
@@ -144,12 +183,23 @@ export default (provider) => {
         }
 
         const account = await Account.createOrUpdateByEmails(ctx, provider, email, undefined, username);
+        if (!account) {
+            ctx.status = 409
+            ctx.body = {errors: [{param: 'email', msg: 'Email is already taken'}]}
+            return
+        }
+        const onboardedBy = ctx.adminSession.accountId
+        await ctx.kubeOIDCUserService.updateUserSpecs(account.accountId, {
+            passmower: {onboardedBy},
+        })
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
-        account.addCondition(condition)
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        await ctx.kubeOIDCUserService.mutateUserStatus(
+            account.accountId,
+            current => current.addCondition(condition),
+        )
         await Account.approve(ctx, account.accountId)
-        auditLog(ctx, {email}, 'Admin invited user')
+        auditLog(ctx, {email, onboardedBy}, 'Admin invited user')
         let accounts = await ctx.kubeOIDCUserService.listUsers()
         ctx.body = {
             accounts: accounts.map((acc) => acc.getProfileResponse(true))

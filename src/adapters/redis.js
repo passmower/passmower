@@ -62,21 +62,15 @@ export async function resolveHostIps(host, family = parseInt(process.env.REDIS_I
 let client;
 let timers = [];
 
-function createRedisClient(redisUrl, isInitial = false) {
-    const newClient = new Redis(redisUrl, {
+export function getRedisOptions(isInitial = false, env = process.env) {
+    return {
         keyPrefix: 'oidc:',
-        family: parseInt(process.env.REDIS_IP_FAMILY ?? '0'),
+        family: parseInt(env.REDIS_IP_FAMILY ?? '0'),
+        protocol: 3,
         // Only enable offline queue for initial connection, disable after ready
         enableOfflineQueue: isInitial,
         // Shorter timeouts for faster failover detection
         connectTimeout: 10000,
-        // Retry strategy with backoff
-        retryStrategy(times) {
-            if (times > 10) {
-                globalThis.logger?.warn('Redis: Max retry attempts reached, will keep trying...')
-            }
-            return Math.min(times * 100, 3000);
-        },
         // Reconnect on READONLY errors (replica promoted to master scenario)
         reconnectOnError(err) {
             const targetErrors = ['READONLY', 'MOVED', 'ASK', 'CLUSTERDOWN'];
@@ -87,7 +81,11 @@ function createRedisClient(redisUrl, isInitial = false) {
             }
             return false;
         },
-    });
+    };
+}
+
+function createRedisClient(redisUrl, isInitial = false) {
+    const newClient = new Redis(redisUrl, getRedisOptions(isInitial));
 
     newClient.on('error', (err) => {
         globalThis.logger?.error({ err }, 'Redis connection error')
@@ -171,6 +169,32 @@ export function connect() {
     return client;
 }
 
+// Tear down the connection and timers (for test teardown / graceful shutdown).
+export async function disconnect() {
+    timers.forEach(clearInterval);
+    timers = [];
+    if (client) {
+        const c = client;
+        client = undefined;
+        // Let scheduled async work (e.g. fire-and-forget event listeners that
+        // do Redis I/O) run, then wait for the command queue to be *stably*
+        // empty before closing — otherwise ioredis rejects still-queued (or
+        // about-to-be-issued) commands with "Connection is closed" as an
+        // unhandled rejection. The stability check covers the gaps between a
+        // listener's sequential awaited commands.
+        const deadline = Date.now() + 2000;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        let emptyStreak = 0;
+        while (emptyStreak < 3 && Date.now() < deadline) {
+            emptyStreak = c.commandQueue?.length ? 0 : emptyStreak + 1;
+            await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        await c.quit().catch(() => c.disconnect());
+    }
+    isReady = false;
+    readyPromise = new Promise(resolve => { readyResolve = resolve; });
+}
+
 // Export a getter to always use the current client instance. Connects on first use.
 const getClient = () => client ?? connect();
 
@@ -225,6 +249,24 @@ function userCodeKeyFor(userCode) {
 
 function uidKeyFor(uid) {
     return `uid:${uid}`;
+}
+
+// Read the raw values of every key matching `pattern` (full key names,
+// including the "oidc:" prefix). SCAN's MATCH argument is not affected by the
+// ioredis keyPrefix, but MGET arguments are, so the prefix is stripped before
+// reading.
+export async function scanKeyValues(pattern, {batch = 500} = {}) {
+    const c = getClient();
+    const keys = [];
+    let cursor = '0';
+    do {
+        const [next, found] = await c.scan(cursor, 'MATCH', pattern, 'COUNT', batch);
+        cursor = next;
+        keys.push(...found);
+    } while (cursor !== '0');
+    if (!keys.length) return [];
+    const prefix = getRedisOptions().keyPrefix;
+    return await c.mget(keys.map(key => key.startsWith(prefix) ? key.slice(prefix.length) : key));
 }
 
 class RedisAdapter {
@@ -323,12 +365,12 @@ class RedisAdapter {
 
     async destroy(id) {
         const key = this.key(id);
-        const payload = this.find(id)
+        const payload = await this.find(id)
 
         await getClient().del(key);
 
         if (referencable[this.name]) {
-            const owner = payload[referencable[this.name]?.ownerKey] ?? 1
+            const owner = payload?.[referencable[this.name]?.ownerKey] ?? 1
             const key = `${referencable[this.name].listName}:${owner}`;
             await getClient().srem(key, id);
         }

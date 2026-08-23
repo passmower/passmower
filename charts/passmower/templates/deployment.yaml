@@ -1,3 +1,6 @@
+{{- if and .Values.passmower.emailEnabled (not .Values.passmower.emailCredentialsSecretRef) }}
+{{- fail "passmower.emailCredentialsSecretRef is required when passmower.emailEnabled is true" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,34 +36,98 @@ spec:
               value: {{ include "passmower.url" . }}
             - name: DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
+            {{- /* Optional string settings: only emit when set & non-empty so a
+                   commented-out/empty value falls back to the app default
+                   instead of being forced to "" (#67). Booleans are always
+                   emitted because `false` is meaningful. */}}
+            {{- with .Values.passmower.welcomeMessage }}
+            - name: WELCOME_MESSAGE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.welcomeSubtitle }}
+            - name: WELCOME_SUBTITLE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.groupPrefix }}
             - name: GROUP_PREFIX
-              value: {{ .Values.passmower.group_prefix | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.adminGroup }}
             - name: ADMIN_GROUP
-              value: {{ .Values.passmower.admin_group | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.requiredGroup }}
             - name: REQUIRED_GROUP
-              value: {{ .Values.passmower.required_group | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            - name: PRIVILEGE_DIRECTORY_GROUPS
+              value: {{ .Values.passmower.privilegeDirectoryGroups | default list | toJson | quote }}
+            {{- with .Values.passmower.githubOrganization }}
             - name: GITHUB_ORGANIZATION
-              value: {{ .Values.passmower.github_organization | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.usernameSource }}
             - name: USERNAME_SOURCE
-              value: {{ .Values.passmower.username_source | quote }}
+              value: {{ . | quote }}
+            {{- end }}
             - name: ENROLL_USERS
-              value: {{ .Values.passmower.enroll_users | quote }}
+              value: {{ .Values.passmower.enrollUsers | quote }}
             - name: DISABLE_FRONTEND_EDIT
-              value: {{ .Values.passmower.disable_frontend_edit | quote }}
+              value: {{ .Values.passmower.disableFrontendEdit | quote }}
+            {{- with .Values.passmower.namespaceSelector }}
             - name: NAMESPACE_SELECTOR
-              value: {{ .Values.passmower.namespace_selector | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.preferredEmailDomain }}
             - name: PREFERRED_EMAIL_DOMAIN
-              value: {{ .Values.passmower.preferred_email_domain | quote }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.passmower.extraClaimsWebhookUrl }}
+            - name: EXTRA_CLAIMS_WEBHOOK_URL
+              value: {{ . | quote }}
+            {{- end }}
             - name: NORMALIZE_EMAIL_ADDRESSES
-              value: {{ .Values.passmower.normalize_email_addresses | quote }}
+              value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
+            - name: SITE_SESSION_IP_BINDING
+              value: {{ .Values.passmower.siteSessionIpBinding | quote }}
             - name: WEBAUTHN_ENABLED
-              value: {{ .Values.passmower.webauthn_enabled | quote }}
+              value: {{ .Values.passmower.webauthnEnabled | quote }}
             - name: GITHUB_ENABLED
-              value: {{ .Values.passmower.github_enabled | quote }}
+              value: {{ .Values.passmower.githubEnabled | quote }}
             - name: EMAIL_ENABLED
-              value: {{ .Values.passmower.email_enabled | quote }}
+              value: {{ .Values.passmower.emailEnabled | quote }}
+            - name: PASSMOWER_VERIFIED_EMAIL_OVERRIDE
+              value: {{ .Values.passmower.passmowerVerifiedEmailOverride | quote }}
+            - name: AUDIT_ENABLED
+              value: {{ .Values.passmower.audit.enabled | quote }}
+            - name: AUDIT_INCLUDE_SOURCE_ADDRESS
+              value: {{ .Values.passmower.audit.includeSourceAddress | quote }}
+            - name: AUDIT_INCLUDE_USER_AGENT
+              value: {{ .Values.passmower.audit.includeUserAgent | quote }}
+            - name: ACTIVITY_TRACKING_ENABLED
+              value: {{ .Values.passmower.activityTracking.enabled | quote }}
+            - name: ACTIVITY_FLUSH_INTERVAL_SECONDS
+              value: {{ .Values.passmower.activityTracking.flushIntervalSeconds | quote }}
+            - name: ACTIVITY_RECENT_APPLICATION_LIMIT
+              value: {{ .Values.passmower.activityTracking.recentApplicationLimit | quote }}
+            - name: CLIENT_INACTIVE_AFTER_DAYS
+              value: {{ .Values.passmower.activityTracking.inactiveAfterDays | quote }}
+            - name: INCIDENTS_ENABLED
+              value: {{ .Values.passmower.incidents.enabled | quote }}
+            - name: INCIDENT_TTL_SECONDS
+              value: {{ .Values.passmower.incidents.ttlSeconds | quote }}
+            - name: NOTIFY_ON_LOGIN
+              value: {{ .Values.passmower.notifications.onLogin | quote }}
+            - name: NOTIFY_ON_IMPERSONATION
+              value: {{ .Values.passmower.notifications.onImpersonation | quote }}
+            - name: GROUP_REQUESTS_ENABLED
+              value: {{ .Values.passmower.groupRequests.enabled | quote }}
+            - name: GROUP_REQUESTS_REQUIRE_EXISTING_GROUP
+              value: {{ .Values.passmower.groupRequests.requireExistingGroup | quote }}
+            - name: METRICS_GROUP_MEMBERSHIP
+              value: {{ .Values.passmower.metrics.groupMembershipCounts | quote }}
             - name: OIDC_PROVIDERS
-              value: {{ .Values.passmower.oidcProviders | default list | toJson | quote }}
+              value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
             {{- if .Values.redis.internal.enabled }}
@@ -115,13 +182,18 @@ spec:
           envFrom:
             - secretRef:
                 name: oidc-keys
-            {{- if .Values.passmower.email_credentials_secretRef }}
+            {{- if and .Values.passmower.emailEnabled .Values.passmower.emailCredentialsSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.email_credentials_secretRef }}
+                name: {{ .Values.passmower.emailCredentialsSecretRef }}
             {{- end }}
-            {{- if .Values.passmower.github_client_secretRef }}
+            {{- if .Values.passmower.githubClientSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.github_client_secretRef }}
+                name: {{ .Values.passmower.githubClientSecretRef }}
+            {{- end }}
+            {{- /* Secret with EXTRA_CLAIMS_WEBHOOK_TOKEN for the enrichment webhook. */}}
+            {{- if .Values.passmower.extraClaimsWebhookTokenSecretRef }}
+            - secretRef:
+                name: {{ .Values.passmower.extraClaimsWebhookTokenSecretRef }}
             {{- end }}
             {{- if and .Values.redis.external.enabled .Values.redis.external.envFromSecretRef }}
             - secretRef:
@@ -136,9 +208,9 @@ spec:
                 name: {{ .clientSecretRef }}
             {{- end }}
             {{- end }}
-            {{- if .Values.passmower.slack_client_secretRef }}
+            {{- if .Values.passmower.slackClientSecretRef }}
             - secretRef:
-                name: {{ .Values.passmower.slack_client_secretRef }}
+                name: {{ .Values.passmower.slackClientSecretRef }}
             {{- end }}
           readinessProbe:
             httpGet:
@@ -191,8 +263,8 @@ spec:
       volumes:
         - name: tos
           configMap:
-            {{- if .Values.passmower.texts.terms_of_service.configMapRef }}
-            name: {{ .Values.passmower.texts.terms_of_service.configMapRef.name }}
+            {{- if .Values.passmower.texts.termsOfService.configMapRef }}
+            name: {{ .Values.passmower.texts.termsOfService.configMapRef.name }}
             {{- else }}
             name: {{ include "passmower.fullname" . }}-tos
             {{- end }}
@@ -205,8 +277,8 @@ spec:
             {{- end }}
         - name: disable-frontend-edit
           configMap:
-            {{- if .Values.passmower.texts.disable_frontend_edit.configMapRef }}
-            name: {{ .Values.passmower.texts.disable_frontend_edit.configMapRef.name }}
+            {{- if .Values.passmower.texts.disableFrontendEdit.configMapRef }}
+            name: {{ .Values.passmower.texts.disableFrontendEdit.configMapRef.name }}
             {{- else }}
             name: {{ include "passmower.fullname" . }}-disable-frontend-edit
             {{- end }}

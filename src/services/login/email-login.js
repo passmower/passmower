@@ -8,6 +8,18 @@ import {getEmailContent, getEmailSubject} from "../../utils/get-email-content.js
 import {SlackAdapter} from "../../adapters/slack.js";
 import {parseRequestMetadata} from "../../utils/session/parse-request-headers.js";
 import {auditLog} from "../../utils/session/audit-log.js";
+import {IdentityIntegrityError} from "../../utils/user/identity-integrity.js";
+
+export async function recordMagicLinkVerification(service, account, email, verifiedAt) {
+    return await service.recordEmailVerification(account.accountId, email, {
+        method: 'magic-link', provider: 'passmower', verifiedAt,
+    }) ?? account
+}
+
+export async function recordSubmittedMagicLinkVerification(service, account, submission) {
+    if (!submission?.emailVerified || !submission.email) return account
+    return recordMagicLinkVerification(service, account, submission.email, submission.emailVerifiedAt)
+}
 
 export class EmailLogin {
     constructor() {
@@ -20,7 +32,14 @@ export class EmailLogin {
         const {uid, params} = await provider.interactionDetails(ctx.req, ctx.res);
         const client = await provider.Client.find(params.client_id);
         const email = ctx.request.body.email.toLowerCase()
-        const account = await Account.findByEmail(ctx, email)
+        let account
+        try {
+            account = await Account.findByEmail(ctx, email)
+        } catch (error) {
+            if (!(error instanceof IdentityIntegrityError)) throw error
+            auditLog(ctx, {email, error: error.message}, 'Email login blocked by identity conflict')
+            return accessDenied(ctx, provider, 'This email is attached to a conflicted account. Contact an administrator.')
+        }
         if (process.env.ENROLL_USERS === 'false' && !account) {
             auditLog(ctx, {email}, 'Account doesn\'t exist')
             return accessDenied(ctx, provider, 'Account doesn\'t exist')
@@ -66,26 +85,68 @@ export class EmailLogin {
         }
     }
 
+    // Open the magic link. Works on any device/browser: the interaction is
+    // looked up by its uid (from the URL), not the interaction cookie. Validating
+    // the token only marks the interaction as email-verified, so the original
+    // device (which holds the interaction cookie and full context) can finish the
+    // login via /email-complete. If the link is opened in the original browser we
+    // complete immediately.
     async verifyLink(ctx, provider) {
-        const params = ctx.request.params
-        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
-        if (!interactionDetails.result || interactionDetails.result.token !== params.token || interactionDetails.jti !== params.uid) {
-            auditLog(ctx, {interactionDetails, params, error: true}, 'Invalid login link')
-            return accessDenied(ctx, provider, 'Invalid login link')
+        const {uid, token} = ctx.request.params
+        const interaction = await provider.Interaction.find(uid)
+        if (!interaction?.result || interaction.result.token !== token) {
+            auditLog(ctx, {uid, error: true}, 'Invalid login link')
+            return this.#renderMessage(ctx, 'Invalid login link',
+                'This login link is invalid or has expired. Please request a new one.')
         }
 
-        const account = await Account.createOrUpdateByEmails(
-            ctx,
-            provider,
-            interactionDetails.result.email
-        );
+        // Mark verified so the original device's polling can complete the login.
+        const ttl = interaction.exp ? Math.max(1, Math.floor(interaction.exp - Date.now() / 1000)) : 3600
+        interaction.result = {...interaction.result, emailVerified: true, emailVerifiedAt: new Date().toISOString()}
+        await interaction.save(ttl)
+        auditLog(ctx, {uid, email: interaction.result.email}, 'Email verified via login link')
 
+        // If opened in the original browser, finish right away.
+        let sameBrowser = false
+        try {
+            const details = await provider.interactionDetails(ctx.req, ctx.res)
+            sameBrowser = details.jti === uid
+        } catch { /* different device/browser — no interaction cookie */ }
+
+        if (sameBrowser) {
+            return this.completeLogin(ctx, provider, interaction.result.email, interaction.result.emailVerifiedAt)
+        }
+        return this.#renderMessage(ctx, 'Email verified',
+            'Your email is verified. Return to the window or device where you started signing in — it will continue automatically.')
+    }
+
+    // Whether the interaction's email has been verified (polled by the original
+    // device's "link sent" page).
+    async isVerified(provider, uid) {
+        const interaction = await provider.Interaction.find(uid)
+        return !!interaction?.result?.emailVerified
+    }
+
+    // Complete the login in the original browser (interaction cookie present),
+    // where account creation / username prompt have full context. Relies on the
+    // server-side emailVerified flag, which only a valid token could have set.
+    async completeLogin(ctx, provider, email, verifiedAt = new Date().toISOString()) {
+        let account = await Account.createOrUpdateByEmails(ctx, provider, email)
         if (!account) {
-            auditLog(ctx,{interactionDetails, params}, 'Unable to determine account from login link')
+            auditLog(ctx, {email}, 'Unable to determine account from login link')
+        } else {
+            account = await recordMagicLinkVerification(
+                ctx.kubeOIDCUserService, account, email, verifiedAt,
+            )
         }
-
         return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'LoginLink'), {
             mergeWithLastSubmission: true,
         });
+    }
+
+    #renderMessage(ctx, title, message) {
+        return ctx.render('message', {
+            title, message, wide: false, uid: null, dbg: undefined, nonce: ctx.res.locals.cspNonce,
+        })
     }
 }

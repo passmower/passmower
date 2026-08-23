@@ -2,12 +2,23 @@ export const metadata = 'metadata';
 export const spec = 'spec';
 export const OIDCUserCrd = 'OIDCUser';
 export const OIDCUsers = 'oidcusers';
+export const OIDCUserEventHookCrd = 'OIDCUserEventHook';
+export const OIDCUserEventHooks = 'oidcusereventhooks';
 export const OIDCClientCrd = 'OIDCClient';
 export const OIDCClients = 'oidcclients';
 export const OIDCMiddlewareClientCrd = 'OIDCMiddlewareClient';
 export const OIDCMiddlewareClients = 'oidcmiddlewareclients';
+export const SCIMConnectionCrd = 'SCIMConnection';
+export const SCIMConnections = 'scimconnections';
+export const SCIMSubjectCrd = 'SCIMSubject';
+export const SCIMSubjects = 'scimsubjects';
+export const SCIMGroupCrd = 'SCIMGroup';
+export const SCIMGroups = 'scimgroups';
 export const defaultApiGroup = 'codemowers.cloud'
-export const defaultApiGroupVersion = 'v1beta1'
+// v1 is the served + storage version as of 2.0. v1beta1 is still served
+// (deprecated) by the CRDs, so existing v1beta1 objects remain visible through
+// the v1 watch/read path via conversion (strategy None, identical schema).
+export const defaultApiGroupVersion = 'v1'
 export const OIDCClientSecretName = (clientName) => `oidc-client-${clientName}-owner-secrets`
 export const OIDCClientId = (namespace, clientName) => `${namespace}.${clientName}`
 // Dot is chosen as the delimiting character as it is one of the few characters that is not encoded in URL and therefore avoids problematic clients that do not properly encode the client parameters for token endpoint.
@@ -27,6 +38,7 @@ export const OIDCClientSecretAuthUriKey = 'OIDC_IDP_AUTH_URI'
 export const OIDCClientSecretTokenUriKey = 'OIDC_IDP_TOKEN_URI'
 export const OIDCClientSecretUserInfoUriKey = 'OIDC_IDP_USERINFO_URI'
 export const OIDCClientSecretAllowedGroupsKey = 'OIDC_ALLOWED_GROUPS'
+export const OIDCClientSecretAllowedUsersKey = 'OIDC_ALLOWED_USERS'
 export const GitHubGroupPrefix = 'github.com'
 export const TraefikMiddleware = 'Middleware'
 export const TraefikMiddlewares = 'middlewares'
@@ -36,7 +48,11 @@ export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clien
 
 export const plurals = {
     [OIDCUserCrd]: OIDCUsers,
+    [OIDCUserEventHookCrd]: OIDCUserEventHooks,
     [OIDCClientCrd]: OIDCClients,
     [OIDCMiddlewareClientCrd]: OIDCMiddlewareClients,
+    [SCIMConnectionCrd]: SCIMConnections,
+    [SCIMSubjectCrd]: SCIMSubjects,
+    [SCIMGroupCrd]: SCIMGroups,
     [TraefikMiddleware]: TraefikMiddlewares,
 }

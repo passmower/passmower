@@ -1,6 +1,7 @@
 <template>
   <header>
     <a href="/">Apps</a>
+    <a v-if="account.privilegeDirectoryEnabled" href="/privileges">Who has access?</a>
     <a v-if="account.isAdmin" href="/admin">Admin panel</a>
   </header>
 

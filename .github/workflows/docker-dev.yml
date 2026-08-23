@@ -11,23 +11,29 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
+
+      - name: Get chart version
+        id: chart_version
+        run: |
+          echo "CHART_VERSION=$(cat charts/passmower/Chart.yaml | awk -F"[ ',]+" '/^version:/{print $2}')" >> $GITHUB_OUTPUT
+
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       -
         name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       -
         name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           registry: ghcr.io
           username: ${{github.actor}}
@@ -35,18 +41,18 @@ jobs:
 
       -
         name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ github.repository }}:1.2.0-dev
+            ${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
 
       -
         name: Push Image to GHCR
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.3.0
         with:
-          src: docker.io/${{ github.repository }}:1.2.0-dev
+          src: docker.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
           dst: |
-            ghcr.io/${{ github.repository }}:1.2.0-dev
+            ghcr.io/${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}

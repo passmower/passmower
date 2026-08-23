@@ -74,6 +74,8 @@ const inCluster = async (ctx) => {
 }
 
 export default (ctx, error, context) => {
+    const metric = globalThis.metrics?.[context]
+    if (!metric) return
     let urlParams = new URLSearchParams()
     try {
         const authUrl = parseurl(ctx.req)
@@ -87,8 +89,8 @@ export default (ctx, error, context) => {
             reason: normalizeReason(error?.error_detail || error?.error_description),
             in_cluster: inCluster,
         }
-        params = Object.fromEntries(Object.entries(params).filter(([key]) => globalThis.metrics[context]?.labelNames.includes(key)));
+        params = Object.fromEntries(Object.entries(params).filter(([key]) => metric.labelNames.includes(key)));
         params = Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null)) // Nice one-liner to filter out undefined fields, such as client_id.
-        globalThis.metrics[context].inc(params)
+        metric.inc(params)
     })
 }

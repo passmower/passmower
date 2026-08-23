@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-section">
+  <div v-if="emailEnabled" class="profile-section">
     <div class="profile-section-header no-flex">
       <h2>Invite new user</h2>
       <p>You can also create users by creating OIDCUser CRDs</p>
@@ -32,7 +32,7 @@ export default {
     }
   },
   computed: {
-    ...mapState(userAdminStore, ['requireUsername', 'disableEditing', 'disableEditingText']),
+    ...mapState(userAdminStore, ['requireUsername', 'emailEnabled', 'disableEditing', 'disableEditingText']),
   },
   methods: {
     ...mapActions(useAccountsStore, ['setAccounts']),
@@ -52,7 +52,7 @@ export default {
           let message
           try {
             message = await response.json()
-          } catch (e) {}
+          } catch { /* no/!JSON body — leave message undefined */ }
           if (message?.errors) {
             message.errors.forEach(e => {
               const $toast = useToast();

@@ -3,9 +3,23 @@ import renderError from "./utils/render-error.js";
 import setupPolicies from "./providers/setup-policies.js";
 import {errors} from "oidc-provider";
 import isOrigin from "./utils/session/is-origin.js";
+import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
+import {getAccountAccessFailure} from './utils/user/check-account-access.js';
+import {auditLog} from './utils/session/audit-log.js';
 
 export default {
-    findAccount: Account.findAccount,
+    async findAccount(ctx, id, token) {
+        const account = await Account.findAccount(ctx, id, token)
+        if (token?.kind === 'RefreshToken') {
+            const failure = getAccountAccessFailure(ctx.oidc?.client, account)
+            if (failure) {
+                auditLog(ctx, {accountId: id, clientId: ctx.oidc?.client?.clientId, failure},
+                    'Refresh token no longer satisfies account access policy')
+                return null
+            }
+        }
+        return account
+    },
     renderError,
     interactions: {
         url(ctx, interaction) { // eslint-disable-line no-unused-vars
@@ -14,6 +28,41 @@ export default {
         policy: setupPolicies()
     },
     conformIdTokenClaims: false, // https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#id-token-does-not-include-claims-other-than-sub
+    // Include the user's groups (and, via the enrichment webhook, namespaces)
+    // in JWT access tokens when the matching scope was granted, so resource
+    // servers can authorize without an extra userinfo call. Only applies to
+    // self-contained (JWT) access tokens; see features.resourceIndicators.
+    async extraTokenClaims(ctx, token) {
+        if (token.kind !== 'AccessToken') {
+            return undefined;
+        }
+        const scopes = token.scope ? token.scope.split(' ') : [];
+        const wantsGroups = scopes.includes('groups');
+        const wantsNamespaces = scopes.includes('namespaces');
+        if (!wantsGroups && !wantsNamespaces) {
+            return undefined;
+        }
+        const account = await Account.findAccount(ctx, token.accountId);
+        if (!account) {
+            return undefined;
+        }
+        const groups = (account.groups || []).map(g => `${g.prefix}:${g.name}`);
+        const claims = {};
+        if (wantsGroups) {
+            claims.groups = groups;
+        }
+        // Small, stable external signals (e.g. namespaces from the billing
+        // service). Fail-open: fetchExtraClaims returns {} on any error.
+        if (wantsNamespaces) {
+            Object.assign(claims, await fetchExtraClaims({
+                sub: token.accountId,
+                groups,
+                client_id: token.clientId,
+                scope: token.scope,
+            }));
+        }
+        return Object.keys(claims).length ? claims : undefined;
+    },
     cookies: {
         keys: JSON.parse(process.env.OIDC_COOKIE_KEYS),
         names: {
@@ -34,7 +83,6 @@ export default {
             'username',
         ],
         profile: [
-            'email',
             'emails',
             'name',
             'nickname',
@@ -44,11 +92,16 @@ export default {
         groups: ['groups'],
         allowed_groups: ['groups'],
         applications: ['applications'],
+        // Kubernetes namespaces the caller may access, supplied by the
+        // external enrichment webhook (EXTRA_CLAIMS_WEBHOOK_URL). The prefixed
+        // claim key follows the same domain convention as the label schema
+        // downstream resource servers filter by.
+        namespaces: ['codemowers.io/namespaces'],
         sid: null,
     },
     // Scopes not backed by a claim. `all_applications` gates the admin-only
     // catalog endpoint; the apps list itself is delivered via REST, not a claim.
-    scopes: ['openid', 'offline_access', 'all_applications'],
+    scopes: ['openid', 'offline_access', 'all_applications', 'namespaces'],
     features: {
         devInteractions: { enabled: false }, // defaults to true
         deviceFlow: { enabled: true }, // defaults to false
@@ -59,6 +112,30 @@ export default {
             allowedPolicy: async function introspectionAllowedPolicy(ctx, client, token) {
                 return !(client.clientAuthMethod === 'none' && token.clientId !== ctx.oidc.client.clientId);
             }
+        },
+        // RFC 8707 Resource Indicators. When a client requests a `resource`,
+        // the issued access token is a self-contained JWT (audience-bound to
+        // that resource) instead of an opaque reference, so resource servers
+        // can validate it against the JWKS endpoint without introspection.
+        // Clients that do not request a resource keep getting opaque tokens.
+        resourceIndicators: {
+            enabled: true,
+            // Use the resource granted at authorization even when the token
+            // request omits an explicit `resource` parameter.
+            useGrantedResource: () => true,
+            getResourceServerInfo(ctx, resourceIndicator, client) {
+                return {
+                    audience: resourceIndicator,
+                    accessTokenTTL: 60 * 60,
+                    accessTokenFormat: 'jwt',
+                    // Scope the resource server to whatever the client may
+                    // request; keeps this generic with no app-specific config.
+                    scope: (client.availableScopes || ['openid', 'profile', 'groups', 'offline_access']).join(' '),
+                    jwt: {
+                        sign: { alg: 'RS256' },
+                    },
+                };
+            },
         },
     },
     ttl: {
@@ -109,11 +186,17 @@ export default {
         response_types: [
             'code'
         ],
-        token_endpoint_auth_method: 'client_secret_basic'
+        token_endpoint_auth_method: 'client_secret_basic',
+        // 'web' (default) requires https redirect URIs. Native/mobile apps
+        // (custom-scheme or http loopback redirect URIs, e.g. immich, the
+        // Nextcloud Android app) must set application_type: 'native'.
+        application_type: 'web'
     },
     extraClientMetadata: {
         properties: [
             'allowedGroups',
+            'allowedUsers',
+            'clientNamespace',
             'availableScopes',
             'kind',
             'uri',

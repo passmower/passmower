@@ -58,6 +58,9 @@ Install using helm from ghcr.io, **at least set the hostname**:
 helm install passmower oci://ghcr.io/passmower/charts/passmower --version 1.2.0 --set passmower.host=auth.your.domain
 ```
 
+> Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
+> `OIDCClient` secret-refresh field. See [docs/migrating-to-2.0.md](docs/migrating-to-2.0.md).
+
 Note we commend installing Passmower declaratively either by using
 [ArgoCD](https://argo-cd.readthedocs.io/en/stable/) or
 [Rancher Helm Controller](https://github.com/k3s-io/helm-controller)
@@ -120,27 +123,36 @@ continues to work unchanged.
 
 Passmower authenticates users against GitHub (a dedicated handler), email
 magic-links, and any number of **standards-compliant OIDC providers** through a
-single generic connector (discovery + PKCE + `id_token` validation). Users are
-linked across providers by verified email.
+single generic connector (discovery + PKCE + `id_token` validation). Stable
+provider subjects identify returning users; verified email can additionally
+link identities across providers.
+
+Set `passmower.emailEnabled: false` to run without SMTP credentials or email
+addresses. This disables all delivery and email-based login/invitations while
+allowing upstream enrollment by stable provider identity. See
+[docs/email-configuration.md](docs/email-configuration.md).
 
 OIDC providers are configured entirely at deploy time — adding Google, GitLab,
 EntraID, Keycloak, Okta, Authentik, Zitadel, etc. requires no code change, just
-a `passmower.oidcProviders` list entry:
+a `passmower.oidcProviders` map entry:
 
 ```yaml
 passmower:
   oidcProviders:
-    - key: google                       # slug; also the callback path & env prefix
+    google:                              # slug; also the callback path & env prefix
+      order: 10                          # optional sign-in button order
       displayName: Google                # label on the sign-in button
       issuer: https://accounts.google.com
       clientSecretRef: google-client     # k8s secret with GOOGLE_CLIENT_ID/SECRET
-    - key: gitlab
+    gitlab:
+      order: 20
       displayName: GitLab
       issuer: https://gitlab.com         # set your host for self-hosted GitLab
       groupsClaim: groups_direct         # token claim to read groups from
       groupPrefix: gitlab.com            # optional; defaults to the issuer host
       clientSecretRef: gitlab-client
-    - key: entraid
+    entraid:
+      order: 30
       displayName: Microsoft
       issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
       groupsClaim: groups
@@ -148,9 +160,12 @@ passmower:
       clientSecretRef: entraid-client
 ```
 
-Each entry supports: `key` (required), `displayName`, `issuer` (required),
+Each entry's map key is its provider key. Entries support: `order`,
+`displayName`, `issuer` (required),
 `scopes` (defaults to `[openid, email, profile]`), `groupsClaim`, `groupPrefix`,
 `enabled` (defaults to `true`), `clientSecretRef`, and `icon`.
+Providers are sorted by ascending numeric `order`; entries with equal or omitted
+orders are sorted by provider key.
 
 Well-known providers (Google, GitLab, Microsoft) get a built-in button logo;
 anything else gets a generic icon. To set a custom one, use `icon` with **inline
@@ -195,7 +210,7 @@ authentication, you can use the following Kubernetes manifest:
 
 ```
 ---
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: grafana
@@ -207,6 +222,8 @@ spec:
   allowedGroups:
     - github.com:example-org:grafana-users-team
     - yourorg.com:local-group
+  allowedUsers:
+    - u-example
   grantTypes:
     - authorization_code
     - refresh_token
@@ -214,6 +231,7 @@ spec:
     - code
   availableScopes:
     - openid
+    - email
     - profile
   tokenEndpointAuthMethod: none
 ```
@@ -221,6 +239,10 @@ spec:
 Make sure to replace the `redirectURI` with the correct callback URL for your
 application. Secret named `oidc-client-grafana-owner-secrets` is written
 into the originating namespace.
+
+`allowedGroups` and `allowedUsers` are optional allowlists. When either list is
+configured, access is granted if the account matches at least one group or one
+account ID. Leaving both lists empty allows every authenticated user.
 
 In most cases application deployment can directly read the generated secret:
 
@@ -257,7 +279,7 @@ controller needs specific metadata to pick up the secret — for example, ArgoCD
 requires the `app.kubernetes.io/part-of: argocd` label to read it:
 
 ```
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCClient
 metadata:
   name: grafana
@@ -280,6 +302,15 @@ user is allowed to open — via the `applications` userinfo claim, or the full
 admin-only catalog at `GET /api/apps/all`. See
 [docs/application-listing.md](docs/application-listing.md).
 
+## Audit logging and application activity
+
+Passmower emits minimal structured audit records and maintains bounded recent
+application summaries on user and client CRDs. Production installations should
+forward the audit stream to durable storage. See
+[docs/audit-logging.md](docs/audit-logging.md) for the event schema, privacy
+controls, retention guidance, inactivity conditions, and reversible client
+disabling.
+
 ## User enrollment
 
 How usernames are assigned at enrollment (system-generated, user-prompted, or derived from the
@@ -288,9 +319,23 @@ upstream provider) is controlled by `USERNAME_SOURCE`. See
 `USE_GITHUB_USERNAME` / `REQUIRE_CUSTOM_USERNAME` flags.
 
 If automatic enrollment is disabled users can be managed GitOps style.
+Passmower validates email ownership across those resources and blocks newer
+duplicates from authentication. See
+[docs/identity-integrity.md](docs/identity-integrity.md) for provider linking,
+normalization, conflict status, metrics, and remediation.
+
+Verified-email provenance is retained per normalized address and exposed to
+downstream clients through the `email` scope. See
+[docs/email-verification.md](docs/email-verification.md) for provider rules,
+magic-link fallback, and client configuration.
+
+Refresh-token exchanges re-check the current Kubernetes account and client
+access policies, so deleted or newly ineligible users cannot retain access for
+the full refresh-token lifetime. See
+[docs/refresh-token-authorization.md](docs/refresh-token-authorization.md).
 
 ```
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCUser
 metadata:
   name: johnsmith
@@ -308,13 +353,34 @@ To list users:
 kubectl get oidcusers --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="person") | [.metadata.name, .spec.companyEmail // "-", .status.slackId // "-", .github.id // "-", .status.profile.name] | @tsv' | column -t
 ```
 
+An authenticated, explicitly allow-listed “who has access?” directory can help
+users find people responsible for selected roles. See
+[docs/privilege-directory.md](docs/privilege-directory.md).
+
+Passmower can also accept automated user and group provisioning over SCIM 2.0.
+See [docs/scim-provisioning.md](docs/scim-provisioning.md) for endpoint,
+authentication, Entra configuration, and lifecycle behavior.
+
+Kubernetes-native lifecycle automation can run namespaced Jobs when matching
+users are added, changed, or deleted. See
+[docs/oidc-user-event-hooks.md](docs/oidc-user-event-hooks.md) for the hook CRD,
+event metadata, idempotency, and security model.
+
+Login and admin-impersonation behavior for each `OIDCUser.spec.type` is described
+in [docs/account-types.md](docs/account-types.md).
+
 ## Traefik middleware
 
 For legacy applications `forwardAuth` based middleware option is supported.
 
+Forward-auth applications must use hostnames under the same registrable base
+domain as Passmower. Their per-client session cookie is scoped to that base
+domain so the browser includes it in Traefik's authentication request. The
+Passmower dashboard itself uses a host-only session cookie.
+
 ```
 ---
-apiVersion: codemowers.cloud/v1beta1
+apiVersion: codemowers.cloud/v1
 kind: OIDCMiddlewareClient
 metadata:
   name: webmail
@@ -323,6 +389,8 @@ spec:
   uri: 'https://webmail.example.com'
   allowedGroups:
     - example.com:employees
+  allowedUsers:
+    - u-example
   headerMapping:
     email: Remote-Email
     groups: Remote-Groups

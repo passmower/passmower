@@ -9,9 +9,16 @@ import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {OIDCMiddlewareClientCrd} from "../utils/kubernetes/kube-constants.js";
 import Account from "../models/account.js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
+import requestErrorHandler from "../utils/request-error-handler.js";
+import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
+import {auditLog} from '../utils/session/audit-log.js';
 
 export default async (provider) => {
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
+
+    // Keep this first so it encloses every Passmower middleware and route added
+    // after provider setup.
+    provider.use(requestErrorHandler)
 
     const directives = helmet.contentSecurityPolicy.getDefaultDirectives();
     delete directives['form-action'];
@@ -53,7 +60,7 @@ export default async (provider) => {
                 iat: session.iat ?? (Math.floor(Date.now() / 1000)),
                 exp: session?.exp,
                 ts: Math.floor(Date.now() / 1000),
-            }, (session.exp ? (session.exp - Math.floor(Date.now() / 1000)) : undefined) ?? instance(provider).configuration('ttl.Session'))
+            }, (session.exp ? (session.exp - Math.floor(Date.now() / 1000)) : undefined) ?? instance(provider).configuration.ttl.Session)
             await ctx.sessionService.cleanupSessions(session.accountId)
         }
     });
@@ -88,10 +95,18 @@ export default async (provider) => {
         ctx.currentSession = session.accountId ? session : undefined
         if (ctx.currentSession?.accountId) {
             ctx.currentAccount = await Account.findAccount(ctx, ctx.currentSession.accountId)
-            if (!ctx.currentAccount) {
+            const failure = getAccountTypeAccessFailure(ctx.currentAccount)
+            if (failure) {
+                auditLog(ctx, {
+                    accountId: ctx.currentSession.accountId,
+                    accountType: ctx.currentAccount?.type,
+                    failure,
+                }, 'Session terminated because account type is not allowed to log in')
                 await ctx.sessionService.endOIDCSession(ctx.currentSession.jti, {
                     redirect: () => {}
                 }, () => {})
+                ctx.currentSession = undefined
+                ctx.currentAccount = undefined
             }
         }
         return next();

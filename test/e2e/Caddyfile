@@ -1,0 +1,14 @@
+# TLS terminator for the e2e: passmower runs http on :3000 (as it does in
+# production behind a proxy), and Caddy fronts it with https on :8443 using an
+# internal self-signed CA. This satisfies oidc-provider v9's requirement that
+# the implicit-flow dashboard client use https redirect URIs. The browser trusts
+# the cert via Playwright's ignoreHTTPSErrors.
+{
+	auto_https disable_redirects
+	local_certs
+	admin off
+}
+
+https://passmower.localtest.me:8443 {
+	reverse_proxy 127.0.0.1:3000
+}

@@ -1,4 +1,5 @@
 import * as k8s from "@kubernetes/client-node";
+import net from 'node:net';
 import {
     defaultApiGroup,
     defaultApiGroupVersion,
@@ -7,18 +8,76 @@ import {
 import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
+import isEqual from 'lodash/isEqual.js';
+
+// loadFromCluster() builds the API server URL straight from KUBERNETES_SERVICE_HOST,
+// which on IPv6-only / dual-stack clusters is a bare IPv6 literal — so the client
+// connects to https://[fd00::1]:443. The kube-apiserver serving cert always lists
+// the DNS names (kubernetes.default.svc, ...) but not necessarily every ClusterIP as
+// an IP SAN, so connecting by literal IP fails TLS verification with
+// "Hostname/IP does not match certificate's altnames" on some clusters. The in-cluster
+// DNS name kubernetes.default.svc is always present in the cert SANs, so we rewrite the
+// server to use it and let the pod resolver pick the right address family.
+//
+// Gated by KUBERNETES_API_SERVICE_DNS: 'auto' (default) only rewrites when the host is
+// an IPv6 literal (IPv4 clusters that work today are untouched); 'always' forces it;
+// 'never' disables it. Returns the replacement server URL, or null to leave it as-is.
+export const WATCH_TIMEOUT_MS = 60 * 60 * 1000
+
+// A clean end or the client-node request timeout is routine — reconnect
+// immediately so no CRD events are missed; back off only on genuine errors.
+export const watchRestartDelayMs = (err) =>
+    !err || err.name === 'TimeoutError' ? 0 : 10 * 1000
+
+export function apiServerUrlViaServiceDns({
+    host = process.env.KUBERNETES_SERVICE_HOST,
+    port = process.env.KUBERNETES_SERVICE_PORT,
+    mode = process.env.KUBERNETES_API_SERVICE_DNS ?? 'auto',
+} = {}) {
+    if (!host || mode === 'never') {
+        return null
+    }
+    if (mode !== 'always' && !net.isIPv6(host)) {
+        return null
+    }
+    const scheme = (port === '80' || port === '8080' || port === '8001') ? 'http' : 'https'
+    return `${scheme}://kubernetes.default.svc:${port}`
+}
 
 export class KubernetesAdapter {
     constructor() {
         const kc = new k8s.KubeConfig();
         this.kc = kc
-        kc.loadFromCluster()
-        this.namespace = kc.getContextObject(kc.getCurrentContext()).namespace;
+        // In-cluster by default; fall back to the local kubeconfig (KUBECONFIG or
+        // ~/.kube/config) when not running inside a pod. This lets the operator run
+        // against an out-of-cluster API server for local development and tests
+        // (e.g. envtest), without changing in-cluster behaviour.
+        if (process.env.KUBERNETES_SERVICE_HOST) {
+            kc.loadFromCluster()
+            // Must run before makeApiClient(), which captures cluster.server eagerly.
+            const dnsServer = apiServerUrlViaServiceDns()
+            if (dnsServer) {
+                const cluster = kc.getCurrentCluster()
+                if (cluster) {
+                    globalThis.logger?.info(
+                        { from: cluster.server, to: dnsServer },
+                        'Kubernetes: using service DNS for the API server to avoid IPv6 TLS SAN mismatch'
+                    )
+                    cluster.server = dnsServer
+                }
+            }
+        } else {
+            kc.loadFromDefault()
+        }
+        this.namespace = kc.getContextObject(kc.getCurrentContext())?.namespace
+            ?? process.env.POD_NAMESPACE
+            ?? 'default';
         this.deployment = process.env.DEPLOYMENT_NAME
         this.instance = this.namespace + '-' + this.deployment
         const userAgentMiddleware = setHeaderMiddleware('User-Agent', this.instance)
         this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
+        this.batchV1Api = kc.makeApiClient(k8s.BatchV1Api);
         this.defaultOptions = { middleware: [userAgentMiddleware] }
     }
 
@@ -131,6 +190,54 @@ export class KubernetesAdapter {
         })
     }
 
+    async mutateNamespacedCustomObjectStatus(kind, namespace, id, mapperFunction, statusFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const current = await this.customObjectsApi.getNamespacedCustomObject({
+                    group: apiGroup,
+                    version: apiGroupVersion,
+                    namespace,
+                    plural: plurals[kind],
+                    name: id,
+                }, this.defaultOptions)
+                const status = await statusFunction(mapperFunction(current))
+                if (isEqual(current.status ?? {}, status ?? {})) {
+                    return mapperFunction(current)
+                }
+                const updated = await this.customObjectsApi.replaceNamespacedCustomObjectStatus({
+                    group: apiGroup,
+                    version: apiGroupVersion,
+                    namespace,
+                    plural: plurals[kind],
+                    name: id,
+                    body: {
+                        apiVersion: apiGroup + '/' + apiGroupVersion,
+                        kind,
+                        metadata: {
+                            name: id,
+                            resourceVersion: current.metadata.resourceVersion,
+                        },
+                        status,
+                    },
+                }, this.defaultOptions)
+                return mapperFunction(updated)
+            } catch (error) {
+                if (error.code === 404) {
+                    return null
+                }
+                if (error.code === 409 && attempt < 3) {
+                    globalThis.logger?.warn(
+                        {kind, namespace, id, attempt},
+                        'Kubernetes status mutation conflicted, recomputing from the latest resource'
+                    )
+                    continue
+                }
+                globalThis.logger.error(error)
+                return undefined
+            }
+        }
+    }
+
     async getSecret(namespace, id) {
         return await this.coreV1Api.readNamespacedSecret({
             name: id,
@@ -208,17 +315,51 @@ export class KubernetesAdapter {
         })
     }
 
-    async createPod(namespace, podSpec, dryRun = false) {
-        await this.coreV1Api.createNamespacedPod({
+    async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {
+        return await this.batchV1Api.createNamespacedJob({
             namespace,
-            body: podSpec
-        }, this.defaultOptions).then(async (r) => {
+            body: jobManifest
+        }, this.defaultOptions).then((r) => {
             return r.status
         }).catch((e) => {
-            if (e.code !== 404) {
-                globalThis.logger.error(e)
-                return null
+            const statusCode = e.code ?? e.statusCode ?? e.response?.statusCode
+            if (ignoreAlreadyExists && statusCode === 409) {
+                return {alreadyExists: true}
             }
+            // Surface failures (not just 404) — a swallowed secret-refresh
+            // failure was a source of "refresh not triggering" confusion (#69).
+            globalThis.logger.error({ err: e, job: jobManifest?.metadata?.name }, 'Failed to create Kubernetes Job')
+            return null
+        })
+    }
+
+    async createEvent(namespace, involvedObject, reason, message, type = 'Warning') {
+        const now = new Date()
+        return await this.coreV1Api.createNamespacedEvent({
+            namespace,
+            body: {
+                metadata: {
+                    generateName: `${involvedObject.name}-`,
+                    namespace,
+                },
+                involvedObject: {
+                    apiVersion: involvedObject.apiVersion ?? `${defaultApiGroup}/${defaultApiGroupVersion}`,
+                    kind: involvedObject.kind ?? 'OIDCUser',
+                    name: involvedObject.name,
+                    namespace,
+                    uid: involvedObject.uid,
+                },
+                reason,
+                message,
+                type,
+                source: {component: this.instance},
+                firstTimestamp: now,
+                lastTimestamp: now,
+                count: 1,
+            },
+        }, this.defaultOptions).catch(error => {
+            globalThis.logger.error({error, reason, involvedObject: involvedObject.name}, 'Failed to create Kubernetes Event')
+            return null
         })
     }
 
@@ -239,6 +380,14 @@ export class KubernetesAdapter {
         const kind = plurals[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc);
+        // @kubernetes/client-node 2.x aborts every watch request after
+        // requestTimeoutMs (default 30s) by design and expects the caller to
+        // re-watch. At the default, combined with the 10s error backoff below,
+        // every operator was blind for a quarter of its lifetime and silently
+        // missed CRD events. Keep the request alive for an hour (the apiserver
+        // ends watches on its own terms well before that) and reconnect
+        // immediately on expected termination.
+        watch.requestTimeoutMs = WATCH_TIMEOUT_MS
         let path = this.watchParameters.namespaceFilter?.namespace ?
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespaceFilter.namespace}` :
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}`
@@ -265,14 +414,16 @@ export class KubernetesAdapter {
                     // console.warn(watchObj)
                 }
             },
-            // done callback is called if the watch terminates normally
+            // done callback is called when the watch terminates for any reason
             (err) => {
-                // tslint:disable-next-line:no-console
-                globalThis.logger.warn('Kubernetes API watch terminated')
-                if (err) {
+                const delay = watchRestartDelayMs(err)
+                if (delay) {
+                    globalThis.logger.warn('Kubernetes API watch terminated')
                     globalThis.logger.error(err)
+                } else {
+                    globalThis.logger.debug(`Kubernetes API watch for ${kind} expired, reconnecting`)
                 }
-                setTimeout(() => { this.watchObjects(); }, 10 * 1000);
+                setTimeout(() => { this.watchObjects(); }, delay);
             }).then((abortController) => {
             // watch returns an AbortController which you can use to abort the watch.
             // setTimeout(() => { abortController.abort(); }, 10);

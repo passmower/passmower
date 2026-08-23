@@ -14,14 +14,51 @@ import validator, {
 } from "../utils/session/validator.js";
 import {getText} from "../utils/get-text.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
+import {buildPrivilegeDirectory, getListedPrivilegeGroups} from "../utils/user/privilege-directory.js";
+import {SlackAdapter} from "../adapters/slack.js";
 
 export default (provider) => {
     const router = new Router();
 
-    // Catalog of every enrolled app, for cluster-overview apps (e.g. Driftmower).
-    // Registered before the site-session gate below so it is authenticated by a
-    // Bearer access token instead. Gated twice: the token must carry the
-    // `all_applications` scope, and the user must be an admin.
+    // Apps the calling user can access — the group-filtered launcher list.
+    // Registered before the site-session gate below so it can also be reached
+    // with a Bearer access token: passmower's own frontend authenticates with
+    // the site session (and gets last-login metadata), while external
+    // dashboards use a token carrying the `applications` scope. No admin
+    // requirement — the list only contains apps the caller may use.
+    router.get('/api/apps', async (ctx) => {
+        const session = await signedInToSelf(ctx, provider)
+        let account = session ? ctx.currentAccount : null
+        if (!account) {
+            const {account: bearerAccount, status} = await accountFromBearer(ctx, provider, 'applications')
+            if (status) {
+                ctx.status = status
+                return
+            }
+            account = bearerAccount
+        }
+        const clients = (await getEnrolledApps())
+            .filter(c => checkAccountGroups(c, account))
+        let apps = await Promise.all(clients.map(async c => {
+            return {
+                name: c.displayName ?? c.client_name,
+                url: c.uri,
+                groups: c.allowedGroups ?? [],
+                displayOrder: c.displayOrder ?? 0,
+                description: renderMarkdown(c.description),
+                // Last-login info is bound to the site session; bearer callers get none.
+                metadata: session ? await ctx.sessionService.getLastSessionInfoPerClient(session.accountId, c.client_id) : null
+            }
+        }))
+        apps.sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name))
+        ctx.body = {
+            apps
+        }
+    })
+
+    // Catalog of every enrolled app — including ones the caller cannot access,
+    // each annotated with `accessible` — hence gated twice: the token must
+    // carry the `all_applications` scope, and the user must be an admin.
     router.get('/api/apps/all', async (ctx) => {
         const {account, status} = await accountFromBearer(ctx, provider, 'all_applications')
         if (status) {
@@ -51,6 +88,21 @@ export default (provider) => {
         ctx.body = {
             ...account.getProfileResponse(),
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
+            privilegeDirectoryEnabled: getListedPrivilegeGroups().length > 0,
+        }
+    })
+
+    router.get('/api/privileges', async (ctx) => {
+        const configuredGroups = getListedPrivilegeGroups()
+        const requestedGroup = ctx.query.group
+        if (requestedGroup && !configuredGroups.includes(requestedGroup)) {
+            ctx.status = 404
+            return
+        }
+        const groups = requestedGroup ? [requestedGroup] : configuredGroups
+        const slackTeamId = await new SlackAdapter().getTeamId()
+        ctx.body = {
+            roles: buildPrivilegeDirectory(await ctx.kubeOIDCUserService.listUsers(), groups, slackTeamId),
         }
     })
 
@@ -97,24 +149,6 @@ export default (provider) => {
         }
         if (ctx.currentSession.jti === sessionToDelete) {
             ctx.redirect('/')
-        }
-    })
-
-    router.get('/api/apps', async (ctx, next) => {
-        const clients = (await getEnrolledApps())
-            .filter(c => checkAccountGroups(c, ctx.currentAccount))
-        let apps = await Promise.all(clients.map(async c => {
-            return {
-                name: c.displayName ?? c.client_name,
-                url: c.uri,
-                displayOrder: c.displayOrder ?? 0,
-                description: renderMarkdown(c.description),
-                metadata: await ctx.sessionService.getLastSessionInfoPerClient(ctx.currentSession.accountId, c.client_id)
-            }
-        }))
-        apps.sort((a, b) => (a.displayOrder - b.displayOrder) || a.name.localeCompare(b.name))
-        ctx.body = {
-            apps
         }
     })
 

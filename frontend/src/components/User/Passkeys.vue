@@ -27,7 +27,6 @@
 import { mapState, mapActions } from "pinia";
 import { useAccountStore } from "@/stores/account";
 import { openModal } from "jenesius-vue-modal";
-import { useToast } from "vue-toast-notification";
 import Plus from "@/components/Icons/Plus.vue";
 import Key from "@/components/Icons/Key.vue";
 import Pencil from "@/components/Icons/Pencil.vue";

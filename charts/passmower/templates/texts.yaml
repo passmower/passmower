@@ -1,10 +1,10 @@
-{{- if not .Values.passmower.texts.terms_of_service.configMapRef }}
+{{- if not .Values.passmower.texts.termsOfService.configMapRef }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-tos
 data:
-  tos.md: "{{ .Values.passmower.texts.terms_of_service.content }}"
+  tos.md: {{ .Values.passmower.texts.termsOfService.content | quote }}
 {{- end }}
 ---
 {{- if not .Values.passmower.texts.approval.configMapRef }}
@@ -13,16 +13,16 @@ kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-approval
 data:
-  approval.txt: "{{ .Values.passmower.texts.approval.content }}"
+  approval.txt: {{ .Values.passmower.texts.approval.content | quote }}
 {{- end }}
 ---
-{{- if not .Values.passmower.texts.disable_frontend_edit.configMapRef }}
+{{- if not .Values.passmower.texts.disableFrontendEdit.configMapRef }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-disable-frontend-edit
 data:
-  disable_frontend_edit.md: "{{ .Values.passmower.texts.disable_frontend_edit.content }}"
+  disable_frontend_edit.md: {{ .Values.passmower.texts.disableFrontendEdit.content | quote }}
 {{- end }}
 ---
 {{- if not .Values.passmower.texts.emails.configMapRef }}
@@ -31,10 +31,10 @@ kind: ConfigMap
 metadata:
   name: {{ include "passmower.fullname" . }}-email-templates
 data:
-  link.subject: "{{ .Values.passmower.texts.emails.login_link.subject }}"
-  link.txt: "{{ .Values.passmower.texts.emails.login_link.text }}"
-  link.ejs: "{{ .Values.passmower.texts.emails.login_link.body }}"
-  tos.subject: "{{ .Values.passmower.texts.emails.terms_of_service.subject }}"
-  tos.txt: "{{ .Values.passmower.texts.emails.terms_of_service.text }}"
-  tos.ejs: "{{ .Values.passmower.texts.emails.terms_of_service.body }}"
+  link.subject: {{ .Values.passmower.texts.emails.loginLink.subject | quote }}
+  link.txt: {{ .Values.passmower.texts.emails.loginLink.text | quote }}
+  link.ejs: {{ .Values.passmower.texts.emails.loginLink.body | quote }}
+  tos.subject: {{ .Values.passmower.texts.emails.termsOfService.subject | quote }}
+  tos.txt: {{ .Values.passmower.texts.emails.termsOfService.text | quote }}
+  tos.ejs: {{ .Values.passmower.texts.emails.termsOfService.body | quote }}
 {{- end }}

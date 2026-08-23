@@ -1,7 +1,11 @@
 import {dirname} from "desm";
-import {renderFile} from "ejs";
+// ejs 6 is CommonJS and only exposes renderFile on its default export
+// (no named ESM export), so import the default and destructure.
+import ejs from "ejs";
 import path from "path";
 import fs from "fs";
+
+const {renderFile} = ejs;
 
 export const getEmailContent = async (template, variables) => {
     return {

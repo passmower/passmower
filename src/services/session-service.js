@@ -4,6 +4,9 @@ import Account from "../models/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {parseRequestMetadata} from "../utils/session/parse-request-headers.js";
+import {canImpersonateAccount, getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
+import {auditLog} from '../utils/session/audit-log.js';
+import {impersonationNotificationsEnabled, notifyAccount} from './notification-service.js';
 
 export class SessionService {
     constructor(provider) {
@@ -72,11 +75,18 @@ export class SessionService {
 
     async endOIDCSession(sessionToDelete, ctx, next) {
         sessionToDelete = await this.sessionRedis.find(sessionToDelete)
+        // Only touch the browser's cookies when ending the *current* session;
+        // otherwise use a no-op so ending another session (or cleaning up after
+        // an authorization error, where ctx has no cookies at all) doesn't clear
+        // the live cookie or throw.
+        const cookies = (sessionToDelete?.jti === ctx.currentSession?.jti && ctx.cookies)
+            ? ctx.cookies
+            : { set: () => {} }
+        // oidc-provider v9's end_session action reads ctx.cookies (v8 read
+        // ctx.oidc.cookies), so set both for the "dirty hack" call below.
+        ctx.cookies = cookies
         ctx.oidc = {
-            // don't clear cookies when it's not current session
-            cookies: sessionToDelete?.jti === ctx.currentSession?.jti && ctx.cookies ? ctx.cookies : {
-                set: () => {}
-            },
+            cookies,
             urlFor: () => {
                 // don't redirect when ending other sessions in frontpage
                 return process.env.ISSUER_URL
@@ -137,47 +147,78 @@ export class SessionService {
     }
 
     async setAdminSession(ctx, session) {
-        await this.adminSessionRedis.upsert(session.jti, session, instance(this.provider).configuration('ttl.AdminSession'))
+        await this.adminSessionRedis.upsert(session.jti, session, instance(this.provider).configuration.ttl.AdminSession)
         ctx.cookies.set(
             this.provider.cookieName('admin_session'),
             session.jti,
             {
-                ...instance(this.provider).configuration('cookies.long'),
-                maxAge: instance(this.provider).configuration('ttl.AdminSession') * 1000,
+                ...instance(this.provider).configuration.cookies.long,
+                maxAge: instance(this.provider).configuration.ttl.AdminSession * 1000,
             },
         );
         return true
     }
 
-    async impersonate(ctx, accountId) {
-        let account = await Account.findAccount(ctx, accountId)
-        if (!account) {
-            ctx.statusCode = 404
-            return
-        }
-        // Remove the session cookie but keep the session itself intact - admin can later return to it.
-        // TODO: would back-channel log-out be required?
-        ctx.cookies.set(
-            this.provider.cookieName('session'),
-            null,
-        );
-        ctx.cookies.set(
-            this.provider.cookieName('session') + '.legacy',
-            null,
-        );
+    async endAdminSession(ctx, session) {
+        if (session?.jti) await this.adminSessionRedis.destroy(session.jti)
+        ctx.cookies.set(this.provider.cookieName('admin_session'), null, {
+            ...instance(this.provider).configuration.cookies.long,
+            maxAge: 0,
+        })
+    }
 
+    // Create a one-time impersonation link instead of activating impersonation
+    // in the admin's own browser. The admin opens the link in a private/incognito
+    // window (or another device) so their own and downstream apps' cookies never
+    // mix with the impersonated user's session (#51). No cookies are touched here.
+    async createImpersonation(ctx, accountId) {
+        const account = await Account.findAccount(ctx, accountId)
+        if (!account) {
+            ctx.status = 404
+            return null
+        }
+        if (!canImpersonateAccount(account)) {
+            ctx.status = 403
+            auditLog(ctx, {accountId, accountType: account.type,
+                failure: getAccountTypeAccessFailure(account, {impersonation: true})},
+            'Admin impersonation link rejected for account type')
+            return null
+        }
         const impersonation = {
             jti: nanoid(),
             actor: ctx.adminSession.accountId,
             accountId,
+            activated: false,
         }
-        await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration('ttl.Impersonation'))
+        await this.impersonationRedis.upsert(impersonation.jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
+        return {
+            accountId,
+            link: `${process.env.ISSUER_URL}impersonate/${impersonation.jti}`,
+        }
+    }
+
+    // Consume a one-time impersonation link in the (clean) browser that opened
+    // it: set the impersonation cookie so the next login prompt offers to act as
+    // the target user. One-time: a link can only be activated once.
+    async activateImpersonation(ctx, jti) {
+        const impersonation = await this.impersonationRedis.find(jti)
+        if (!impersonation || impersonation.activated) {
+            return null
+        }
+        impersonation.activated = true
+        await this.impersonationRedis.upsert(jti, impersonation, instance(this.provider).configuration.ttl.Impersonation)
+        if (impersonationNotificationsEnabled()) {
+            const account = await Account.findAccount(ctx, impersonation.accountId)
+            // Fire-and-forget: notifyAccount never rejects.
+            void notifyAccount(account, 'Your Passmower account is being impersonated',
+                `Administrator ${impersonation.actor} activated an impersonation session for your account ${impersonation.accountId} on ${new URL(process.env.ISSUER_URL).host}. Contact an administrator if this is unexpected.`)
+        }
         ctx.cookies.set(
             this.provider.cookieName('impersonation'),
-            impersonation.jti,
+            jti,
             {
-                ...instance(this.provider).configuration('cookies.long'),
-                maxAge: instance(this.provider).configuration('ttl.Impersonation') * 1000,
+                ...instance(this.provider).configuration.cookies.long,
+                maxAge: instance(this.provider).configuration.ttl.Impersonation * 1000,
             },
         );
         return impersonation
@@ -202,14 +243,14 @@ export class SessionService {
             this.provider.cookieName('session'),
             ctx.cookies.get(this.provider.cookieName('admin_session')),
             {
-                ...instance(this.provider).configuration('cookies.long'),
+                ...instance(this.provider).configuration.cookies.long,
             }
         );
         ctx.cookies.set(
             this.provider.cookieName('session') + '.legacy',
             ctx.cookies.get(this.provider.cookieName('admin_session')),
             {
-                ...instance(this.provider).configuration('cookies.long'),
+                ...instance(this.provider).configuration.cookies.long,
             }
         );
     }

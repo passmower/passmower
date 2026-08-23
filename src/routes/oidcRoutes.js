@@ -10,14 +10,13 @@ import Router from '@koa/router';
 import GithubLogin from "../services/login/github-login.js";
 import OidcLogin from "../services/login/oidc-login.js";
 import {getOidcProvider, getOidcProviders} from "../utils/oidc-providers.js";
-import {EmailLogin} from "../services/login/email-login.js";
+import {EmailLogin, recordSubmittedMagicLinkVerification} from "../services/login/email-login.js";
 import accessDenied from "../utils/session/access-denied.js";
 import getLoginResult from "../utils/user/get-login-result.js";
 import Account from "../models/account.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
-import crypto from "node:crypto";
 import {Approved} from "../conditions/approved.js";
-import {ApprovalTextName, getText, ToSTextName} from "../utils/get-text.js";
+import {ApprovalTextName, getText, getTermsOfService} from "../utils/get-text.js";
 import {OIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import renderError from "../utils/render-error.js";
 import {addGrant} from "../utils/session/add-grants.js";
@@ -28,15 +27,19 @@ import {checkAccountGroups} from "../utils/user/check-account-groups.js";
 import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
 import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
 import {auditLog} from "../utils/session/audit-log.js";
+import {recordIncident} from "../utils/session/incident-log.js";
+import {canRequestAccess, recordAccessRequest} from "../utils/session/access-requests.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
+import {isEmailEnabled} from '../utils/email-configuration.js';
+import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 
 // Which login methods are surfaced on the sign-in page. Each is enabled
 // unless explicitly disabled via env var, preserving previous behaviour.
 const authMethodsEnabled = () => ({
     webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
     githubEnabled: process.env.GITHUB_ENABLED !== 'false',
-    emailEnabled: process.env.EMAIL_ENABLED !== 'false',
+    emailEnabled: isEmailEnabled(),
     oidcProviders: getOidcProviders(),
 });
 
@@ -106,6 +109,7 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
         params,
         title,
         dbg,
+        welcome: false,
         ...extra,
         wide,
         nonce: ctx.res.locals.cspNonce,
@@ -119,11 +123,11 @@ export default (provider) => {
     }))
     router.use(validator())
 
-    router.get(['/', '/profile', '/terms-of-service'], async (ctx, next) => {
+    router.get(['/', '/profile', '/privileges', '/privileges/:group', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
             if (ctx.path === '/terms-of-service') {
-                // TODO: proper implementation
-                const text = getText(ToSTextName)
+                const text = getTermsOfService()
+                if (text === null) ctx.throw(404, 'Terms of Service are not configured')
                 return render(provider, ctx, 'tos', 'Terms of Service', {text, save: false}, true)
             } else {
                 return ctx.render('frontend', { layout: false, title: 'Passmower' })
@@ -135,8 +139,10 @@ export default (provider) => {
             if (enabledAuthMethodCount() === 1) {
                 return ctx.redirect(url.href)
             }
-            return render(provider, ctx, 'hi', `Welcome to Passmower`, {
-                url: url.href
+            return render(provider, ctx, 'hi', process.env.WELCOME_MESSAGE || 'Welcome to Passmower', {
+                url: url.href,
+                welcomeSubtitle: process.env.WELCOME_SUBTITLE || 'One login. Every cluster. The Kubernetes-native OpenID provider.',
+                welcome: true
             })
         }
     })
@@ -154,6 +160,29 @@ export default (provider) => {
                 throw err;
             }
         }
+    });
+
+    // One-time impersonation link (#51). The admin generates it from the admin
+    // panel and opens it in a private/incognito window or another device, so
+    // their own and downstream apps' cookies are never mixed with the
+    // impersonated user's session. If any cookies are already present the link
+    // refuses to activate and tells the admin to use a clean window.
+    router.get('/impersonate/:jti', async (ctx) => {
+        const messagePage = (title, message) => ctx.render('message', {
+            title, message, wide: false, uid: null, dbg: undefined, nonce: ctx.res.locals.cspNonce,
+        })
+        if (ctx.headers.cookie) {
+            auditLog(ctx, {}, 'Impersonation link opened with existing cookies, refused')
+            return messagePage('Open in a private window',
+                'Existing cookies were detected. To impersonate safely, open this link in a private/incognito window (or another browser) so your own and applications’ sessions are not mixed with the impersonated user’s.')
+        }
+        const impersonation = await ctx.sessionService.activateImpersonation(ctx, ctx.params.jti)
+        if (!impersonation) {
+            return messagePage('Impersonation link invalid',
+                'This impersonation link is invalid or has already been used. Generate a new one from the admin panel.')
+        }
+        auditLog(ctx, {impersonation}, 'Impersonation link activated')
+        return ctx.redirect(process.env.ISSUER_URL)
     });
 
     router.get('/interaction/:uid', async (ctx, next) => {
@@ -188,11 +217,16 @@ export default (provider) => {
                 });
             }
             case 'tos': {
-                const text = getText(ToSTextName)
+                const document = getTermsOfServiceDocument()
+                if (!document) {
+                    return provider.interactionFinished(ctx.req, ctx.res, {}, {
+                        mergeWithLastSubmission: true,
+                    })
+                }
                 await provider.interactionResult(ctx.req, ctx.res, {
-                    tosTextChecksum: crypto.createHash('sha256').update(text, 'utf8').digest('hex'),
+                    tosTextChecksum: document.contentHash,
                 })
-                return render(provider, ctx, 'tos', 'Terms of Service', {text, save: true}, true)
+                return render(provider, ctx, 'tos', 'Terms of Service', {text: document.text, save: true}, true)
             }
             case 'approval_required': {
                 // Check again so when user gets approved and refreshes the interaction page, flow can continue.
@@ -207,16 +241,27 @@ export default (provider) => {
                 }, true)
             }
             case 'groups_required': {
-                // Check again so when user gets assigned into a required group and refreshes the interaction page, flow can continue.
+                // Check again so ACL changes can take effect when the interaction page is refreshed.
                 const client = await provider.Client.find(params.client_id);
                 if (checkAccountGroups(client, ctx.currentAccount)) {
                     return provider.interactionFinished(ctx.req, ctx.res, {}, {
                         mergeWithLastSubmission: true,
                     });
                 }
-                auditLog(ctx, {interactionDetails}, 'User does not have required groups')
+                auditLog(ctx, {interactionDetails}, 'User does not satisfy client access policy')
+                await recordIncident(ctx, {
+                    source: 'oidc-login',
+                    accountId: ctx.currentAccount?.accountId,
+                    clientId: params.client_id,
+                    failure: 'client_access_required',
+                    allowedGroups: client?.allowedGroups,
+                    allowedUsers: client?.allowedUsers,
+                })
+                if (canRequestAccess(ctx.currentAccount, client)) {
+                    return render(provider, ctx, 'request-access', 'Access denied', {requested: false}, true)
+                }
                 return render(provider, ctx, 'message', 'Access denied', {
-                    message: 'You need to be a member of an allowed group to access this resource'
+                    message: 'Your account is not permitted to access this resource'
                 }, true)
             }
             case 'name': {
@@ -261,6 +306,25 @@ export default (provider) => {
         return ctx.render('repost', { layout: false, upstream, nonce});
     });
 
+    router.post('/interaction/:uid/request-access', async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+        if (interactionDetails?.prompt?.name !== 'groups_required') {
+            ctx.throw(404, 'No pending access denial to request membership for')
+        }
+        const client = await provider.Client.find(interactionDetails.params.client_id)
+        if (!ctx.currentAccount || !canRequestAccess(ctx.currentAccount, client)) {
+            ctx.throw(403, 'Requesting access is not available for this account')
+        }
+        await recordAccessRequest({
+            accountId: ctx.currentAccount.accountId,
+            clientId: interactionDetails.params.client_id,
+            allowedGroups: client.allowedGroups,
+        })
+        auditLog(ctx, {clientId: interactionDetails.params.client_id},
+            'User requested group membership for client access')
+        return render(provider, ctx, 'request-access', 'Access requested', {requested: true}, true)
+    });
+
     router.post('/interaction/:uid/email', async (ctx) => {
         if (!authMethodsEnabled().emailEnabled) {
             ctx.throw(404, 'Email login is disabled');
@@ -282,7 +346,9 @@ export default (provider) => {
         const impersonation = await ctx.sessionService.getImpersonation(ctx)
         const account = await Account.findAccount(ctx, impersonation.accountId)
         auditLog(ctx, {impersonation, account}, 'Impersonation used to log in')
-        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(ctx, provider, account, 'Impersonation'), {
+        return provider.interactionFinished(ctx.req, ctx.res, await getLoginResult(
+            ctx, provider, account, 'Impersonation', {impersonation: true},
+        ), {
             mergeWithLastSubmission: true,
         });
     });
@@ -299,16 +365,39 @@ export default (provider) => {
             const success = ctx.request.query[q] === 'true'
             return success ? (q === 'email' ? 'e-mail' : 'Slack') : null;
         }).filter(a => a);
-        return render(provider, ctx, 'message', 'Link sent', {
+        // The 'link-sent' view polls /email-status and continues automatically on
+        // this (original) device once the link is opened — possibly on another
+        // device/browser.
+        return render(provider, ctx, 'link-sent', 'Link sent', {
             message: `Login link sent to ${recipients.join(' and ')}`
         })
     });
 
-    router.get('/interaction/:uid/verify-email/:token', (ctx) => {
+    // Opened from the email — on any device/browser. Marks the email verified
+    // (and finishes immediately if opened in the original browser).
+    router.get('/interaction/:uid/verify-email/:token', async (ctx) => {
         const emailLogin = new EmailLogin()
-        const result = emailLogin.verifyLink(ctx, provider)
-        auditLog(ctx, {params: ctx.request.params, result}, 'Login link used')
-        return result
+        auditLog(ctx, {params: ctx.request.params}, 'Login link used')
+        return await emailLogin.verifyLink(ctx, provider)
+    });
+
+    // Polled by the original device's "link sent" page.
+    router.get('/interaction/:uid/email-status', async (ctx) => {
+        ctx.body = { verified: await new EmailLogin().isVerified(provider, ctx.params.uid) }
+    });
+
+    // Completes the login on the original device once the email is verified.
+    router.get('/interaction/:uid/email-complete', async (ctx) => {
+        const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
+        if (!interactionDetails.result?.emailVerified) {
+            return render(provider, ctx, 'message', 'Not verified yet', {
+                message: 'Open the link sent to your email to continue signing in.'
+            })
+        }
+        auditLog(ctx, {uid: ctx.params.uid}, 'Completing email login on original device')
+        return new EmailLogin().completeLogin(
+            ctx, provider, interactionDetails.result.email, interactionDetails.result.emailVerifiedAt,
+        )
     });
 
     // ============================================
@@ -397,8 +486,23 @@ export default (provider) => {
     router.post('/interaction/:uid/confirm-tos', async (ctx) => {
         const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res);
         assert.equal(interactionDetails.prompt.name, 'tos');
-        await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
-        auditLog(ctx, {interactionDetails}, 'ToS approved')
+        let accepted
+        try {
+            accepted = await confirmTos(ctx, interactionDetails.session.accountId, interactionDetails.result.tosTextChecksum)
+        } catch (error) {
+            if (error.status !== 409) throw error
+            const document = getTermsOfServiceDocument()
+            if (document) {
+                await provider.interactionResult(ctx.req, ctx.res, {
+                    tosTextChecksum: document.contentHash,
+                })
+                return render(provider, ctx, 'tos', 'Terms of Service', {
+                    text: document.text, save: true,
+                }, true)
+            }
+            accepted = false
+        }
+        auditLog(ctx, {interactionDetails}, accepted ? 'ToS approved' : 'ToS no longer configured')
         return provider.interactionFinished(ctx.req, ctx.res, {}, {
             mergeWithLastSubmission: true,
         });
@@ -443,7 +547,12 @@ export default (provider) => {
             }, true)
         }
 
-        const account = await ctx.kubeOIDCUserService.createUser(username, interactionDetails.lastSubmission?.email, interactionDetails.lastSubmission?.githubEmails)
+        let account = await ctx.kubeOIDCUserService.createUser(
+            username,
+            interactionDetails.lastSubmission?.email,
+            interactionDetails.lastSubmission?.githubEmails,
+            interactionDetails.lastSubmission?.stableIdentity,
+        )
         // The Kubernetes create is the authoritative uniqueness check; the
         // pre-validation can miss a taken name on a transient API error. If
         // creation failed, re-render the form instead of crashing on a null account.
@@ -456,19 +565,26 @@ export default (provider) => {
         }
         let condition = new UsernameCommitted()
         condition = condition.setStatus(true)
-        account.addCondition(condition)
-        await ctx.kubeOIDCUserService.updateUserStatus(account)
+        await ctx.kubeOIDCUserService.mutateUserStatus(
+            account.accountId,
+            current => current.addCondition(condition),
+        )
 
-        if (interactionDetails?.lastSubmission?.oauth?.provider) {
-            switch (interactionDetails.lastSubmission.oauth.provider) {
+        const submission = interactionDetails.lastSubmission
+        account = await recordSubmittedMagicLinkVerification(
+            ctx.kubeOIDCUserService, account, submission,
+        )
+
+        if (submission?.oauth?.provider) {
+            switch (submission.oauth.provider) {
                 case "GitHub":
                     await GithubLogin(ctx, provider)
                     break
                 default:
                     throw new Error('not implemented')
             }
-        } else if (interactionDetails?.lastSubmission?.oidc?.provider) {
-            const providerConfig = getOidcProvider(interactionDetails.lastSubmission.oidc.provider)
+        } else if (submission?.oidc?.provider) {
+            const providerConfig = getOidcProvider(submission.oidc.provider)
             if (!providerConfig) {
                 throw new Error('not implemented')
             }

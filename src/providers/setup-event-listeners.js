@@ -5,11 +5,43 @@ import handleOidcFlowMetrics, {
     nonExistentClientError, tokenError,
     userinfoError
 } from "../utils/session/handle-oidc-flow-metrics.js";
+import AuditService from '../services/audit-service.js';
+import {getActivityTracker} from '../services/activity-tracker.js';
+
+function activityFromContext(ctx) {
+    const client = ctx?.oidc?.client
+    const entities = ctx?.oidc?.entities ?? {}
+    const accountId = ctx?.oidc?.account?.accountId
+        ?? ctx?.oidc?.session?.accountId
+        ?? entities.AuthorizationCode?.accountId
+        ?? entities.RefreshToken?.accountId
+        ?? entities.AccessToken?.accountId
+    if (!client?.clientId) return undefined
+    return {
+        accountId,
+        clientId: client.clientId,
+        clientNamespace: client.clientNamespace,
+        clientName: client.clientName,
+        clientKind: client.kind,
+    }
+}
+
+export function interactionLogFields(interaction) {
+    return {
+        interactionId: interaction?.jti,
+        kind: interaction?.kind,
+        clientId: interaction?.params?.client_id,
+        prompt: interaction?.prompt?.name,
+        accountId: interaction?.session?.accountId ?? interaction?.result?.login?.accountId,
+    }
+}
 
 export default (provider) => {
     // https://github.com/panva/node-oidc-provider/blob/v8.x/docs/events.md
 
     const logger = globalThis.logger
+    const audit = new AuditService(logger)
+    const activityTracker = getActivityTracker()
 
     // Logging
     provider.on('access_token.destroyed', (token) => {
@@ -25,7 +57,7 @@ export default (provider) => {
     })
 
     provider.on('authorization_code.consumed', (code) => {
-        logger.info({code}, 'Client consumed authorization code')
+        logger.debug({clientId: code.clientId, accountId: code.accountId}, 'Client consumed authorization code')
     })
 
     provider.on('authorization_code.destroyed', (code) => {
@@ -47,6 +79,22 @@ export default (provider) => {
 
     provider.on('authorization.success', (ctx) => {
         logger.debug({ctx}, 'authorization.success')
+        const activity = activityFromContext(ctx)
+        if (activity) {
+            activityTracker.record(activity)
+            globalThis.metrics?.authorizationSuccess?.inc({client_id: activity.clientId, kind: activity.clientKind})
+            audit.write({
+                event: 'application.login.succeeded',
+                result: 'success',
+                subject: {id: activity.accountId},
+                client: {
+                    id: activity.clientId,
+                    namespace: activity.clientNamespace,
+                    name: activity.clientName,
+                    kind: activity.clientKind,
+                },
+            }, ctx)
+        }
     })
 
     provider.on('backchannel.error', (ctx, error, client, accountId, sid) => {
@@ -108,6 +156,22 @@ export default (provider) => {
 
     provider.on('grant.success', (ctx) => {
         logger.debug({ctx}, 'grant.success')
+        const activity = activityFromContext(ctx)
+        if (activity) {
+            activityTracker.record({...activity, userAuthenticated: false})
+            audit.write({
+                event: 'token.exchange.succeeded',
+                result: 'success',
+                grantType: ctx?.oidc?.params?.grant_type,
+                subject: {id: activity.accountId},
+                client: {
+                    id: activity.clientId,
+                    namespace: activity.clientNamespace,
+                    name: activity.clientName,
+                    kind: activity.clientKind,
+                },
+            }, ctx)
+        }
     })
 
     provider.on('initial_access_token.destroyed', (token) => {
@@ -119,7 +183,7 @@ export default (provider) => {
     })
 
     provider.on('interaction.destroyed', (interaction) => {
-        logger.debug({interaction}, 'interaction.destroyed')
+        logger.debug(interactionLogFields(interaction), 'interaction.destroyed')
     })
 
     provider.on('interaction.ended', (ctx) => {
@@ -127,7 +191,7 @@ export default (provider) => {
     })
 
     provider.on('interaction.saved', (interaction) => {
-        logger.debug({interaction}, 'interaction.saved')
+        logger.debug(interactionLogFields(interaction), 'interaction.saved')
     })
 
     provider.on('interaction.started', (ctx, prompt) => {
@@ -163,7 +227,7 @@ export default (provider) => {
     })
 
     provider.on('refresh_token.consumed', (token) => {
-        logger.info({token}, 'Client consumed refresh token')
+        logger.debug({clientId: token.clientId, accountId: token.accountId}, 'Client consumed refresh token')
     })
 
     provider.on('refresh_token.destroyed', (token) => {

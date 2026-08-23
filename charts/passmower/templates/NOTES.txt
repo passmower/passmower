@@ -1,2 +1,2 @@
 Find the application on URL:
-{{ .Values.passmower.url }}
+{{ include "passmower.url" . }}

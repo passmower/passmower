@@ -2,6 +2,13 @@
 node_modules
 /dist
 
+# Test artifacts
+/playwright-report
+/test-results
+/coverage
+passmower-e2e.log
+test/e2e/k3s-output
+
 # local env files
 .env.local
 .env.*.local

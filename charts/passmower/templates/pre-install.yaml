@@ -54,6 +54,8 @@ spec:
   template:
     spec:
       serviceAccountName: {{ include "passmower.fullname" . }}-key-manager
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -68,7 +70,10 @@ spec:
       {{- end }}
       containers:
         - name: oidc-key-manager
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.Version }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: [
             '/app/node_modules/.bin/key-manager', 'initialize',
             {{- range $label := splitList "\n" (include "passmower.selectorLabels" .) }}

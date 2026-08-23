@@ -1,9 +1,8 @@
 export const checkAccountGroups = (client, account) => {
-    if (client?.allowedGroups && client?.allowedGroups.length) {
-        const accountGroups = account.getProfileResponse().groups.map(g => g.displayName)
-        if (!client.allowedGroups.some(g => accountGroups.includes(g))) {
-            return false
-        }
-    }
-    return true
+    const allowedUsers = client?.allowedUsers ?? []
+    const allowedGroups = client?.allowedGroups ?? []
+    if (!allowedUsers.length && !allowedGroups.length) return true
+    if (allowedUsers.includes(account.accountId)) return true
+    const accountGroups = (account.groups ?? []).map(g => `${g.prefix}:${g.name}`)
+    return allowedGroups.some(group => accountGroups.includes(group))
 }

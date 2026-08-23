@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis
+          image: {{ .Values.redis.internal.image | default "redis:7-alpine" }}
           command:
             - redis-server
           env:

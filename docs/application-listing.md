@@ -41,6 +41,11 @@ Each entry carries the app's `allowedGroups` as `groups`, so a consumer can grou
 or filter the list further (and cross-reference it against the user's own
 `groups` claim).
 
+Clients may also restrict access with `allowedUsers`, an array of Passmower
+account IDs. User and group allowlists use OR semantics. The applications list
+honors both allowlists but does not expose `allowedUsers`, so one user cannot
+enumerate another client's explicit account ACL.
+
 The optional `description` is rendered from the client resource's
 `kubernetes.io/description` annotation (Markdown → sanitized HTML; `null` when the
 annotation is absent). It is also shown on the Passmower apps page. Example:
