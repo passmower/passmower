@@ -237,6 +237,11 @@ spec:
   tokenEndpointAuthMethod: none
 ```
 
+The generated client Secret exposes the scopes as `OIDC_AVAILABLE_SCOPES`,
+comma-delimited by default. Applications that split scope strings on spaces
+(the OAuth2 wire format) can set `availableScopesDelimiter: " "` on the
+`OIDCClient` to change how that value is rendered.
+
 Make sure to replace the `redirectURI` with the correct callback URL for your
 application. Secret named `oidc-client-grafana-owner-secrets` is written
 into the originating namespace.
