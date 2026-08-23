@@ -810,6 +810,10 @@ spec:
                       - profile
                       - offline_access
                       - groups
+                availableScopesDelimiter:
+                  type: string
+                  default: ","
+                  description: Delimiter used when rendering OIDC_AVAILABLE_SCOPES into the generated client secret. OAuth2 scope strings are space-delimited, but the historical default here is a comma; set to " " for apps that split scopes on spaces.
                       - allowed_groups
                       - applications
                       - all_applications
