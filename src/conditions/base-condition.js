@@ -1,5 +1,4 @@
 import {V1Condition} from "@kubernetes/client-node";
-import {defaultApiGroupVersion} from "../utils/kubernetes/kube-constants.js";
 
 export const conditionStatusTrue = 'True'
 export const conditionStatusFalse = 'False'
@@ -31,9 +30,12 @@ export class BaseCondition {
     }
 
     toKubeCondition() {
+        // Plain metav1.Condition shape — no apiVersion/kind. Those were only
+        // ever added to satisfy the CRD schema's x-kubernetes-embedded-resource
+        // marker, which was wrong (conditions are not embedded resources) and
+        // made any CR whose conditions lacked them fail validation on every
+        // subsequent update (kubectl apply on a reconciled OIDCClient broke).
         const condition = new V1Condition()
-        condition.apiVersion = defaultApiGroupVersion
-        condition.kind = 'Condition'
         condition.lastTransitionTime = new Date
         condition.status = this.status ? conditionStatusTrue : conditionStatusFalse
         condition.type = this.type
