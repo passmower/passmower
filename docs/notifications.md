@@ -4,7 +4,7 @@ Passmower can send short security notices to the affected user over every
 channel they have:
 
 - **Email** — the account's primary address, when email delivery is enabled
-  (`passmower.emailEnabled`).
+  (`passmower.outboundEmailEnabled`).
 - **Slack DM** — when the Slack workspace integration is configured
   (`slackClientSecretRef`) and the account is linked to a Slack user.
 

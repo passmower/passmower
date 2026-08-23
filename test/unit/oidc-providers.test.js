@@ -57,12 +57,12 @@ describe('getOidcProviders', () => {
         })
     })
 
-    it('does not request email by default when email is disabled but preserves explicit scopes', () => {
+    it('requests email by default even when delivery is disabled, preserving explicit scopes', () => {
         vi.stubEnv('EMAIL_ENABLED', 'false')
         vi.stubEnv('GITLAB_CLIENT_ID', 'id')
         vi.stubEnv('GITLAB_CLIENT_SECRET', 'secret')
         vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({gitlab: {issuer: 'https://gitlab.example.com'}}))
-        expect(getOidcProvider('gitlab').scopes).toEqual(['openid', 'profile'])
+        expect(getOidcProvider('gitlab').scopes).toEqual(['openid', 'email', 'profile'])
 
         vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
             gitlab: {issuer: 'https://gitlab.example.com', scopes: ['openid', 'email']},
