@@ -4,8 +4,13 @@ Passmower 2.0 is a major release. It carries four consumer-facing breaking chang
 (Helm values, one `OIDCClient` CRD field, standard OIDC email scoping, and strict email configuration) plus a sweep of major dependency
 upgrades. This note lists everything you must change, and what changed for the better.
 
-> Passmower 2.0.0 ships from `master` (image `ghcr.io/passmower/passmower:2.0.0`,
-> chart `oci://ghcr.io/passmower/charts/passmower --version 2.0.0`).
+> Passmower 2.0 ships from `master`. **Install 2.0.2 or later** (image
+> `ghcr.io/passmower/passmower:2.0.2`, chart
+> `oci://ghcr.io/passmower/charts/passmower --version 2.0.2`): 2.0.0 and 2.0.1
+> carry a CRD schema flaw that rejects `kubectl apply` on any `OIDCClient` once
+> the operator has written its reconciliation status, breaking GitOps flows.
+> Upgrading the chart replaces the CRDs (they are templated, not in `crds/`),
+> so a plain `helm upgrade` also repairs an affected cluster.
 
 ## Before you start
 
@@ -21,14 +26,22 @@ upgrades. This note lists everything you must change, and what changed for the b
 
 `EMAIL_ENABLED` is now the global switch for every email-dependent feature, not
 only magic-link login. It defaults to enabled. When enabled, Passmower validates
-`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_SSL`, `EMAIL_USERNAME`, and `EMAIL_PASSWORD` at
-boot and exits if any are missing. The Helm chart likewise rejects an enabled
-configuration without `passmower.emailCredentialsSecretRef`.
+`EMAIL_HOST`, `EMAIL_PORT`, and `EMAIL_SSL` at boot and exits if any are missing.
+SMTP credentials are optional for unauthenticated relays: `EMAIL_USERNAME` and
+`EMAIL_PASSWORD` must be set together or not at all, and without them
+`EMAIL_FROM` is required as the sender address. The Helm chart likewise rejects
+an enabled configuration without `passmower.emailCredentialsSecretRef`.
+
+Also note that `EMAIL_SSL` now does what it says: `"true"` enables implicit TLS
+(typically port 465). In 1.x the value was silently ignored, so a configuration
+that combined `EMAIL_SSL: "true"` with a STARTTLS port (typically 587) happened
+to work — it must switch to `"false"` (STARTTLS is still negotiated
+opportunistically when the relay offers it).
 
 Deployments that previously left email enabled but supplied incomplete or no SMTP
 configuration will crash-loop after upgrading. Before upgrading, choose one of:
 
-- configure a credentials Secret containing all five required variables and set
+- configure a credentials Secret with the required variables and set
   `passmower.emailCredentialsSecretRef`, or
 - set `passmower.emailEnabled: false` explicitly. This disables SMTP delivery,
   magic-link login, ToS receipts, and email invitations while permitting users to
@@ -290,6 +303,17 @@ You don't have to do anything to get these, but they're the reason to upgrade:
 - **Security fixes** from the dependency/vulnerability sweep.
 - **Pinned internal dev Redis image** (`redis.internal.image`, default `redis:7-alpine`)
   instead of the implicit `:latest`.
+- **Per-provider verified-email trust** (`oidcProviders.<key>.emailVerification`) with a
+  documented provider trust matrix; see [email-verification.md](email-verification.md).
+- **Access incidents and group-membership requests** — denied access is shown to admins
+  with a suggested fix, and users can request membership from the denial page
+  (`passmower.incidents`, `passmower.groupRequests`).
+- **User security notifications** over email/Slack for sign-ins and impersonation
+  (`passmower.notifications`).
+- **Usage metrics** — authorization counters, active sessions/users gauges, opt-in
+  per-group membership counts; see [metrics.md](metrics.md).
+- **Opt-in site-session IP binding** (`passmower.siteSessionIpBinding`) for
+  session-theft resistance.
 
 ---
 
@@ -300,7 +324,7 @@ After editing your values (section 1) and any `OIDCClient`s that used
 
 ```sh
 helm upgrade --install passmower \
-  oci://ghcr.io/passmower/charts/passmower --version 2.0.0 \
+  oci://ghcr.io/passmower/charts/passmower --version 2.0.2 \
   --set passmower.host=auth.your.domain \
   -f your-values.yaml
 ```
