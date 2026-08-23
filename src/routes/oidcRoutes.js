@@ -142,6 +142,9 @@ export default (provider) => {
             return render(provider, ctx, 'hi', process.env.WELCOME_MESSAGE || 'Welcome to Passmower', {
                 url: url.href,
                 welcomeSubtitle: process.env.WELCOME_SUBTITLE || 'One login. Every cluster. The Kubernetes-native OpenID provider.',
+                // Only the stock subtitle links to the project; an
+                // operator-supplied subtitle stays plain text.
+                welcomeSubtitleHref: process.env.WELCOME_SUBTITLE ? null : 'https://github.com/passmower/passmower',
                 welcome: true
             })
         }

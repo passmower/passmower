@@ -247,6 +247,15 @@ svg {
   font-size: 1.3rem;
   line-height: 1.5;
   margin: 0 0 2em;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 
 @media screen and (max-width: 640px) {
