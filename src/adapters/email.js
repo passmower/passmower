@@ -1,11 +1,11 @@
 import Nodemailer from "nodemailer";
-import {isEmailEnabled, validateEmailConfiguration} from '../utils/email-configuration.js';
+import {isOutboundEmailEnabled, validateEmailConfiguration} from '../utils/email-configuration.js';
 
 class EmailAdapter {
     #transporter
 
     async sendMail(to, subject, textContent, htmlContent) {
-        if (!isEmailEnabled()) throw new Error('Email delivery is disabled')
+        if (!isOutboundEmailEnabled()) throw new Error('Email delivery is disabled')
         validateEmailConfiguration()
         this.#transporter ??= Nodemailer.createTransport({
             host: process.env.EMAIL_HOST,

@@ -14,7 +14,7 @@ import validator, {
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import {getText} from "../utils/get-text.js";
 import {getUsernameSource} from "../utils/username-source.js";
-import {isEmailEnabled} from '../utils/email-configuration.js';
+import {isOutboundEmailEnabled} from '../utils/email-configuration.js';
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {listIncidents} from '../utils/session/incident-log.js';
 import {dismissAccessRequest, listAccessRequests} from '../utils/session/access-requests.js';
@@ -57,7 +57,7 @@ export default (provider) => {
         ctx.body = {
             groupPrefix: GroupPrefix,
             requireUsername: getUsernameSource() !== 'generated',
-            emailEnabled: isEmailEnabled(),
+            emailEnabled: isOutboundEmailEnabled(),
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
             disableEditingText: getText('disable_frontend_edit'),
         }
@@ -162,7 +162,7 @@ export default (provider) => {
     })
 
     router.post('/admin/api/account/invite', async (ctx, next) => {
-        if (!isEmailEnabled()) {
+        if (!isOutboundEmailEnabled()) {
             ctx.throw(404, 'Email-based invitations are disabled')
         }
         const email = ctx.request.body.email

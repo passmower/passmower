@@ -5,7 +5,7 @@ import getLoginResult from "../../utils/user/get-login-result.js";
 import { auditLog } from "../../utils/session/audit-log.js";
 import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
 import ScimLinkService from "../scim-link-service.js";
-import {isEmailEnabled} from '../../utils/email-configuration.js';
+import {isOutboundEmailEnabled} from '../../utils/email-configuration.js';
 import {canonicalizeEmail} from '../../utils/user/identity-integrity.js';
 
 // An explicit upstream `email_verified: false` is heeded from every issuer,
@@ -13,7 +13,7 @@ import {canonicalizeEmail} from '../../utils/user/identity-integrity.js';
 // never grant it, so acting on it is always safe. The per-provider
 // emailVerification setting governs only whether `true` is trusted.
 export const getOidcEmailError = (profile, env = process.env) => {
-    if (!profile.email && isEmailEnabled(env)) return 'missing'
+    if (!profile.email && isOutboundEmailEnabled(env)) return 'missing'
     if (profile.email && profile.email_verified === false) return 'unverified'
     return null
 }
@@ -186,7 +186,7 @@ export default async (ctx, provider, providerConfig) => {
                 auditLog(ctx, { interactionDetails }, `Accepting upstream-unverified email from ${displayName}: address is Passmower-verified for the already-linked account`);
             } else {
                 auditLog(ctx, { error: true, interactionDetails }, `Email not verified by ${displayName}`);
-                const remediation = isEmailEnabled()
+                const remediation = isOutboundEmailEnabled()
                     ? `Verify ${profile.email} at ${displayName} and sign in again, or use email login to verify it with Passmower.`
                     : `Verify ${profile.email} at ${displayName} and sign in again.`;
                 return accessDenied(ctx, provider, `Email not verified by ${displayName}. ${remediation}`);

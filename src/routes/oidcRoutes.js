@@ -31,7 +31,7 @@ import {recordIncident} from "../utils/session/incident-log.js";
 import {canRequestAccess, recordAccessRequest} from "../utils/session/access-requests.js";
 import {UsernameCommitted} from "../conditions/username-committed.js";
 import validator, {checkEmail, checkRealName, checkUsername} from "../utils/session/validator.js";
-import {isEmailEnabled} from '../utils/email-configuration.js';
+import {isOutboundEmailEnabled} from '../utils/email-configuration.js';
 import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 
 // Which login methods are surfaced on the sign-in page. Each is enabled
@@ -39,7 +39,7 @@ import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 const authMethodsEnabled = () => ({
     webauthnEnabled: process.env.WEBAUTHN_ENABLED !== 'false',
     githubEnabled: process.env.GITHUB_ENABLED !== 'false',
-    emailEnabled: isEmailEnabled(),
+    emailEnabled: isOutboundEmailEnabled(),
     oidcProviders: getOidcProviders(),
 });
 

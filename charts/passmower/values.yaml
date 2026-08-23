@@ -61,7 +61,7 @@ passmower:
   # mounted and upstream users may enroll using their stable provider identity
   # without an email address. Email identity collection from upstreams and
   # downstream email claims are independent of this switch.
-  emailEnabled: true
+  outboundEmailEnabled: true
   # Accept upstream OIDC logins carrying an explicit email_verified: false when
   # the upstream identity is already linked to an account holding Passmower
   # magic-link verification for that exact address. Returning users are not
@@ -111,7 +111,7 @@ passmower:
     ttlSeconds: 604800
 
   # Security notifications broadcast to the affected user over every channel
-  # they have: email (when emailEnabled) and a Slack DM (when
+  # they have: email (when outboundEmailEnabled) and a Slack DM (when
   # slackClientSecretRef is configured and the user is linked). Delivery is
   # best-effort and never blocks the flow that triggered it.
   notifications:

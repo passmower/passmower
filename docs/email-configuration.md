@@ -1,12 +1,15 @@
 # Email delivery and email-free operation
 
-`EMAIL_ENABLED=false` (Helm: `passmower.emailEnabled: false`) disables every
+`OUTBOUND_EMAIL_ENABLED=false` (Helm: `passmower.outboundEmailEnabled: false`;
+the pre-2.1 names `EMAIL_ENABLED` / `passmower.emailEnabled` — the env var is
+still honored as a fallback, the Helm key fails the render with a rename
+message) disables every
 outbound email path. Passmower does not initialize Nodemailer, does not mount
 `emailCredentialsSecretRef`, hides magic-link login and email-based admin
 invitations, and records Terms of Service acceptance without attempting to send
 a receipt.
 
-`EMAIL_ENABLED` governs **outbound delivery only**. Email identity collection
+`OUTBOUND_EMAIL_ENABLED` governs **outbound delivery only**. Email identity collection
 and downstream email claims are independent of it: GitHub logins always request
 `user:email` and store per-address verification evidence, generic providers
 default to the `openid email profile` scopes, and clients allowed the `email`
@@ -25,7 +28,7 @@ Forward-auth also omits the configured email header for those accounts.
 
 ```yaml
 passmower:
-  emailEnabled: false
+  outboundEmailEnabled: false
   # emailCredentialsSecretRef may be empty or omitted
   oidcProviders:
     dex:

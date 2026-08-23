@@ -1,6 +1,6 @@
 import EmailAdapter from "../adapters/email.js";
 import {SlackAdapter} from "../adapters/slack.js";
-import {isEmailEnabled} from "../utils/email-configuration.js";
+import {isOutboundEmailEnabled} from "../utils/email-configuration.js";
 
 export const loginNotificationsEnabled = (env = process.env) => env.NOTIFY_ON_LOGIN === 'true'
 export const impersonationNotificationsEnabled = (env = process.env) => env.NOTIFY_ON_IMPERSONATION !== 'false'
@@ -16,7 +16,7 @@ export const notifyAccount = async (account, subject, text, {
 } = {}) => {
     if (!account) return
     const deliveries = []
-    if (isEmailEnabled(env) && account.primaryEmail) {
+    if (isOutboundEmailEnabled(env) && account.primaryEmail) {
         deliveries.push(emailAdapter.sendMail(account.primaryEmail, subject, text)
             .catch(error => globalThis.logger?.warn(
                 {error: error.message, accountId: account.accountId},

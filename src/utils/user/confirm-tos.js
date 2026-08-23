@@ -1,7 +1,7 @@
 import Account from "../../models/account.js";
 import EmailAdapter from "../../adapters/email.js";
 import {getEmailContent, getEmailSubject} from "../get-email-content.js";
-import {isEmailEnabled} from '../email-configuration.js';
+import {isOutboundEmailEnabled} from '../email-configuration.js';
 import {auditLog} from '../session/audit-log.js';
 import {getTermsOfServiceDocument} from './tos-required.js';
 
@@ -21,7 +21,7 @@ export const confirmTos = async (ctx, accountId, contentHash) => {
         current => current.acceptTermsOfService(contentHash, acceptedAt),
     )
 
-    if (!isEmailEnabled() || !account.primaryEmail) return
+    if (!isOutboundEmailEnabled() || !account.primaryEmail) return
     try {
         const content = await getEmailContent('emails/tos', {
             name: account.profile.name,

@@ -43,7 +43,8 @@ configuration will crash-loop after upgrading. Before upgrading, choose one of:
 
 - configure a credentials Secret with the required variables and set
   `passmower.emailCredentialsSecretRef`, or
-- set `passmower.emailEnabled: false` explicitly. This disables SMTP delivery,
+- set `passmower.emailEnabled: false` explicitly (renamed to
+  `passmower.outboundEmailEnabled` in 2.1). This disables SMTP delivery,
   magic-link login, ToS receipts, and email invitations while permitting users to
   enroll through GitHub or another OIDC provider using their stable upstream
   identity without an email address. Since 2.1, this switch governs delivery

@@ -1,5 +1,8 @@
-{{- if and .Values.passmower.emailEnabled (not .Values.passmower.emailCredentialsSecretRef) }}
-{{- fail "passmower.emailCredentialsSecretRef is required when passmower.emailEnabled is true" }}
+{{- if hasKey .Values.passmower "emailEnabled" }}
+{{- fail "passmower.emailEnabled was renamed to passmower.outboundEmailEnabled (it governs outbound delivery only; email collection and downstream claims are unaffected)" }}
+{{- end }}
+{{- if and .Values.passmower.outboundEmailEnabled (not .Values.passmower.emailCredentialsSecretRef) }}
+{{- fail "passmower.emailCredentialsSecretRef is required when passmower.outboundEmailEnabled is true" }}
 {{- end }}
 apiVersion: apps/v1
 kind: Deployment
@@ -94,8 +97,8 @@ spec:
               value: {{ .Values.passmower.webauthnEnabled | quote }}
             - name: GITHUB_ENABLED
               value: {{ .Values.passmower.githubEnabled | quote }}
-            - name: EMAIL_ENABLED
-              value: {{ .Values.passmower.emailEnabled | quote }}
+            - name: OUTBOUND_EMAIL_ENABLED
+              value: {{ .Values.passmower.outboundEmailEnabled | quote }}
             - name: PASSMOWER_VERIFIED_EMAIL_OVERRIDE
               value: {{ .Values.passmower.passmowerVerifiedEmailOverride | quote }}
             - name: AUDIT_ENABLED
@@ -182,7 +185,7 @@ spec:
           envFrom:
             - secretRef:
                 name: oidc-keys
-            {{- if and .Values.passmower.emailEnabled .Values.passmower.emailCredentialsSecretRef }}
+            {{- if and .Values.passmower.outboundEmailEnabled .Values.passmower.emailCredentialsSecretRef }}
             - secretRef:
                 name: {{ .Values.passmower.emailCredentialsSecretRef }}
             {{- end }}

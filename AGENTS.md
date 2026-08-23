@@ -226,7 +226,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `OIDC_PROVIDERS` | JSON object of generic upstream OIDC providers keyed by provider slug. |
 | `OIDC_ALLOW_INSECURE_UPSTREAM` | Permit `http://` upstreams (local dev only). |
 | `GITHUB_ENABLED`, `GH_CLIENT_ID/SECRET`, `GITHUB_ORGANIZATION` | GitHub upstream. |
-| `EMAIL_ENABLED`, `EMAIL_HOST/PORT/SSL/USERNAME/PASSWORD/FROM` | Outbound email delivery. `false` disables delivery, magic-link login, ToS receipts, and email invitations, and permits enrollment by stable upstream identity without email; upstream email collection and downstream email claims are unaffected. When enabled (the default), `EMAIL_HOST/PORT/SSL` are required at boot; `EMAIL_USERNAME/PASSWORD` are optional as a pair (unauthenticated relay), with `EMAIL_FROM` required when they are absent. |
+| `OUTBOUND_EMAIL_ENABLED` (legacy `EMAIL_ENABLED` honored), `EMAIL_HOST/PORT/SSL/USERNAME/PASSWORD/FROM` | Outbound email delivery. `false` disables delivery, magic-link login, ToS receipts, and email invitations, and permits enrollment by stable upstream identity without email; upstream email collection and downstream email claims are unaffected. When enabled (the default), `EMAIL_HOST/PORT/SSL` are required at boot; `EMAIL_USERNAME/PASSWORD` are optional as a pair (unauthenticated relay), with `EMAIL_FROM` required when they are absent. |
 | `WEBAUTHN_ENABLED`, `WEBAUTHN_RP_NAME` | Passkeys. |
 | `SLACK_TOKEN` | Slack integration. |
 | `GROUP_PREFIX`, `ADMIN_GROUP`, `REQUIRED_GROUP` | Group/authorization policy. |
