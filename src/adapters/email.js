@@ -10,7 +10,11 @@ class EmailAdapter {
         this.#transporter ??= Nodemailer.createTransport({
             host: process.env.EMAIL_HOST,
             port: process.env.EMAIL_PORT,
-            ssl: process.env.EMAIL_SSL,
+            // Nodemailer's option is `secure` (implicit TLS); it has no `ssl`
+            // option, so EMAIL_SSL was silently ignored and implicit TLS only
+            // worked through the port-465 autodetect. Strict string compare:
+            // the raw "false" string would be truthy.
+            secure: process.env.EMAIL_SSL === 'true',
             // Unauthenticated relays (MailHog in dev) advertise no AUTH;
             // passing credentials anyway makes Nodemailer fail the handshake.
             auth: process.env.EMAIL_USERNAME ? {

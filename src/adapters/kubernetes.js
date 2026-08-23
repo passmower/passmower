@@ -22,6 +22,13 @@ import isEqual from 'lodash/isEqual.js';
 // Gated by KUBERNETES_API_SERVICE_DNS: 'auto' (default) only rewrites when the host is
 // an IPv6 literal (IPv4 clusters that work today are untouched); 'always' forces it;
 // 'never' disables it. Returns the replacement server URL, or null to leave it as-is.
+export const WATCH_TIMEOUT_MS = 60 * 60 * 1000
+
+// A clean end or the client-node request timeout is routine — reconnect
+// immediately so no CRD events are missed; back off only on genuine errors.
+export const watchRestartDelayMs = (err) =>
+    !err || err.name === 'TimeoutError' ? 0 : 10 * 1000
+
 export function apiServerUrlViaServiceDns({
     host = process.env.KUBERNETES_SERVICE_HOST,
     port = process.env.KUBERNETES_SERVICE_PORT,
@@ -373,6 +380,14 @@ export class KubernetesAdapter {
         const kind = plurals[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc);
+        // @kubernetes/client-node 2.x aborts every watch request after
+        // requestTimeoutMs (default 30s) by design and expects the caller to
+        // re-watch. At the default, combined with the 10s error backoff below,
+        // every operator was blind for a quarter of its lifetime and silently
+        // missed CRD events. Keep the request alive for an hour (the apiserver
+        // ends watches on its own terms well before that) and reconnect
+        // immediately on expected termination.
+        watch.requestTimeoutMs = WATCH_TIMEOUT_MS
         let path = this.watchParameters.namespaceFilter?.namespace ?
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}/namespaces/${this.watchParameters.namespaceFilter.namespace}` :
             `/apis/${this.watchParameters.apiGroup}/${this.watchParameters.apiGroupVersion}`
@@ -399,14 +414,16 @@ export class KubernetesAdapter {
                     // console.warn(watchObj)
                 }
             },
-            // done callback is called if the watch terminates normally
+            // done callback is called when the watch terminates for any reason
             (err) => {
-                // tslint:disable-next-line:no-console
-                globalThis.logger.warn('Kubernetes API watch terminated')
-                if (err) {
+                const delay = watchRestartDelayMs(err)
+                if (delay) {
+                    globalThis.logger.warn('Kubernetes API watch terminated')
                     globalThis.logger.error(err)
+                } else {
+                    globalThis.logger.debug(`Kubernetes API watch for ${kind} expired, reconnecting`)
                 }
-                setTimeout(() => { this.watchObjects(); }, 10 * 1000);
+                setTimeout(() => { this.watchObjects(); }, delay);
             }).then((abortController) => {
             // watch returns an AbortController which you can use to abort the watch.
             // setTimeout(() => { abortController.abort(); }, 10);

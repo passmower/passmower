@@ -29,7 +29,10 @@ passmower:
 ```
 
 When email is enabled, Passmower fails at startup unless `EMAIL_HOST`,
-`EMAIL_PORT`, and `EMAIL_SSL` are present. SMTP authentication is optional for
+`EMAIL_PORT`, and `EMAIL_SSL` are present. `EMAIL_SSL: "true"` enables implicit
+TLS (typically port 465); with `"false"`, STARTTLS is still negotiated
+opportunistically when the relay offers it (typically port 587). Do not combine
+`EMAIL_SSL: "true"` with a STARTTLS port. SMTP authentication is optional for
 unauthenticated relays (an internal relay, MailHog in dev): `EMAIL_USERNAME`
 and `EMAIL_PASSWORD` must be set together or not at all, and without a username
 `EMAIL_FROM` is required as the sender address. When no credentials are

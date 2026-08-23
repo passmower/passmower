@@ -49,3 +49,32 @@ describe('fetchExtraClaims', () => {
         expect(await fetchExtraClaims(ctx)).toEqual({})
     })
 })
+
+describe('fetchExtraClaims protected-claims filter', () => {
+    it('strips identity and authorization claims from the webhook response', async () => {
+        vi.stubEnv('EXTRA_CLAIMS_WEBHOOK_URL', 'http://webhook.test/enrich')
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                'codemowers.io/namespaces': ['tenant-demo'],
+                sub: 'victim',
+                groups: ['passmower:admins'],
+                email_verified: true,
+                aud: 'other-client',
+            }),
+        }))
+
+        expect(await fetchExtraClaims(ctx)).toEqual({
+            'codemowers.io/namespaces': ['tenant-demo'],
+        })
+    })
+
+    it('rejects non-object payloads such as arrays', async () => {
+        vi.stubEnv('EXTRA_CLAIMS_WEBHOOK_URL', 'http://webhook.test/enrich')
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => (['not', 'claims']),
+        }))
+        expect(await fetchExtraClaims(ctx)).toEqual({})
+    })
+})
