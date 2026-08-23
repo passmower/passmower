@@ -1,5 +1,6 @@
 # Passmower authorization server
 
+[![Release](https://img.shields.io/github/v/release/passmower/passmower)](https://github.com/passmower/passmower/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Overview
