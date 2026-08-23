@@ -53,9 +53,21 @@ describe('EmailAdapter', () => {
         await new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html')
 
         expect(mocks.createTransport).toHaveBeenCalledWith(
-            expect.objectContaining({host: 'mailhog', auth: undefined}))
+            expect.objectContaining({host: 'mailhog', auth: undefined, secure: false}))
         expect(mocks.sendMail).toHaveBeenCalledWith(expect.objectContaining({
             headers: {From: 'passmower@example.com'},
         }))
+    })
+
+    it('maps EMAIL_SSL onto Nodemailer secure (implicit TLS)', async () => {
+        for (const [key, value] of Object.entries({
+            EMAIL_ENABLED: 'true', EMAIL_HOST: 'smtp.example.com', EMAIL_PORT: '465',
+            EMAIL_SSL: 'true', EMAIL_USERNAME: 'passmower', EMAIL_PASSWORD: 'secret',
+        })) vi.stubEnv(key, value)
+
+        await new EmailAdapter().sendMail('a@example.com', 'subject', 'text', 'html')
+
+        expect(mocks.createTransport).toHaveBeenCalledWith(
+            expect.objectContaining({secure: true}))
     })
 })

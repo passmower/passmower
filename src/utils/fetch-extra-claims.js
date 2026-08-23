@@ -8,6 +8,26 @@
 // so any error yields {} (the enriched claim is simply absent) rather than
 // throwing. Keep this for small, stable signals only — never a hot-path
 // dependency.
+// Claims the webhook must never influence: identity, authorization, and
+// token-shape claims are owned by Passmower. The webhook's response is merged
+// into issued tokens verbatim, so without this filter a compromised or buggy
+// webhook could override sub/groups/email_verified and impersonate any user.
+const PROTECTED_CLAIMS = new Set([
+    'sub', 'iss', 'aud', 'exp', 'iat', 'nbf', 'jti', 'auth_time', 'nonce',
+    'sid', 'azp', 'at_hash', 'c_hash', 'scope', 'client_id',
+    'email', 'email_verified', 'emails', 'groups', 'username', 'name',
+])
+
+const sanitizeClaims = (claims, sub) => {
+    const entries = Object.entries(claims)
+    const safe = entries.filter(([key]) => !PROTECTED_CLAIMS.has(key))
+    if (safe.length !== entries.length) {
+        const stripped = entries.filter(([key]) => PROTECTED_CLAIMS.has(key)).map(([key]) => key)
+        console.error('Extra claims webhook tried to set protected claims; stripped', { stripped, sub })
+    }
+    return Object.fromEntries(safe)
+}
+
 export async function fetchExtraClaims({ sub, groups, client_id, scope }) {
     const url = process.env.EXTRA_CLAIMS_WEBHOOK_URL
     if (!url) {
@@ -29,7 +49,7 @@ export async function fetchExtraClaims({ sub, groups, client_id, scope }) {
             return {}
         }
         const claims = await response.json()
-        return (claims && typeof claims === 'object') ? claims : {}
+        return (claims && typeof claims === 'object' && !Array.isArray(claims)) ? sanitizeClaims(claims, sub) : {}
     } catch (error) {
         console.error('Extra claims webhook request failed', { error: error.message, sub })
         return {}
