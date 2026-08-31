@@ -33,6 +33,20 @@ describe('OIDCClient CRD schema', () => {
     const oidcClientCrd = loadAll(crds).find(doc => doc?.metadata?.name === 'oidcclients.codemowers.cloud')
 
     it.each(oidcClientCrd.spec.versions.map(version => version.name))(
+        '%s declares claimMappings as claim-name-keyed rule sets',
+        (versionName) => {
+            const version = oidcClientCrd.spec.versions.find(v => v.name === versionName)
+            const mapping = version.schema.openAPIV3Schema.properties.spec.properties
+                .claimMappings.additionalProperties
+
+            expect(mapping.properties.default.type).toBe('string')
+            expect(mapping.properties.rules.items.required).toEqual(['value'])
+            expect(mapping.properties.rules.items.properties.value.type).toBe('string')
+            expect(mapping.properties.rules.items.properties.groups.items.type).toBe('string')
+        }
+    )
+
+    it.each(oidcClientCrd.spec.versions.map(version => version.name))(
         '%s offers every scope the provider supports in availableScopes',
         (versionName) => {
             const version = oidcClientCrd.spec.versions.find(v => v.name === versionName)

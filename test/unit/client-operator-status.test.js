@@ -122,4 +122,47 @@ describe('OIDCClient reconciliation status', () => {
         })])
         expect(redis.records.size).toBe(0)
     })
+
+    it('refuses claimMappings naming a claim Passmower owns', async () => {
+        globalThis.logger = {debug() {}, info() {}, warn() {}, error() {}, trace() {}}
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps', instance: 'test-passmower'})
+        const redis = new FakeRedisAdapter()
+        const provider = {urlFor: endpoint => `https://id.example.com/${endpoint}`}
+        const operator = new KubeOIDCClientOperator(provider, adapter, redis)
+        await operator.watchClients()
+        const client = oidcClient('claim-squatter')
+        client.spec.claimMappings = {groups: {default: 'admins'}}
+        adapter.seed('OIDCClient', client)
+
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'claim-squatter')
+
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'False', reason: 'InvalidClaimMappings',
+            message: 'Invalid spec.claimMappings: claim "groups" is reserved by Passmower',
+        }))
+        expect(adapter.events).toEqual([expect.objectContaining({
+            reason: 'InvalidClaimMappings', type: 'Warning',
+        })])
+        // Rejected before the client can reach the provider.
+        expect(redis.records.size).toBe(0)
+    })
+
+    it('carries valid claimMappings through to the client record', async () => {
+        globalThis.logger = {debug() {}, info() {}, warn() {}, error() {}, trace() {}}
+        const adapter = new FakeKubernetesAdapter({namespace: 'apps', instance: 'test-passmower'})
+        const redis = new FakeRedisAdapter()
+        const provider = {urlFor: endpoint => `https://id.example.com/${endpoint}`}
+        const operator = new KubeOIDCClientOperator(provider, adapter, redis)
+        await operator.watchClients()
+        const client = oidcClient('immich')
+        client.spec.claimMappings = {immich_role: {default: 'user', rules: [{value: 'admin', groups: ['github:admins']}]}}
+        adapter.seed('OIDCClient', client)
+
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'immich')
+
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(expect.objectContaining({
+            type: 'Ready', status: 'True', reason: 'Reconciled',
+        }))
+        expect(redis.records.get('apps.immich').claimMappings).toEqual(client.spec.claimMappings)
+    })
 })

@@ -818,6 +818,37 @@ spec:
                   type: string
                   default: ","
                   description: Delimiter used when rendering OIDC_AVAILABLE_SCOPES into the generated client secret. OAuth2 scope strings are space-delimited, but the historical default here is a comma; set to " " for apps that split scopes on spaces.
+                claimMappings:
+                  type: object
+                  description: >-
+                    Extra claims emitted to this client only, derived from group
+                    membership — for applications that expect their own role or
+                    entitlement in a claim of their own naming. Keyed by
+                    claim name; rules are evaluated in order and the first one
+                    with a matching group wins, `default` applies when none
+                    match, and the claim is omitted when there is no match and
+                    no default. A rule without groups never matches. Claim names
+                    Passmower owns (sub, email, groups, ...) are rejected.
+                  additionalProperties:
+                    type: object
+                    properties:
+                      default:
+                        type: string
+                        description: Value emitted when no rule matches. Omit to emit nothing.
+                      rules:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - value
+                          properties:
+                            value:
+                              type: string
+                            groups:
+                              type: array
+                              description: Prefixed group names, as in allowedGroups and the groups claim (e.g. github:admins). Matching is OR within a rule.
+                              items:
+                                type: string
                 displayName:
                   type: string
                 disabled:

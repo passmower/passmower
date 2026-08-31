@@ -8,6 +8,7 @@ import {KubernetesAdapter} from "../adapters/kubernetes.js";
 import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {getActivityTracker} from "../services/activity-tracker.js";
 import {ClientReconcileState} from '../models/client-activity-state.js';
+import {validateClaimMappings} from '../utils/claim-mappings.js'
 
 export class KubeOIDCClientOperator {
     constructor(provider, adapter = new KubernetesAdapter(), redisAdapter = new RedisAdapter('Client')) {
@@ -33,6 +34,7 @@ export class KubeOIDCClientOperator {
     async #createOIDCClient (OIDCClient) {
         this.reconcileState.register(OIDCClient)
         try {
+            this.#assertValidClaimMappings(OIDCClient)
             if (OIDCClient.getInstance() === this.instance) {
                 if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
                     let secret = await this.adapter.getSecret(
@@ -99,6 +101,7 @@ export class KubeOIDCClientOperator {
             OIDCClient = claimedClient
         }
         try {
+            this.#assertValidClaimMappings(OIDCClient)
             if (OIDCClient.isDisabled()) {
                 await this.redisAdapter.destroy(OIDCClient.getClientId())
                 await this.#reportReady(OIDCClient, 'Disabled', 'Client is disabled and absent from Redis')
@@ -164,6 +167,20 @@ export class KubeOIDCClientOperator {
 
     #reconcileError(reason, message) {
         return Object.assign(new Error(message), {reason})
+    }
+
+    // Refuse a mapping that names a claim Passmower owns, or one that could not
+    // be put in a token, before the client reaches Redis — it would otherwise
+    // reconcile normally and emit that claim on every login. The message lands
+    // on the resource as Ready=False.
+    #assertValidClaimMappings(OIDCClient) {
+        const problems = validateClaimMappings(OIDCClient.getClaimMappings())
+        if (problems.length) {
+            throw this.#reconcileError(
+                'InvalidClaimMappings',
+                `Invalid spec.claimMappings: ${problems.join('; ')}`
+            )
+        }
     }
 
     async #reportReady(OIDCClient, reason, message) {

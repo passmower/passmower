@@ -6,6 +6,7 @@ import {listMyApps} from "../utils/apps/list-apps.js";
 import {getUsernameSource} from "../utils/username-source.js";
 import {sanitizeUsername, isUsernameValid, isUsernameAvailable} from "../utils/user/username.js";
 import {fetchExtraClaims} from "../utils/fetch-extra-claims.js";
+import {mappedClaimsFor} from "../utils/claim-mappings.js";
 import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
 import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 import {canImpersonateAccount} from '../utils/user/account-type-access.js';
@@ -140,6 +141,13 @@ class Account {
                 scope,
             }))
         }
+        // Group-derived claims of the application's own naming, from the
+        // client's spec.claimMappings (#220) — an application with its own role
+        // or entitlement model driven from Passmower groups. Merged last, but it
+        // cannot shadow anything above: reserved claim names are refused.
+        Object.assign(response, mappedClaimsFor(
+            this.#ctx?.oidc?.provider, this.#ctx?.oidc?.client, groups
+        ))
 
         return response
     }

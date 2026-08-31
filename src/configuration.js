@@ -4,6 +4,7 @@ import setupPolicies from "./providers/setup-policies.js";
 import {errors} from "oidc-provider";
 import isOrigin from "./utils/session/is-origin.js";
 import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
+import {mappedClaimsFor} from "./utils/claim-mappings.js";
 import {getAccountAccessFailure} from './utils/user/check-account-access.js';
 import {auditLog} from './utils/session/audit-log.js';
 
@@ -39,7 +40,13 @@ export default {
         const scopes = token.scope ? token.scope.split(' ') : [];
         const wantsGroups = scopes.includes('groups');
         const wantsNamespaces = scopes.includes('namespaces');
-        if (!wantsGroups && !wantsNamespaces) {
+        // Mapped claims are bound to the openid scope rather than requested, so
+        // they apply to any access token this client is issued.
+        const client = ctx?.oidc?.client?.clientId === token.clientId
+            ? ctx.oidc.client
+            : await ctx?.oidc?.provider?.Client?.find(token.clientId);
+        const hasClaimMappings = !!Object.keys(client?.claimMappings ?? {}).length;
+        if (!wantsGroups && !wantsNamespaces && !hasClaimMappings) {
             return undefined;
         }
         const account = await Account.findAccount(ctx, token.accountId);
@@ -61,6 +68,7 @@ export default {
                 scope: token.scope,
             }));
         }
+        Object.assign(claims, mappedClaimsFor(ctx?.oidc?.provider, client, groups));
         return Object.keys(claims).length ? claims : undefined;
     },
     cookies: {
@@ -196,6 +204,7 @@ export default {
         properties: [
             'allowedGroups',
             'allowedUsers',
+            'claimMappings',
             'clientNamespace',
             'availableScopes',
             'kind',
@@ -206,6 +215,13 @@ export default {
             'allowedCORSOrigins'
         ],
         validator(ctx, key, value, metadata) {
+            // Unlisted metadata is stripped by oidc-provider, and a client
+            // predating the field has none — normalise so the emission paths
+            // can read client.claimMappings without guarding.
+            if (key === 'claimMappings' && (value === undefined || value === null)) {
+                metadata['claimMappings'] = {};
+                return;
+            }
             if (key === 'allowedCORSOrigins') {
                 // set default (no CORS)
                 if (value === undefined) {
