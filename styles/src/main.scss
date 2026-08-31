@@ -1,4 +1,9 @@
-@import 'base';
+// `@use`, not `@import`: Sass @import is deprecated and goes away in Dart Sass
+// 3.0. Both sass scripts pass --fatal-deprecation=import so a reintroduced
+// @import fails the build instead of warning. base.scss holds only custom
+// properties and element rules, so nothing here needs the `base.` namespace —
+// a Sass variable or mixin added there would.
+@use 'base';
 
 body {
   max-width: 1280px;
