@@ -1,3 +1,5 @@
+import {PROTECTED_CLAIMS} from './protected-claims.js'
+
 // Calls a generic, external claims-enrichment webhook (an operator-supplied
 // HTTP service, in the spirit of Auth0 Actions or Okta inline hooks) and
 // returns the JSON claims object to merge into the issued token. Configured
@@ -8,15 +10,10 @@
 // so any error yields {} (the enriched claim is simply absent) rather than
 // throwing. Keep this for small, stable signals only — never a hot-path
 // dependency.
-// Claims the webhook must never influence: identity, authorization, and
-// token-shape claims are owned by Passmower. The webhook's response is merged
-// into issued tokens verbatim, so without this filter a compromised or buggy
-// webhook could override sub/groups/email_verified and impersonate any user.
-const PROTECTED_CLAIMS = new Set([
-    'sub', 'iss', 'aud', 'exp', 'iat', 'nbf', 'jti', 'auth_time', 'nonce',
-    'sid', 'azp', 'at_hash', 'c_hash', 'scope', 'client_id',
-    'email', 'email_verified', 'emails', 'groups', 'username', 'name',
-])
+// The webhook's response is merged into issued tokens verbatim, so without
+// this filter a compromised or buggy webhook could override
+// sub/groups/email_verified and impersonate any user. Shared with per-client
+// claim mappings, which are filtered the same way.
 
 const sanitizeClaims = (claims, sub) => {
     const entries = Object.entries(claims)

@@ -137,6 +137,11 @@ npm run test:e2e         # Playwright browser login against Dex (docker-compose.
   the live `Set-Cookie` header to `[Redacted]` on the wire and breaks every login.
 - `end_session` reads `ctx.cookies`, not `ctx.oidc.cookies` (set both if shimming).
 - `base-domain` must guard IP/`localhost` hosts (no public suffix → return the hostname).
+- `oidc-provider` **silently drops any claim it was not configured with**: the mask
+  in `helpers/claims.js` filters against `claimsSupported`, built once at boot from
+  the `claims` config. Runtime claim names (per-client `spec.claimMappings`) must be
+  added to `instance(provider).configuration` — `src/utils/claim-mappings.js` owns
+  that, and `test/unit/claim-mappings.test.js` pins the internal shape.
 
 ## Local development
 
@@ -237,4 +242,4 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
 See also: `README.md` (install + upstream config), `docs/application-listing.md`,
-`docs/username-configuration.md`.
+`docs/claim-mappings.md`, `docs/username-configuration.md`.

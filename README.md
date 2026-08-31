@@ -308,6 +308,15 @@ user is allowed to open — via the `applications` userinfo claim, or the full
 admin-only catalog at `GET /api/apps/all`. See
 [docs/application-listing.md](docs/application-listing.md).
 
+## Mapping groups to application roles
+
+Many applications carry their own role or entitlement model and expect to be told
+which one a user has, in a claim of their own naming. Per-client
+`OIDCClient.spec.claimMappings` derives such a claim from group membership, so an
+application's roles can be governed alongside its client in Git without Passmower
+knowing anything about that application — and without a code change here for the
+next one. See [docs/claim-mappings.md](docs/claim-mappings.md).
+
 ## Audit logging and application activity
 
 Passmower emits minimal structured audit records and maintains bounded recent
