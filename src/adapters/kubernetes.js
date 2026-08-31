@@ -266,7 +266,7 @@ export class KubernetesAdapter {
             ...metadata
         }
         kubeSecret.data = await this.#generateSecretData(data)
-        await this.coreV1Api.createNamespacedSecret({
+        return await this.coreV1Api.createNamespacedSecret({
             namespace,
             body: kubeSecret
         }, this.defaultOptions).then(async (r) => {
