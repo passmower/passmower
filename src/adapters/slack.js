@@ -36,10 +36,15 @@ export class SlackAdapter {
         return teamIdPromise
     }
 
-    async sendMessage(userId, text) {
+    // `text` is always sent: Slack renders it in the notification and the
+    // channel preview, and falls back to it wherever blocks cannot render.
+    // `blocks` is optional so callers that have nothing to lay out keep sending
+    // exactly the payload they did before.
+    async sendMessage(userId, text, blocks) {
         return await this.client.chat.postMessage({
             channel: userId,
-            text
+            text,
+            ...(blocks?.length ? {blocks} : {}),
         })
     }
 }

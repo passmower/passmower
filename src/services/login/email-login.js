@@ -6,6 +6,7 @@ import EmailAdapter from "../../adapters/email.js";
 import {CustomOIDCProviderError} from "oidc-provider/lib/helpers/errors.js";
 import {getEmailContent, getEmailSubject} from "../../utils/get-email-content.js";
 import {SlackAdapter} from "../../adapters/slack.js";
+import {loginLinkMessage} from "../../utils/slack-message.js";
 import {parseRequestMetadata} from "../../utils/session/parse-request-headers.js";
 import {auditLog} from "../../utils/session/audit-log.js";
 import {IdentityIntegrityError} from "../../utils/user/identity-integrity.js";
@@ -71,7 +72,18 @@ export class EmailLogin {
             .then(() => true)
             .catch((error) => logger.error({ctx, error}, 'email-login.email_error'))
 
-        const sendSlack = this.slackAdapter.client && account?.slackId ? this.slackAdapter.sendMessage(account.slackId, content.text)
+        // Same link, laid out as Block Kit with a Sign in button (#17) — the
+        // email body stays the notification/fallback text.
+        const slackMessage = loginLinkMessage({
+            url,
+            instance: process.env.ISSUER_URL,
+            email,
+            client: client?.displayName || client?.clientId,
+            browser: metadata.browser,
+            ip: metadata.ip,
+            text: content.text,
+        })
+        const sendSlack = this.slackAdapter.client && account?.slackId ? this.slackAdapter.sendMessage(account.slackId, slackMessage.text, slackMessage.blocks)
             .then(() => auditLog(ctx, {email, slackId: account.slackId}, 'Sent login link via Slack'))
             .then(() => true)
             .catch((error) => logger.error({ctx, error}, 'email-login.slack_error'))
