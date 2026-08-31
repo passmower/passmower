@@ -1,5 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {describe, expect, it} from 'vitest'
+import {loadAll} from 'js-yaml'
+import configuration from '../../src/configuration.js'
 
 const crds = readFileSync(new URL('../../charts/passmower/templates/crds.yaml', import.meta.url), 'utf8')
 
@@ -22,4 +24,29 @@ describe('OIDCUser CRD schema', () => {
         expect(spec).not.toContain('termsOfService:')
         expect(status).toContain('termsOfService:')
     })
+})
+
+describe('OIDCClient CRD schema', () => {
+    // Parse rather than string-match: the enum values that went missing in
+    // 746ebc9 were still literally present in the file, just folded into the
+    // preceding description as a multi-line plain scalar.
+    const oidcClientCrd = loadAll(crds).find(doc => doc?.metadata?.name === 'oidcclients.codemowers.cloud')
+
+    it.each(oidcClientCrd.spec.versions.map(version => version.name))(
+        '%s offers every scope the provider supports in availableScopes',
+        (versionName) => {
+            const version = oidcClientCrd.spec.versions.find(v => v.name === versionName)
+            const availableScopes = version.schema.openAPIV3Schema.properties.spec.properties.availableScopes
+
+            // oidc-provider derives its scopes from `scopes` plus every `claims`
+            // key that maps to a set of claims (helpers/configuration.js
+            // collectScopes), so this is the full set a client may request.
+            const claimDefinedScopes = Object.entries(configuration.claims)
+                .filter(([, claims]) => Array.isArray(claims))
+                .map(([scope]) => scope)
+            const supportedScopes = new Set([...configuration.scopes, ...claimDefinedScopes])
+
+            expect(new Set(availableScopes.items.enum)).toEqual(supportedScopes)
+        }
+    )
 })
