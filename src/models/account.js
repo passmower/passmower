@@ -403,11 +403,28 @@ class Account {
         return this.#github?.id
     }
 
+    // Passmower's own approval of this account, recorded as a fact rather than
+    // expressed as group membership. Approval must not be a group write: local
+    // groups here are merged into status.groups by getIntendedStatus, so
+    // granting the account a group belonging to an upstream directory would put
+    // a group the user is not actually in into their groups claim and into
+    // every other client's allowedGroups check (#235).
+    setApproved() {
+        this.#passmower ??= {}
+        this.#passmower.approved = true
+        return this
+    }
+
+    isApproved() {
+        return this.#passmower?.approved === true
+    }
+
     pushCustomGroup(name) {
         const group = {
             prefix: GroupPrefix,
             name
         }
+        this.#passmower ??= {}
         if (!this.#passmower.groups) {
             this.#passmower.groups = []
         }

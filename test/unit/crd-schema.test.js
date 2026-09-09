@@ -14,6 +14,18 @@ describe('OIDCUser CRD schema', () => {
         expect(passmower).toContain('onboardedBy:')
     })
 
+    it('declares the admin approval marker as a boolean under passmower', () => {
+        // Approval is recorded here rather than by granting the required group,
+        // so the field has to exist on every served version or the write is
+        // pruned and approving silently does nothing again (#235).
+        const oidcUserCrd = loadAll(crds).find(doc => doc?.metadata?.name === 'oidcusers.codemowers.cloud')
+
+        for (const version of oidcUserCrd.spec.versions) {
+            const passmower = version.schema.openAPIV3Schema.properties.passmower.properties
+            expect(passmower.approved.type).toBe('boolean')
+        }
+    })
+
     it('declares Terms of Service acceptance in status rather than spec', () => {
         const oidcUserSchema = crds.slice(crds.indexOf('&oidcUserSchema'), crds.indexOf('\n    additionalPrinterColumns:', crds.indexOf('&oidcUserSchema')))
         const specStart = oidcUserSchema.indexOf('\n            spec:')

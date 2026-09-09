@@ -372,6 +372,24 @@ access policies, so deleted or newly ineligible users cannot retain access for
 the full refresh-token lifetime. See
 [docs/refresh-token-authorization.md](docs/refresh-token-authorization.md).
 
+### Approval
+
+When `requiredGroup` is set, an account needs it (or `adminGroup`) to sign in
+anywhere. Both are matched against full group identifiers — `<prefix>:<name>`,
+where local groups carry `groupPrefix` and upstream ones the provider's prefix —
+so a value without a prefix matches nothing and is warned about at boot.
+
+An administrator can also approve an account directly from the admin panel,
+which records `spec.passmower.approved: true` on the `OIDCUser` and satisfies
+the policy on its own. That is the override for someone who should have access
+but cannot be added to the required group — the usual case when the group is
+synced from a directory. Approval is deliberately *not* implemented by granting
+the account the required group: local groups are merged into the account's
+groups, so granting an upstream group would publish a directory membership the
+user does not have to every client's `groups` claim and `allowedGroups` check.
+When `requiredGroup` is a local group, approval grants it as well, so clients
+gating on that group keep seeing approved users.
+
 ```
 apiVersion: codemowers.cloud/v1
 kind: OIDCUser
