@@ -268,8 +268,31 @@ env:
     valueFrom:
       secretKeyRef:
         name: oidc-client-grafana-owner-secrets
-        key: OIDC_GATEWAY_AUTH_URI
+        key: OIDC_IDP_AUTH_URI
 ```
+
+The generated secret carries these keys:
+
+| Key | Value |
+|---|---|
+| `OIDC_CLIENT_ID` | `<namespace>.<name>` |
+| `OIDC_CLIENT_SECRET` | Generated client secret |
+| `OIDC_GRANT_TYPES` | `spec.grantTypes` |
+| `OIDC_RESPONSE_TYPES` | `spec.responseTypes` |
+| `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` | `spec.tokenEndpointAuthMethod` |
+| `OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG` | `spec.idTokenSignedResponseAlg` |
+| `OIDC_REDIRECT_URIS` | `spec.redirectUris` |
+| `OIDC_AVAILABLE_SCOPES` | `spec.availableScopes`, joined by `spec.availableScopesDelimiter` |
+| `OIDC_ALLOWED_GROUPS` | `spec.allowedGroups` |
+| `OIDC_ALLOWED_USERS` | `spec.allowedUsers` |
+| `OIDC_IDP_URI` | Issuer base URL |
+| `OIDC_IDP_WELL_KNOWN_URI` | Discovery document |
+| `OIDC_IDP_AUTH_URI` | Authorization endpoint |
+| `OIDC_IDP_TOKEN_URI` | Token endpoint |
+| `OIDC_IDP_USERINFO_URI` | UserInfo endpoint |
+
+List-valued keys are comma-separated, except `OIDC_AVAILABLE_SCOPES` when
+`spec.availableScopesDelimiter` says otherwise.
 
 To list applications:
 

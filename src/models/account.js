@@ -490,7 +490,15 @@ class Account {
                 }
                 const source = getUsernameSource()
                 if (source === 'prompt') {
-                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity})
+                    // Suggest the sanitized candidate, not the raw upstream
+                    // value: an OIDC preferred_username is often an email (a UPN
+                    // on Entra ID), which breaks four of the five USERNAME_RULES,
+                    // so prefilling it raw hands the user a field they have to
+                    // clear before they can get anywhere.
+                    const candidate = sanitizeUsername(preferredUsername)
+                    return await requireCustomUsername(ctx, provider, {
+                        email, githubEmails, preferredUsername: candidate ?? preferredUsername, identity,
+                    })
                 } else if (source === 'upstream') {
                     const candidate = sanitizeUsername(preferredUsername)
                     if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
