@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 1.2.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.2.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -307,6 +307,15 @@ Dashboards, launchers and shared navbars can fetch the applications a signed-in
 user is allowed to open — via the `applications` userinfo claim, or the full
 admin-only catalog at `GET /api/apps/all`. See
 [docs/application-listing.md](docs/application-listing.md).
+
+## Mapping groups to application roles
+
+Many applications carry their own role or entitlement model and expect to be told
+which one a user has, in a claim of their own naming. Per-client
+`OIDCClient.spec.claimMappings` derives such a claim from group membership, so an
+application's roles can be governed alongside its client in Git without Passmower
+knowing anything about that application — and without a code change here for the
+next one. See [docs/claim-mappings.md](docs/claim-mappings.md).
 
 ## Audit logging and application activity
 

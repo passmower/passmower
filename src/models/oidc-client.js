@@ -36,6 +36,7 @@ class OIDCClient {
     #redirectUris = null
     #allowedGroups = null
     #allowedUsers = null
+    #claimMappings = null
     #overrideIncomingScopes = null
     #availableScopes = null
     #availableScopesDelimiter = ','
@@ -69,6 +70,7 @@ class OIDCClient {
             redirect_uris: this.#redirectUris,
             allowedGroups: this.#allowedGroups, // camel case because it's a custom metadata
             allowedUsers: this.#allowedUsers,
+            claimMappings: this.#claimMappings,
             availableScopes: this.#availableScopes,
             instanceUri: this.#instanceUri,
             uri: this.#uri,
@@ -93,6 +95,7 @@ class OIDCClient {
         this.#redirectUris = incomingClient.spec.redirectUris
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#allowedUsers = incomingClient.spec.allowedUsers || []
+        this.#claimMappings = incomingClient.spec.claimMappings ?? {}
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
         // OAuth2 scope strings are space-delimited, but the generated secret
@@ -144,6 +147,10 @@ class OIDCClient {
             ],
             ...this.#secretMetadata
         }
+    }
+
+    getClaimMappings() {
+        return this.#claimMappings
     }
 
     getConditions() {
