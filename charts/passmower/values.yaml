@@ -14,8 +14,12 @@ passmower:
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
+  # Use the full "prefix:name" identifier — local groups carry groupPrefix,
+  # upstream ones the provider's prefix. An unprefixed value matches no group.
   adminGroup: ""
   # If set, require all users to be member of the given local or remote group.
+  # Full "prefix:name" identifier, as with adminGroup. Administrators can also
+  # approve individual accounts, which satisfies this without the group.
   requiredGroup: ""
   # Authenticated, read-only directory of members of selected groups. Empty by
   # default: no roles or user contact details are exposed until explicitly set.
