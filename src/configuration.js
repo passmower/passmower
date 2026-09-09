@@ -16,7 +16,11 @@ export default {
             if (failure) {
                 auditLog(ctx, {accountId: id, clientId: ctx.oidc?.client?.clientId, failure},
                     'Refresh token no longer satisfies account access policy')
-                return null
+                // undefined, not null: oidc-provider validates this callback's
+                // return (helpers/configuration_result.js) and accepts only
+                // undefined or a well-formed account — null is a TypeError, and
+                // a 500 where the client should get invalid_grant.
+                return undefined
             }
         }
         return account

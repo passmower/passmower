@@ -524,7 +524,10 @@ class Account {
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-        return await ctx.kubeOIDCUserService.findUser(id, ctx) || null
+        // undefined rather than null for "no such account": this feeds
+        // configuration.findAccount, whose return oidc-provider type-checks,
+        // and null fails that check with a 500 instead of invalid_grant.
+        return await ctx.kubeOIDCUserService.findUser(id, ctx) || undefined
     }
 
     static async findByEmail(ctx, email) {
