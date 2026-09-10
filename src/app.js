@@ -18,6 +18,7 @@ import KubeScimConnectionOperator from "./operators/kube-scim-connection-operato
 import metricsServer from "./routes/metrics-server.js";
 import {getUsernameSource} from "./utils/username-source.js";
 import {validateEmailConfiguration} from './utils/email-configuration.js';
+import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 
@@ -70,6 +71,7 @@ export async function main() {
         setupLogger()
         getUsernameSource() // validate USERNAME_SOURCE (and warn on deprecated flags) at boot
         validateEmailConfiguration()
+        validateGroupConfiguration() // warn on REQUIRED_GROUP/ADMIN_GROUP that can never match
         const provider = await buildProvider()
         server = provider.listen(PORT, () => {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);

@@ -95,7 +95,15 @@ export class FakeKubernetesAdapter {
     // --- Secrets + pods (used by the client operator) -----------------------
 
     async getSecret(namespace, id) { return this.secrets.get(`${namespace}/${id}`) }
-    async createSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
+    // Creating over an existing Secret is a 409 in a real cluster; model that,
+    // or a test cannot see two reconciles racing on the same client.
+    async createSecret(namespace, id, data, metadata, {ignoreAlreadyExists = false} = {}) {
+        const key = `${namespace}/${id}`
+        if (this.secrets.has(key)) return ignoreAlreadyExists ? {alreadyExists: true} : null
+        const s = { data: structuredClone(data), metadata }
+        this.secrets.set(key, s)
+        return s
+    }
     async patchSecret(namespace, id, data, metadata) { const s = { data: structuredClone(data), metadata }; this.secrets.set(`${namespace}/${id}`, s); return s }
     async deleteSecret(namespace, id) { this.secrets.delete(`${namespace}/${id}`) }
     async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {

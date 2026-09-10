@@ -14,8 +14,13 @@ export const addGrant = async (provider, prompt, grantId, accountId, client) => 
     }
 
     if (prompt.details.missingOIDCScope) {
+        // offline_access is absent from missingOIDCScope unless the
+        // authorization request carried prompt=consent, which OIDC Core §11
+        // requires and oidc-provider enforces before the interaction. Adding it
+        // to the grant does not put it into the code's scopes and so does not
+        // make a refresh token issuable; it only lets the grant carry the scope
+        // for a client allowed it. See docs/refresh-token-authorization.md.
         if (client.availableScopes.includes('offline_access')) {
-            // TODO: figure out why offline_access is stripped from missingOIDCScope.
             grant.addOIDCScope('offline_access')
         }
         grant.addOIDCScope(prompt.details.missingOIDCScope.join(' '));

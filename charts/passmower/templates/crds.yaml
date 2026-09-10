@@ -521,6 +521,14 @@ spec:
                         type: string
                 name:
                   type: string
+                approved:
+                  type: boolean
+                  description: >-
+                    Set by an administrator approving this account against the
+                    REQUIRED_GROUP policy. Recorded here rather than by granting
+                    the required group, so approval works when REQUIRED_GROUP
+                    names an upstream group and Passmower never writes a
+                    directory group onto an account that is not in it.
                 onboardedBy:
                   type: string
                   description: Account ID of the administrator who invited this user

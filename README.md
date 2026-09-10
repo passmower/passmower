@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.2.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.3.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -268,8 +268,31 @@ env:
     valueFrom:
       secretKeyRef:
         name: oidc-client-grafana-owner-secrets
-        key: OIDC_GATEWAY_AUTH_URI
+        key: OIDC_IDP_AUTH_URI
 ```
+
+The generated secret carries these keys:
+
+| Key | Value |
+|---|---|
+| `OIDC_CLIENT_ID` | `<namespace>.<name>` |
+| `OIDC_CLIENT_SECRET` | Generated client secret |
+| `OIDC_GRANT_TYPES` | `spec.grantTypes` |
+| `OIDC_RESPONSE_TYPES` | `spec.responseTypes` |
+| `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` | `spec.tokenEndpointAuthMethod` |
+| `OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG` | `spec.idTokenSignedResponseAlg` |
+| `OIDC_REDIRECT_URIS` | `spec.redirectUris` |
+| `OIDC_AVAILABLE_SCOPES` | `spec.availableScopes`, joined by `spec.availableScopesDelimiter` |
+| `OIDC_ALLOWED_GROUPS` | `spec.allowedGroups` |
+| `OIDC_ALLOWED_USERS` | `spec.allowedUsers` |
+| `OIDC_IDP_URI` | Issuer base URL |
+| `OIDC_IDP_WELL_KNOWN_URI` | Discovery document |
+| `OIDC_IDP_AUTH_URI` | Authorization endpoint |
+| `OIDC_IDP_TOKEN_URI` | Token endpoint |
+| `OIDC_IDP_USERINFO_URI` | UserInfo endpoint |
+
+List-valued keys are comma-separated, except `OIDC_AVAILABLE_SCOPES` when
+`spec.availableScopesDelimiter` says otherwise.
 
 To list applications:
 
@@ -348,6 +371,24 @@ Refresh-token exchanges re-check the current Kubernetes account and client
 access policies, so deleted or newly ineligible users cannot retain access for
 the full refresh-token lifetime. See
 [docs/refresh-token-authorization.md](docs/refresh-token-authorization.md).
+
+### Approval
+
+When `requiredGroup` is set, an account needs it (or `adminGroup`) to sign in
+anywhere. Both are matched against full group identifiers — `<prefix>:<name>`,
+where local groups carry `groupPrefix` and upstream ones the provider's prefix —
+so a value without a prefix matches nothing and is warned about at boot.
+
+An administrator can also approve an account directly from the admin panel,
+which records `spec.passmower.approved: true` on the `OIDCUser` and satisfies
+the policy on its own. That is the override for someone who should have access
+but cannot be added to the required group — the usual case when the group is
+synced from a directory. Approval is deliberately *not* implemented by granting
+the account the required group: local groups are merged into the account's
+groups, so granting an upstream group would publish a directory membership the
+user does not have to every client's `groups` claim and `allowedGroups` check.
+When `requiredGroup` is a local group, approval grants it as well, so clients
+gating on that group keep seeing approved users.
 
 ```
 apiVersion: codemowers.cloud/v1

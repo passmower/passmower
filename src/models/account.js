@@ -403,11 +403,28 @@ class Account {
         return this.#github?.id
     }
 
+    // Passmower's own approval of this account, recorded as a fact rather than
+    // expressed as group membership. Approval must not be a group write: local
+    // groups here are merged into status.groups by getIntendedStatus, so
+    // granting the account a group belonging to an upstream directory would put
+    // a group the user is not actually in into their groups claim and into
+    // every other client's allowedGroups check (#235).
+    setApproved() {
+        this.#passmower ??= {}
+        this.#passmower.approved = true
+        return this
+    }
+
+    isApproved() {
+        return this.#passmower?.approved === true
+    }
+
     pushCustomGroup(name) {
         const group = {
             prefix: GroupPrefix,
             name
         }
+        this.#passmower ??= {}
         if (!this.#passmower.groups) {
             this.#passmower.groups = []
         }
@@ -490,7 +507,15 @@ class Account {
                 }
                 const source = getUsernameSource()
                 if (source === 'prompt') {
-                    return await requireCustomUsername(ctx, provider, {email, githubEmails, preferredUsername, identity})
+                    // Suggest the sanitized candidate, not the raw upstream
+                    // value: an OIDC preferred_username is often an email (a UPN
+                    // on Entra ID), which breaks four of the five USERNAME_RULES,
+                    // so prefilling it raw hands the user a field they have to
+                    // clear before they can get anywhere.
+                    const candidate = sanitizeUsername(preferredUsername)
+                    return await requireCustomUsername(ctx, provider, {
+                        email, githubEmails, preferredUsername: candidate ?? preferredUsername, identity,
+                    })
                 } else if (source === 'upstream') {
                     const candidate = sanitizeUsername(preferredUsername)
                     if (candidate && isUsernameValid(candidate) && await isUsernameAvailable(ctx, candidate)) {
@@ -524,7 +549,10 @@ class Account {
         // token is a reference to the token used for which a given account is being loaded,
         // it is undefined in scenarios where account claims are returned from authorization endpoint
         // ctx is the koa request context
-        return await ctx.kubeOIDCUserService.findUser(id, ctx) || null
+        // undefined rather than null for "no such account": this feeds
+        // configuration.findAccount, whose return oidc-provider type-checks,
+        // and null fails that check with a 500 instead of invalid_grant.
+        return await ctx.kubeOIDCUserService.findUser(id, ctx) || undefined
     }
 
     static async findByEmail(ctx, email) {

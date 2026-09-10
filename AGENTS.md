@@ -137,6 +137,13 @@ npm run test:e2e         # Playwright browser login against Dex (docker-compose.
   the live `Set-Cookie` header to `[Redacted]` on the wire and breaks every login.
 - `end_session` reads `ctx.cookies`, not `ctx.oidc.cookies` (set both if shimming).
 - `base-domain` must guard IP/`localhost` hosts (no public suffix → return the hostname).
+- `oidc-provider` 9.12+ **type-checks what configuration callbacks return**
+  (`helpers/configuration_result.js`). `findAccount` must resolve `undefined` or a
+  well-formed account — **`null` is a TypeError**, surfacing as a 500 where the
+  client should get `invalid_grant`. 9.11 only checked truthiness, so the two deny
+  paths in `configuration.findAccount` / `Account.findAccount` worked by accident;
+  `test/unit/find-account-contract.test.js` pins the type. The same file validates
+  `getResourceServerInfo`, `expiresWithSession`, `pkce.required` and friends.
 - `oidc-provider` **silently drops any claim it was not configured with**: the mask
   in `helpers/claims.js` filters against `claimsSupported`, built once at boot from
   the `claims` config. Runtime claim names (per-client `spec.claimMappings`) must be

@@ -140,7 +140,7 @@ spec:
             - name: REDIS_URI
               valueFrom:
                 secretKeyRef:
-                  name: redis-{{ include "passmower.fullname" . }}-owner-secret
+                  name: redis-{{ include "passmower.fullname" . }}-owner-secrets
                   key: REDIS_MASTER_0_URI
             {{- else if and .Values.redis.external.enabled .Values.redis.external.secretKeyRef.name (not .Values.redis.external.host) (not .Values.redis.external.envFromSecretRef) }}
             - name: REDIS_URI

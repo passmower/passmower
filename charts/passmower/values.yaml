@@ -14,8 +14,12 @@ passmower:
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
+  # Use the full "prefix:name" identifier — local groups carry groupPrefix,
+  # upstream ones the provider's prefix. An unprefixed value matches no group.
   adminGroup: ""
   # If set, require all users to be member of the given local or remote group.
+  # Full "prefix:name" identifier, as with adminGroup. Administrators can also
+  # approve individual accounts, which satisfies this without the group.
   requiredGroup: ""
   # Authenticated, read-only directory of members of selected groups. Empty by
   # default: no roles or user contact details are exposed until explicitly set.
@@ -233,6 +237,23 @@ redis:
     enabled: true
     # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
     image: redis:7-alpine
+    # Scheduling for the internal Redis, which holds every session and grant —
+    # losing it signs everyone out at once. With neither requests nor limits the
+    # pod is BestEffort, which is what a kubelet evicts first under node memory
+    # pressure, so on a node pool that sees pressure set at least a memory
+    # request here. Empty by default to keep upgrades from changing where an
+    # existing pod can schedule; the main Deployment's own knobs are the
+    # top-level resources/nodeSelector/affinity/tolerations.
+    resources: {}
+      # requests:
+      #   cpu: 50m
+      #   memory: 128Mi
+      # limits:
+      #   memory: 256Mi
+    nodeSelector: {}
+    affinity: {}
+    tolerations: []
+    priorityClassName: ""
   # Use your own implementation. REDIS_URI remains supported through
   # secretKeyRef. Alternatively set host/port/username/database here and source
   # the password from a Secret, or import a Secret whose keys are REDIS_HOST,
@@ -301,6 +322,13 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
+# Passmower's HTTP side is stateless (sessions in Redis, signing keys in a
+# Secret), but each replica also runs the CRD operators, and they are not
+# leader-elected — the instance identity they claim resources with is per
+# Deployment, not per Pod, so every replica reconciles every event. Reconciles
+# converge rather than corrupt (see #236), but raising this above 1 buys
+# duplicated work and API churn, not throughput. Leader election is tracked in
+# #236.
 replicaCount: 1
 
 resources: {}

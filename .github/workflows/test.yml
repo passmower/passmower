@@ -73,6 +73,15 @@ jobs:
           npm --prefix frontend ci && npm --prefix frontend run build
           npm --prefix styles ci && npm --prefix styles run sass-prod
 
+      # Chromium itself comes from Playwright's CDN, but `--with-deps` runs
+      # apt-get update, which refreshes every source on the runner image —
+      # including Google's Chrome repo, which this job never uses. When that
+      # repo served an index inconsistent with its release file, apt failed with
+      # `Hash Sum mismatch` and every job in the repo died before a test ran.
+      # Drop the source so a third-party mirror cannot take CI out again.
+      - name: Drop the unused Google Chrome apt source
+        run: sudo rm -f /etc/apt/sources.list.d/google-chrome*
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
