@@ -39,6 +39,14 @@ passmower:
   usernameSource: prompt
   # Allow enrolling new users automatically. Actual access will be based on requiredGroup parameter. Disable to only manually provision users.
   enrollUsers: true
+  # Enroll applications from `codemowers.io/oidc-*` annotations on Ingresses, in
+  # addition to hand-written OIDCClient resources. An annotated Ingress gets an
+  # OIDCClient owned by it, which the client operator then reconciles as usual;
+  # removing the Ingress removes the client with it. Off by default because it
+  # creates resources and needs cluster-wide read on Ingresses, which the chart
+  # only grants when this is on. See docs/ingress-discovery.md.
+  ingressDiscovery:
+    enabled: false
   # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
   disableFrontendEdit: false
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.

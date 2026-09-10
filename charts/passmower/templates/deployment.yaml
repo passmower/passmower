@@ -77,6 +77,8 @@ spec:
               value: {{ .Values.passmower.enrollUsers | quote }}
             - name: DISABLE_FRONTEND_EDIT
               value: {{ .Values.passmower.disableFrontendEdit | quote }}
+            - name: INGRESS_DISCOVERY_ENABLED
+              value: {{ .Values.passmower.ingressDiscovery.enabled | quote }}
             {{- with .Values.passmower.namespaceSelector }}
             - name: NAMESPACE_SELECTOR
               value: {{ . | quote }}

@@ -245,8 +245,10 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `ENROLL_USERS`, `USERNAME_SOURCE`, `REQUIRE_CUSTOM_USERNAME`, `USE_GITHUB_USERNAME` | Enrollment / username policy (see `docs/username-configuration.md`). |
 | `PREFERRED_EMAIL_DOMAIN`, `NORMALIZE_EMAIL_ADDRESSES` | Email handling. |
 | `NAMESPACE_SELECTOR` | Which namespaces to watch for client CRDs. |
+| `INGRESS_DISCOVERY_ENABLED` | Derive `OIDCClient`s from `codemowers.io/oidc-*` Ingress annotations (off by default; needs Ingress read). |
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
 See also: `README.md` (install + upstream config), `docs/application-listing.md`,
-`docs/claim-mappings.md`, `docs/username-configuration.md`.
+`docs/claim-mappings.md`, `docs/ingress-discovery.md`,
+`docs/username-configuration.md`.
