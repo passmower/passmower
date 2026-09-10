@@ -254,10 +254,31 @@ export default {
     async expiresWithSession(ctx, code) {
         return true // always end whole session, also clients using refresh token with offline_access
     },
-    async issueRefreshToken(ctx, client, code) {
-        return true
-        // TODO: figure out why offline_access is stripped from scopes.
-        // return client.grantTypeAllowed('refresh_token') && code.scopes.has('offline_access');
+    // Refresh tokens go to any client allowed the refresh_token grant, whether
+    // or not offline_access was granted. oidc-provider's default additionally
+    // requires that scope, which OIDC Core §11 ties to prompt=consent — but
+    // these are not offline access: expiresWithSession above ends them with the
+    // session, so they only ever renew silently while the user is still signed
+    // in. Requiring the consent ceremony for that would buy nothing and take
+    // renewal away from every client whose relying party does not send the
+    // prompt. A relying party that wants true offline access requests
+    // offline_access with prompt=consent, and gets a grant carrying the scope.
+    //
+    // The grant-type half is not optional: without it a client is handed a
+    // refresh token the token endpoint then refuses with "requested grant type
+    // is not allowed for this client".
+    async issueRefreshToken(ctx, client, code) { // eslint-disable-line no-unused-vars
+        if (client.grantTypeAllowed('refresh_token')) {
+            return true
+        }
+        // Asked for offline access but cannot be given it — a client whose
+        // grantTypes and whose application disagree, which is otherwise silent:
+        // sign-in succeeds and only renewal is missing.
+        if ((ctx.oidc?.params?.scope ?? '').split(' ').includes('offline_access')) {
+            auditLog(ctx, {clientId: client.clientId},
+                'Refresh token withheld: client is not allowed the refresh_token grant')
+        }
+        return false
     },
     rotateRefreshToken(ctx) {
         // TODO: figure out how to prompt for changed conditions
