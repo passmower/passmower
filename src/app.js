@@ -21,6 +21,7 @@ import {validateEmailConfiguration} from './utils/email-configuration.js';
 import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
+import {KubeIngressDiscoveryOperator} from "./operators/kube-ingress-discovery-operator.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -60,6 +61,12 @@ export async function startOperators(provider) {
     await kubeUserEventHookOperator.watchUsers()
     const scimConnectionOperator = new KubeScimConnectionOperator()
     await scimConnectionOperator.watchConnections()
+    // Opt-in: discovery creates OIDCClient resources from annotations on any
+    // Ingress it can read, so an installation says when it wants that.
+    if (process.env.INGRESS_DISCOVERY_ENABLED === 'true') {
+        const ingressDiscoveryOperator = new KubeIngressDiscoveryOperator()
+        await ingressDiscoveryOperator.watchIngresses()
+    }
     activityTracker.start()
 }
 

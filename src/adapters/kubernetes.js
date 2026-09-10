@@ -146,6 +146,22 @@ export class KubernetesAdapter {
         })
     }
 
+    async deleteNamespacedCustomObject(kind, namespace, id, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        return await this.customObjectsApi.deleteNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
+            namespace,
+            plural: plurals[kind],
+            name: id
+        }, this.defaultOptions).then(() => true).catch((e) => {
+            if (e.code === 404) {
+                return true // already gone; the caller wanted it absent
+            }
+            globalThis.logger.error(e)
+            return false
+        })
+    }
+
     async patchNamespacedCustomObject(kind, namespace, id, values, existingValues, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         const delta = diff(existingValues, values)
         const patches = format(delta);
