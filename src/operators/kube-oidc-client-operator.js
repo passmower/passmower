@@ -37,20 +37,7 @@ export class KubeOIDCClientOperator {
             this.#assertValidClaimMappings(OIDCClient)
             if (OIDCClient.getInstance() === this.instance) {
                 if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
-                    let secret = await this.adapter.getSecret(
-                        OIDCClient.getClientNamespace(),
-                        OIDCClient.getSecretName()
-                    )
-                    if (secret) {
-                        OIDCClient.setSecret(secret.data[OIDCClientSecretClientSecretKey])
-                    } else {
-                        OIDCClient.generateSecret()
-                        await this.adapter.deleteSecret(
-                            OIDCClient.getClientNamespace(),
-                            OIDCClient.getSecretName()
-                        )
-                        await this.#createKubeSecret(OIDCClient)
-                    }
+                    await this.#reconcileClientSecret(OIDCClient)
                 }
             } else if (!OIDCClient.getInstance()) {
                 // Claim that client. Continue with the returned resource so later
@@ -58,8 +45,7 @@ export class KubeOIDCClientOperator {
                 const claimedClient = await this.#replaceClientStatus(OIDCClient)
                 if (claimedClient?.getInstance() === this.instance) {
                     OIDCClient = claimedClient
-                    OIDCClient.generateSecret()
-                    await this.#createKubeSecret(OIDCClient)
+                    await this.#reconcileClientSecret(OIDCClient)
                 } else {
                     return
                 }
@@ -107,22 +93,12 @@ export class KubeOIDCClientOperator {
                 await this.#reportReady(OIDCClient, 'Disabled', 'Client is disabled and absent from Redis')
                 return
             }
+            // Debounce the burst of MODIFIED events our own status writes
+            // produce. This used to also paper over the ADDED path still
+            // creating the Secret; #reconcileClientSecret no longer needs the
+            // head start, since whichever reconcile gets there first wins.
             await new Promise(res => setTimeout(res, 1000));
-            let secret = await this.adapter.getSecret(
-                OIDCClient.getClientNamespace(),
-                OIDCClient.getSecretName()
-            )
-            if (secret) {
-                OIDCClient.setSecret(secret.data[OIDCClientSecretClientSecretKey])
-                await this.#patchKubeSecret(OIDCClient, secret)
-            } else {
-                OIDCClient.generateSecret()
-                await this.adapter.deleteSecret(
-                    OIDCClient.getClientNamespace(),
-                    OIDCClient.getSecretName()
-                )
-                await this.#createKubeSecret(OIDCClient)
-            }
+            await this.#reconcileClientSecret(OIDCClient)
             await this.redisAdapter.upsert(OIDCClient.getClientId(), OIDCClient.toRedis())
             await this.#reportReady(OIDCClient, 'Reconciled', 'Client reconciliation completed successfully')
         } catch (error) {
@@ -130,24 +106,48 @@ export class KubeOIDCClientOperator {
         }
     }
 
-    async #createKubeSecret(OIDCClient) {
-        const secret = await this.adapter.createSecret(
-            OIDCClient.getClientNamespace(),
-            OIDCClient.getSecretName(),
+    // Converge on one client_secret. Reconciles of the same client overlap: the
+    // watch callback is not awaited between events, so an ADDED and the
+    // MODIFIED our own status write provokes can be in flight together, and
+    // every replica reconciles every event because the instance identity is
+    // per-Deployment, not per-Pod. Generating a secret and deleting whatever
+    // was there — what this used to do — meant each reconcile installed its own
+    // secret and upserted that one to Redis, so the application could end up
+    // holding a secret the provider had already replaced, and authentication
+    // failed with invalid_client until something reconciled again (#236).
+    //
+    // Whoever creates the Secret first wins; everyone else adopts it. Nothing
+    // here deletes a Secret, so a client_secret is never rotated as a
+    // side effect of a reconcile.
+    async #reconcileClientSecret(OIDCClient) {
+        const namespace = OIDCClient.getClientNamespace()
+        const name = OIDCClient.getSecretName()
+        const existing = await this.adapter.getSecret(namespace, name)
+        if (existing) {
+            return await this.#adoptKubeSecret(OIDCClient, existing)
+        }
+        OIDCClient.generateSecret()
+        const created = await this.adapter.createSecret(
+            namespace,
+            name,
             OIDCClient.toClientSecret(this.provider),
             OIDCClient.toClientSecretMetadata(),
+            {ignoreAlreadyExists: true},
         )
-        if (!secret) throw this.#reconcileError('SecretReconcileFailed', 'Failed to create client Secret')
-        if (OIDCClient.getSecretRefreshJob()) {
-            const job = await this.adapter.createJob(
-                OIDCClient.getClientNamespace(),
-                OIDCClient.getSecretRefreshJob()
-            )
-            if (!job) throw this.#reconcileError('RefreshJobReconcileFailed', 'Failed to create secret-refresh Job')
+        if (created?.alreadyExists) {
+            // Lost the race; take the winner's secret rather than ours.
+            const secret = await this.adapter.getSecret(namespace, name)
+            if (!secret) {
+                throw this.#reconcileError('SecretReconcileFailed', 'Client Secret exists but could not be read')
+            }
+            return await this.#adoptKubeSecret(OIDCClient, secret)
         }
+        if (!created) throw this.#reconcileError('SecretReconcileFailed', 'Failed to create client Secret')
+        await this.#reconcileRefreshJob(OIDCClient)
     }
 
-    async #patchKubeSecret(OIDCClient, existingSecret) {
+    async #adoptKubeSecret(OIDCClient, existingSecret) {
+        OIDCClient.setSecret(existingSecret.data[OIDCClientSecretClientSecretKey])
         const secret = await this.adapter.patchSecret(
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName(),
@@ -156,13 +156,22 @@ export class KubeOIDCClientOperator {
             existingSecret
         )
         if (!secret) throw this.#reconcileError('SecretReconcileFailed', 'Failed to update client Secret')
-        if (OIDCClient.getSecretRefreshJob()) {
-            const job = await this.adapter.createJob(
-                OIDCClient.getClientNamespace(),
-                OIDCClient.getSecretRefreshJob()
-            )
-            if (!job) throw this.#reconcileError('RefreshJobReconcileFailed', 'Failed to create secret-refresh Job')
+        await this.#reconcileRefreshJob(OIDCClient)
+    }
+
+    // The Job name is derived from the client's resourceVersion, so an existing
+    // one means another reconcile of this same version already created it —
+    // success, not the failure it used to be reported as.
+    async #reconcileRefreshJob(OIDCClient) {
+        if (!OIDCClient.getSecretRefreshJob()) {
+            return
         }
+        const job = await this.adapter.createJob(
+            OIDCClient.getClientNamespace(),
+            OIDCClient.getSecretRefreshJob(),
+            {ignoreAlreadyExists: true},
+        )
+        if (!job) throw this.#reconcileError('RefreshJobReconcileFailed', 'Failed to create secret-refresh Job')
     }
 
     #reconcileError(reason, message) {

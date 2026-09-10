@@ -259,7 +259,10 @@ export class KubernetesAdapter {
         })
     }
 
-    async createSecret(namespace, id, data, metadata) {
+    // `ignoreAlreadyExists` reports a 409 as {alreadyExists: true} instead of a
+    // failure, so a caller racing another writer can adopt the Secret that won
+    // rather than treat the collision as an error (same contract as createJob).
+    async createSecret(namespace, id, data, metadata, {ignoreAlreadyExists = false} = {}) {
         let kubeSecret = new V1Secret()
         kubeSecret.metadata = {
             name: id,
@@ -272,6 +275,10 @@ export class KubernetesAdapter {
         }, this.defaultOptions).then(async (r) => {
             return this.#parseSecretData(r.data)
         }).catch((e) => {
+            const statusCode = e.code ?? e.statusCode ?? e.response?.statusCode
+            if (ignoreAlreadyExists && statusCode === 409) {
+                return {alreadyExists: true}
+            }
             globalThis.logger.error(e)
             return null
         })
