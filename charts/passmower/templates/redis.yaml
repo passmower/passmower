@@ -25,6 +25,9 @@ spec:
       labels:
         app: redis
     spec:
+      {{- with .Values.redis.internal.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       containers:
         - name: redis
           image: {{ .Values.redis.internal.image | default "redis:7-alpine" }}
@@ -35,6 +38,20 @@ spec:
               value: "true"
           ports:
             - containerPort: 6379
+          resources:
+            {{- toYaml .Values.redis.internal.resources | nindent 12 }}
+      {{- with .Values.redis.internal.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.internal.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.internal.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

@@ -237,6 +237,23 @@ redis:
     enabled: true
     # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
     image: redis:7-alpine
+    # Scheduling for the internal Redis, which holds every session and grant —
+    # losing it signs everyone out at once. With neither requests nor limits the
+    # pod is BestEffort, which is what a kubelet evicts first under node memory
+    # pressure, so on a node pool that sees pressure set at least a memory
+    # request here. Empty by default to keep upgrades from changing where an
+    # existing pod can schedule; the main Deployment's own knobs are the
+    # top-level resources/nodeSelector/affinity/tolerations.
+    resources: {}
+      # requests:
+      #   cpu: 50m
+      #   memory: 128Mi
+      # limits:
+      #   memory: 256Mi
+    nodeSelector: {}
+    affinity: {}
+    tolerations: []
+    priorityClassName: ""
   # Use your own implementation. REDIS_URI remains supported through
   # secretKeyRef. Alternatively set host/port/username/database here and source
   # the password from a Secret, or import a Secret whose keys are REDIS_HOST,
