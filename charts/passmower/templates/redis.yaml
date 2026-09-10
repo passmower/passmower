@@ -30,7 +30,7 @@ spec:
       {{- end }}
       containers:
         - name: redis
-          image: {{ .Values.redis.internal.image | default "redis:7-alpine" }}
+          image: {{ .Values.redis.internal.image | default "valkey/valkey:8-alpine" }}
           command:
             - redis-server
           env:
