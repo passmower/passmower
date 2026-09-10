@@ -240,11 +240,17 @@ redis:
     spec:
       capacity: 100Mi
       class: ephemeral
-  # Deploys a simple, non persistent Redis deployment.
+  # Deploys a simple, non persistent session store.
   internal:
     enabled: true
-    # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
-    image: redis:7-alpine
+    # Image for the internal (non-persistent) store. Pinned rather than :latest.
+    # Valkey by default: it is BSD-licensed, where the redis:7 line is
+    # RSALv2/SSPLv1, and this chart ships as open source. Either works — the
+    # container command stays redis-server, which the Valkey image provides as a
+    # symlink, so setting this back to redis:7-alpine (or redis:8-alpine) needs
+    # no other change. Only the bundled store is affected; redisClaim and
+    # external are untouched.
+    image: valkey/valkey:8-alpine
     # Scheduling for the internal Redis, which holds every session and grant —
     # losing it signs everyone out at once. With neither requests nor limits the
     # pod is BestEffort, which is what a kubelet evicts first under node memory
