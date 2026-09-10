@@ -1,9 +1,14 @@
-# Enrolling applications from Ingress annotations
+# Ingress integration
 
-Applications are normally enrolled by writing an `OIDCClient`. Passmower can
-also derive one from annotations on an `Ingress`, the way Traefik and
-external-dns are configured, so an application that already declares its
-hostname and path in an Ingress does not have to repeat them.
+An application that already declares its hostname in an `Ingress` should not
+have to repeat it in its `OIDCClient`. There are two ways not to, both off
+unless `passmower.ingressDiscovery.enabled` is set:
+
+- **[Annotations on the Ingress](#annotating-an-ingress)** derive the whole
+  client, the way Traefik and external-dns are configured — no `OIDCClient` to
+  write at all.
+- **[`ingressRef` on the OIDCClient](#taking-the-host-from-an-ingress-ingressref)**
+  keeps the client hand-written but reads the host from an Ingress.
 
 Off by default, because it creates resources and needs cluster read on
 Ingresses, which the chart grants only when it is on:
@@ -118,10 +123,77 @@ Events:
 | `OIDCClientConflict` | a client of that name exists and is not ours to manage |
 | `IngressDiscoveryFailed` | the annotations do not describe a client — the message says why |
 
+## Taking the host from an Ingress (`ingressRef`)
+
+The other direction: keep writing the `OIDCClient` by hand, but read the host
+from an Ingress instead of repeating it.
+
+```yaml
+apiVersion: codemowers.cloud/v1
+kind: OIDCClient
+metadata:
+  name: grafana
+  namespace: apps
+spec:
+  displayName: Grafana
+  grantTypes: ['authorization_code']
+  responseTypes: ['code']
+  availableScopes: ['openid', 'profile', 'email']
+  ingressRef:
+    name: grafana
+  redirectPaths:
+    - /login/generic_oauth
+```
+
+`uri` and `redirectUris` are resolved from the referenced Ingress' host plus
+`redirectPaths`, and are **not written back into the resource** — the operator
+reports them in status instead, so a GitOps tool sees no drift on a resource it
+owns:
+
+```console
+$ kubectl -n apps get oidcclient grafana -o jsonpath='{.status.resolvedUri}'
+https://grafana.example.com/
+```
+
+Set either `redirectUris` **or** `ingressRef` with `redirectPaths` — the CRD
+rejects both together and neither at all:
+
+```
+The OIDCClient "grafana" is invalid: spec: Invalid value: set either
+redirectUris, or ingressRef with redirectPaths — not both and not neither
+```
+
+Rules, mostly the same as for annotation discovery:
+
+- **Same namespace only.** `ingressRef` has no `namespace` field, deliberately:
+  pointing at another namespace's Ingress would let a client claim a hostname it
+  does not own.
+- **One host**, for the same reason discovery refuses several.
+- **Requires `passmower.ingressDiscovery.enabled`**, which is what grants Ingress
+  read. Without it the client reports
+  `Ready=False IngressRefUnresolved` naming the setting.
+- **A missing or unusable Ingress is refused, not guessed at**: registering a
+  client with no redirect URI would fail logins with a mismatch, which is much
+  harder to place than a condition saying `the referenced Ingress does not
+  exist`.
+- **A renamed host takes effect immediately.** Renaming the Ingress host does not
+  touch the client, so nothing about the client changes and its reconcile
+  fingerprint is unmoved; the Ingress watch asks the client operator to
+  reconcile it anyway, and the resolved values follow within a second.
+
+> **All Passmower instances watching the namespace must be 2.4.0 or newer.**
+> `ingressRef` clients have no `spec.redirectUris`, and an older instance
+> requires that field — it fails their reconcile with
+> `Ready=False ReconcileFailed: Cannot read properties of undefined (reading
+> 'join')`. This matters where two instances watch the same namespaces (see
+> `NAMESPACE_SELECTOR`): upgrade them together, or the older one will keep
+> claiming such clients and failing them.
+
 ## When to write the OIDCClient instead
 
-Discovery covers the common shape: one host, one or more redirect paths, group
-or user allowlists. Anything else — `secretRefreshJobSpec`, `claimMappings`,
+Annotation discovery covers the common shape: one host, one or more redirect
+paths, group or user allowlists — and `ingressRef` covers the case where the
+client is hand-written but its host should not be duplicated. Anything else — `secretRefreshJobSpec`, `claimMappings`,
 `allowedCORSOrigins`, `pkce`, `displayOrder`, a client whose redirect URI is not
 on its own Ingress host, or a native application with a custom-scheme redirect —
 is a reason to write the `OIDCClient` directly. The two can coexist in one

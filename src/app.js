@@ -22,6 +22,7 @@ import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 import {KubeIngressDiscoveryOperator} from "./operators/kube-ingress-discovery-operator.js";
+import {KubernetesAdapter} from "./adapters/kubernetes.js";
 
 const __dirname = dirname(import.meta.url);
 
@@ -64,7 +65,10 @@ export async function startOperators(provider) {
     // Opt-in: discovery creates OIDCClient resources from annotations on any
     // Ingress it can read, so an installation says when it wants that.
     if (process.env.INGRESS_DISCOVERY_ENABLED === 'true') {
-        const ingressDiscoveryOperator = new KubeIngressDiscoveryOperator()
+        // The client operator goes along so a changed Ingress host reaches the
+        // clients that resolve theirs from it (spec.ingressRef).
+        const ingressDiscoveryOperator = new KubeIngressDiscoveryOperator(
+            new KubernetesAdapter(), kubeClientOperator)
         await ingressDiscoveryOperator.watchIngresses()
     }
     activityTracker.start()

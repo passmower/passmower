@@ -22,8 +22,13 @@ import {
 // operator can inspect for what was discovered, and no orphan to clean up when
 // the Ingress goes away, because ownerReferences collect it.
 export class KubeIngressDiscoveryOperator {
-    constructor(adapter = new KubernetesAdapter()) {
+    // `clientOperator` is optional: without it, discovery still creates and
+    // withdraws clients, and a client whose spec.ingressRef points at a changed
+    // Ingress simply waits for its next reconcile rather than being asked for
+    // one immediately.
+    constructor(adapter = new KubernetesAdapter(), clientOperator = undefined) {
         this.adapter = adapter
+        this.clientOperator = clientOperator
         this.namespaceFilter = new NamespaceFilter(this.adapter.namespace)
     }
 
@@ -49,6 +54,7 @@ export class KubeIngressDiscoveryOperator {
         if (!namespace || !name) {
             return
         }
+        await this.#reconcileReferencingClients(ingress)
         try {
             const existing = await this.adapter.getNamespacedCustomObject(
                 OIDCClientCrd, namespace, name, (client) => client)
@@ -137,6 +143,31 @@ export class KubeIngressDiscoveryOperator {
         }
         await this.#event(ingress, 'OIDCClientDiscovered',
             `Updated OIDCClient ${name} for ${spec.uri}`, 'Normal')
+    }
+
+    // A client with spec.ingressRef resolves its host from this Ingress, and a
+    // changed host does not touch the client, so nothing else would ask it to
+    // reconcile: its generation is unmoved and the operator's fingerprint check
+    // skips it. Waiting for the next watch re-list would leave the client
+    // registered with a stale redirect URI in the meantime, which fails logins
+    // with a mismatch.
+    async #reconcileReferencingClients(ingress) {
+        if (!this.clientOperator) {
+            return
+        }
+        const {namespace, name} = ingress.metadata
+        try {
+            const clients = await this.adapter.listNamespacedCustomObject(
+                OIDCClientCrd, namespace, (client) => client)
+            const referencing = (clients ?? [])
+                .filter(client => client?.spec?.ingressRef?.name === name)
+            for (const client of referencing) {
+                await this.clientOperator.reconcileClientByName(namespace, client.metadata.name)
+            }
+        } catch (error) {
+            globalThis.logger?.error({error, ingress: `${namespace}/${name}`},
+                'Failed to reconcile clients referencing an Ingress')
+        }
     }
 
     // Events land on the Ingress, which is where somebody who wrote an
