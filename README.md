@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.2.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.3.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
