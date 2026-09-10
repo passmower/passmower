@@ -305,6 +305,13 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
+# Passmower's HTTP side is stateless (sessions in Redis, signing keys in a
+# Secret), but each replica also runs the CRD operators, and they are not
+# leader-elected — the instance identity they claim resources with is per
+# Deployment, not per Pod, so every replica reconciles every event. Reconciles
+# converge rather than corrupt (see #236), but raising this above 1 buys
+# duplicated work and API churn, not throughput. Leader election is tracked in
+# #236.
 replicaCount: 1
 
 resources: {}
