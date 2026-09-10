@@ -324,12 +324,12 @@ spec:
 Both `labels` and `annotations` are optional and are reconciled onto the secret
 on every change to the `OIDCClient`.
 
-### Enrolling from Ingress annotations
+### Ingress integration
 
-An application that already declares its hostname and path in an `Ingress` can
-be enrolled from `codemowers.io/oidc-*` annotations on it instead of a
-hand-written `OIDCClient` — Passmower derives the client, owned by that Ingress,
-and reconciles it as usual. Off by default; see
+An application that already declares its hostname in an `Ingress` need not
+repeat it: `codemowers.io/oidc-*` annotations on the Ingress derive the whole
+client, or a hand-written `OIDCClient` can read the host from one with
+`spec.ingressRef`. Off by default; see
 [docs/ingress-discovery.md](docs/ingress-discovery.md).
 
 ## Listing a user's applications
