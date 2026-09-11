@@ -35,7 +35,7 @@
     "lodash": "^4.18.1",
     "marked": "^18.0.11",
     "micromatch": "^4.0.7",
-    "nodemailer": "9.1.1",
+    "nodemailer": "10.0.1",
     "oauth": "^0.10.0",
     "oidc-provider": "^9.12.2",
     "openid-client": "^6.8.8",
