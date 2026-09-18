@@ -145,7 +145,11 @@ export class FakeKubernetesAdapter {
 
     // Real adapter opens a long-lived watch here; tests drive events explicitly
     // via fireWatch() instead.
-    async watchObjects() { /* no-op for tests */ }
+    async watchObjects() { this.watchStopped = false }
+
+    // Real adapter aborts the request and cancels the reconnect; here it is
+    // enough to record that the operator stood down (#236).
+    stopWatching() { this.watchStopped = true }
 
     /**
      * Drive a synthetic watch event for a seeded resource, mirroring what the

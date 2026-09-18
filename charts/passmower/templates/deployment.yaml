@@ -39,6 +39,19 @@ spec:
               value: {{ include "passmower.url" . }}
             - name: DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
+            {{- /* Per-Pod identity for the operator lease. DEPLOYMENT_NAME is
+                   the same string in every replica, so it cannot answer "which
+                   of us reconciles" (#236). */}}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LEADER_ELECTION_ENABLED
+              value: {{ .Values.passmower.leaderElection.enabled | quote }}
             {{- /* Optional string settings: only emit when set & non-empty so a
                    commented-out/empty value falls back to the app default
                    instead of being forced to "" (#67). Booleans are always

@@ -23,6 +23,12 @@ export class KubeScimConnectionOperator {
         await this.adapter.watchObjects();
     }
 
+    // Stand down without ending the process: this pod keeps serving HTTP
+    // after it loses the operator lease (#236).
+    stop() {
+        this.adapter.stopWatching()
+    }
+
     async #reconcile(connection) {
         if (connection.disabled) await this.linker.revokeConnection(connection);
         const [subjects, groups] = await Promise.all([

@@ -134,31 +134,33 @@ export class ActivityTracker {
         if (!updated) throw new Error(`Failed to update activity status for OIDCUser ${accountId}`)
     }
 
+    // Read-modify-write through mutate..., as #flushUser does, rather than a
+    // plain replace against the resourceVersion this pod happened to read. Every
+    // pod flushes the sign-ins it served, so two can project activity onto the
+    // same client at once and one of them would lose the race. Leader election
+    // does not help here: a pod is the only place that knows what it served, so
+    // this stays multi-writer whoever holds the lease (#236).
     async #flushClient(clientId, activity) {
         const known = activity ?? this.knownClients.get(clientId)
         if (!known) return
         const kind = known.clientKind === OIDCMiddlewareClientCrd ? OIDCMiddlewareClientCrd : OIDCClientCrd
         const Model = kind === OIDCMiddlewareClientCrd ? OidcMiddlewareClient : OidcClient
-        const client = await this.adapter.getNamespacedCustomObject(
+        const updated = await this.adapter.mutateNamespacedCustomObjectStatus(
             kind, known.clientNamespace, known.clientName,
-            raw => new Model().fromIncomingClient(raw)
+            raw => new Model().fromIncomingClient(raw),
+            client => {
+                if (activity) client.setLastUsedAt(newer(client.getLastUsedAt(), activity.lastAuthenticatedAt))
+                client.updateActivityCondition(this.now(), intEnv('CLIENT_INACTIVE_AFTER_DAYS', 90))
+                return client.getIntendedStatus()
+            },
         )
-        if (!client) return
-        const previousLastUsedAt = client.getLastUsedAt()
-        const previousConditions = JSON.stringify(client.getConditions())
-        if (activity) client.setLastUsedAt(newer(client.getLastUsedAt(), activity.lastAuthenticatedAt))
-        client.updateActivityCondition(this.now(), intEnv('CLIENT_INACTIVE_AFTER_DAYS', 90))
-        const value = client.getLastUsedAt() ? new Date(client.getLastUsedAt()).getTime() / 1000 : 0
-        globalThis.metrics?.oidcClientLastUsed?.set({kind, namespace: known.clientNamespace, client: known.clientName}, value)
-        const changed = previousLastUsedAt !== client.getLastUsedAt()
-            || previousConditions !== JSON.stringify(client.getConditions())
-        if (changed) {
-            const updated = await this.adapter.replaceNamespacedCustomObjectStatus(
-                kind, known.clientNamespace, known.clientName, client.getResourceVersion(),
-                client.getIntendedStatus(), raw => new Model().fromIncomingClient(raw)
-            )
-            if (!updated) throw new Error(`Failed to update activity status for OIDCClient ${clientId}`)
-        }
+        if (updated === null) return
+        if (!updated) throw new Error(`Failed to update activity status for OIDCClient ${clientId}`)
+        const lastUsedAt = updated.getLastUsedAt()
+        globalThis.metrics?.oidcClientLastUsed?.set(
+            {kind, namespace: known.clientNamespace, client: known.clientName},
+            lastUsedAt ? new Date(lastUsedAt).getTime() / 1000 : 0,
+        )
     }
 }
 

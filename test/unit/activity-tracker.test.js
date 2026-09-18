@@ -106,7 +106,11 @@ describe('ActivityTracker', () => {
         await tracker.flush()
         await tracker.flush()
 
-        expect(adapter.mutateNamespacedCustomObjectStatus).toHaveBeenCalledOnce()
+        // Attempted once and then dropped, rather than requeued forever. Both
+        // projections go through mutate now, so count only the user's.
+        const userWrites = adapter.mutateNamespacedCustomObjectStatus.mock.calls
+            .filter(([kind]) => kind === 'OIDCUser')
+        expect(userWrites).toHaveLength(1)
     })
 
     it('preserves newer user activity recorded while a failed flush is in progress', async () => {
@@ -141,10 +145,10 @@ describe('ActivityTracker', () => {
     it('preserves newer client activity recorded while its status write fails', async () => {
         const adapter = new FakeKubernetesAdapter({namespace: 'apps'})
         adapter.seed('OIDCClient', rawClient())
-        const replace = adapter.replaceNamespacedCustomObjectStatus.bind(adapter)
+        const mutate = adapter.mutateNamespacedCustomObjectStatus.bind(adapter)
         const tracker = new ActivityTracker({adapter})
         let fail = true
-        adapter.replaceNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
+        adapter.mutateNamespacedCustomObjectStatus = vi.fn(async (kind, ...args) => {
             if (kind === 'OIDCClient' && fail) {
                 tracker.record({
                     clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
@@ -152,7 +156,7 @@ describe('ActivityTracker', () => {
                 })
                 return undefined
             }
-            return replace(kind, ...args)
+            return mutate(kind, ...args)
         })
         tracker.record({
             clientId: 'apps.grafana', clientNamespace: 'apps', clientName: 'grafana',
