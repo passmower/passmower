@@ -131,6 +131,11 @@ spec:
               value: {{ .Values.passmower.groupRequests.requireExistingGroup | quote }}
             - name: METRICS_GROUP_MEMBERSHIP
               value: {{ .Values.passmower.metrics.groupMembershipCounts | quote }}
+            {{- /* No `default` here: it treats an explicit 0 as empty, and 0 is
+                   how the sweep is turned off. Unset renders "", which the app
+                   reads as "use the built-in interval". */}}
+            - name: RECONCILE_INTERVAL_MS
+              value: {{ .Values.passmower.reconcileIntervalMs | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY

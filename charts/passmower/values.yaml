@@ -143,6 +143,14 @@ passmower:
     # access, so blank enrollments cannot spam administrators.
     requireExistingGroup: true
 
+  # How often to sweep Redis for client records whose OIDCClient /
+  # OIDCMiddlewareClient is gone. The watch removes a record when it sees the
+  # resource deleted; a delete that is never delivered or never applied is never
+  # retried, and the app stays in the launcher until this sweep removes it. The
+  # sweep only ever deletes, and re-checks each resource individually before it
+  # does. Set to 0 to disable it.
+  reconcileIntervalMs: 300000
+
   # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
   metrics:
     # Per-group member-count gauge (passmower_group_members). Off by default:

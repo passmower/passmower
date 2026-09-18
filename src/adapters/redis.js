@@ -77,7 +77,16 @@ export function getRedisOptions(isInitial = false, env = process.env) {
             if (targetErrors.some(e => err.message?.includes(e))) {
                 globalThis.logger?.warn(`Redis: Reconnecting due to ${err.message}`)
                 connectionErrorCount++;
-                return true;
+                // 2, not true: ioredis rejects the failed command on `true` and
+                // resends it only on 2. Reconnecting without resending dropped
+                // the very write this handler exists for — one that reached a
+                // replica mid-failover — and a dropped delete never comes back,
+                // because nothing replays it the way a watch reconnect replays
+                // an upsert. That is how clients outlive their CRs (#257).
+                // The resend is safe for what this adapter issues: every command
+                // is idempotent bar the grant-list rpush, where a duplicate
+                // entry only means revoking deletes the same key twice.
+                return 2;
             }
             return false;
         },
@@ -114,6 +123,33 @@ function createRedisClient(redisUrl, isInitial = false) {
     return newClient;
 }
 
+// Close a client without discarding what is still in flight. ioredis rejects
+// queued commands outright on disconnect(), and with enableOfflineQueue off
+// once ready there is nothing to replay them — so a reconnect racing a delete
+// loses that delete for good (#257). Waits for the command queue to be *stably*
+// empty, since a caller's sequential awaited commands leave gaps in it.
+async function closeGracefully(c) {
+    const deadline = Date.now() + 2000;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    let emptyStreak = 0;
+    while (emptyStreak < 3 && Date.now() < deadline) {
+        emptyStreak = c.commandQueue?.length ? 0 : emptyStreak + 1;
+        await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    await c.quit().catch(() => c.disconnect());
+}
+
+// Swap in a fresh connection and drain the old one in the background, so new
+// commands go to the new socket immediately while in-flight ones still finish.
+function replaceClient(redisUrl, reason) {
+    const stale = client;
+    client = createRedisClient(redisUrl, false);
+    closeGracefully(stale).catch((err) => {
+        globalThis.logger?.debug({ err, reason }, 'Redis: stale connection did not drain cleanly')
+        stale.disconnect();
+    });
+}
+
 // Open the connection and start the health timers. Idempotent: safe to call
 // more than once. Called lazily on first use (getClient/waitForReady) and
 // explicitly at app boot via waitForReady().
@@ -141,8 +177,7 @@ export function connect() {
 
                 if (lastKnownIps.length > 0 && JSON.stringify(lastKnownIps) !== JSON.stringify(currentIps)) {
                     globalThis.logger?.warn({ oldIps: lastKnownIps, newIps: currentIps }, 'Redis: DNS changed, reconnecting...')
-                    client.disconnect();
-                    client = createRedisClient(redisUrl, false);
+                    replaceClient(redisUrl, 'dns-change');
                 }
                 lastKnownIps = currentIps;
             } catch (err) {
@@ -161,8 +196,7 @@ export function connect() {
         if (connectionErrorCount >= MAX_ERROR_COUNT) {
             globalThis.logger?.warn(`Redis: ${connectionErrorCount} errors accumulated, forcing reconnect...`)
             connectionErrorCount = 0;
-            client.disconnect();
-            client = createRedisClient(redisUrl, false);
+            replaceClient(redisUrl, 'error-threshold');
         }
     }, 10000).unref());
 
@@ -177,19 +211,10 @@ export async function disconnect() {
         const c = client;
         client = undefined;
         // Let scheduled async work (e.g. fire-and-forget event listeners that
-        // do Redis I/O) run, then wait for the command queue to be *stably*
-        // empty before closing — otherwise ioredis rejects still-queued (or
-        // about-to-be-issued) commands with "Connection is closed" as an
-        // unhandled rejection. The stability check covers the gaps between a
-        // listener's sequential awaited commands.
-        const deadline = Date.now() + 2000;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        let emptyStreak = 0;
-        while (emptyStreak < 3 && Date.now() < deadline) {
-            emptyStreak = c.commandQueue?.length ? 0 : emptyStreak + 1;
-            await new Promise(resolve => setTimeout(resolve, 25));
-        }
-        await c.quit().catch(() => c.disconnect());
+        // do Redis I/O) run and drain before closing — otherwise ioredis rejects
+        // still-queued (or about-to-be-issued) commands with "Connection is
+        // closed" as an unhandled rejection.
+        await closeGracefully(c);
     }
     isReady = false;
     readyPromise = new Promise(resolve => { readyResolve = resolve; });

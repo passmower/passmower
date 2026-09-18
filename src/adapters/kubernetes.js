@@ -101,6 +101,29 @@ export class KubernetesAdapter {
         })
     }
 
+    // The cluster-wide counterpart of listNamespacedCustomObject, for the
+    // NAMESPACE_SELECTOR shapes that leave NamespaceFilter.namespace undefined —
+    // the same ones watchObjects() covers by watching the unscoped path. Callers
+    // filter the result through their NamespaceFilter, as the watch does.
+    async listClusterCustomObject(kind, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        return await this.customObjectsApi.listCustomObjectForAllNamespaces({
+            group: apiGroup,
+            version: apiGroupVersion,
+            resourcePlural: plurals[kind]
+        }, this.defaultOptions).then(async (r) => {
+            return await Promise.all(
+                r.items.map(async (s) => {
+                    return mapperFunction(s)
+                })
+            )
+        }).catch((e) => {
+            if (e.code !== 404) {
+                globalThis.logger.error(e)
+                return null
+            }
+        })
+    }
+
     async getNamespacedCustomObject(kind, namespace, id, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         return await this.customObjectsApi.getNamespacedCustomObject({
             group: apiGroup,

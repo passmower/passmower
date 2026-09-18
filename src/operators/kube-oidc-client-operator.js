@@ -272,10 +272,22 @@ export class KubeOIDCClientOperator {
         globalThis.logger.error({error, client: OIDCClient.getClientId()}, 'Failed to reconcile OIDCClient')
     }
 
+    // The one Redis write with nothing to retry it: the resource is gone, so no
+    // watch event is ever redelivered and there is no resource left to carry a
+    // Ready condition. An unhandled rejection here used to lose the removal
+    // outright, leaving the client in the launcher for good (#257) — so it is
+    // logged, and the periodic sweep is what actually repairs it.
     async #deleteOIDCClient (OIDCClient) {
         this.reconcileState.unregister(OIDCClient)
-        if (OIDCClient.getInstance() === this.instance) {
+        if (OIDCClient.getInstance() !== this.instance) {
+            return
+        }
+        try {
             await this.redisAdapter.destroy(OIDCClient.getClientId())
+        } catch (error) {
+            globalThis.logger.error(
+                {error, client: OIDCClient.getClientId()},
+                'Failed to remove a deleted OIDCClient from Redis, leaving it to the reconcile sweep')
         }
     }
 }
