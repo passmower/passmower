@@ -15,6 +15,9 @@
     "test:e2e": "playwright test"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@koa/ejs": "^5.1.0",
     "@koa/router": "^15.7.0",
