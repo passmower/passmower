@@ -4,7 +4,9 @@
 # the host-built frontend and a KUBECONFIG pointing at the test cluster.
 services:
   redis:
-    image: redis:7-alpine
+    # Valkey, as the chart bundles. The redis-server entrypoint is a symlink in
+    # that image, so this line is the same for either implementation.
+    image: valkey/valkey:8-alpine
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"

@@ -111,3 +111,24 @@ spec:
     - all_applications     # only for clients that need the admin catalog
   # ... other fields ...
 ```
+
+## When an app leaves the list
+
+The lists are served from Redis, which the client operators keep in step with
+the cluster as they watch `OIDCClient` and `OIDCMiddlewareClient` resources.
+Deleting a resource removes its record, and so does setting `spec.disabled`.
+
+Creates and updates are replayed — every watch reconnect re-lists the resources
+and reconciles them again — but a delete is only ever observed once. If that
+observation is lost, because the pod was down when the resource was deleted or
+because the write to Redis failed, nothing would otherwise put the record right
+and the app keeps appearing in the launcher.
+
+A periodic sweep closes that gap. It lists both client kinds, removes any Redis
+record whose resource no longer exists, and re-checks each resource individually
+before removing it so that a client created moments earlier is never caught by a
+stale listing. The sweep only ever deletes; it never re-creates a record.
+
+`passmower.reconcileIntervalMs` controls how often it runs (default `300000`,
+five minutes). Set it to `0` to disable it — an app deleted while the watch
+misses the event will then stay in the list until the record is cleared by hand.

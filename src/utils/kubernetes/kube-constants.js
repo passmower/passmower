@@ -46,7 +46,13 @@ export const TraefikMiddlewareApiGroup = 'traefik.io'
 export const TraefikMiddlewareApiGroupVersion = 'v1alpha1'
 export const TraefikMiddlewareForwardAuthAddress = (deployment, namespace, clientId) => `http://${deployment}.${namespace}.svc.cluster.local/forward-auth?client=${clientId}`
 
+export const IngressCrd = 'Ingress'
+export const Ingresses = 'ingresses'
+export const IngressApiGroup = 'networking.k8s.io'
+export const IngressApiGroupVersion = 'v1'
+
 export const plurals = {
+    [IngressCrd]: Ingresses,
     [OIDCUserCrd]: OIDCUsers,
     [OIDCUserEventHookCrd]: OIDCUserEventHooks,
     [OIDCClientCrd]: OIDCClients,

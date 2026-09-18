@@ -39,6 +39,19 @@ spec:
               value: {{ include "passmower.url" . }}
             - name: DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
+            {{- /* Per-Pod identity for the operator lease. DEPLOYMENT_NAME is
+                   the same string in every replica, so it cannot answer "which
+                   of us reconciles" (#236). */}}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LEADER_ELECTION_ENABLED
+              value: {{ .Values.passmower.leaderElection.enabled | quote }}
             {{- /* Optional string settings: only emit when set & non-empty so a
                    commented-out/empty value falls back to the app default
                    instead of being forced to "" (#67). Booleans are always
@@ -77,6 +90,8 @@ spec:
               value: {{ .Values.passmower.enrollUsers | quote }}
             - name: DISABLE_FRONTEND_EDIT
               value: {{ .Values.passmower.disableFrontendEdit | quote }}
+            - name: INGRESS_DISCOVERY_ENABLED
+              value: {{ .Values.passmower.ingressDiscovery.enabled | quote }}
             {{- with .Values.passmower.namespaceSelector }}
             - name: NAMESPACE_SELECTOR
               value: {{ . | quote }}
@@ -129,6 +144,11 @@ spec:
               value: {{ .Values.passmower.groupRequests.requireExistingGroup | quote }}
             - name: METRICS_GROUP_MEMBERSHIP
               value: {{ .Values.passmower.metrics.groupMembershipCounts | quote }}
+            {{- /* No `default` here: it treats an explicit 0 as empty, and 0 is
+                   how the sweep is turned off. Unset renders "", which the app
+                   reads as "use the built-in interval". */}}
+            - name: RECONCILE_INTERVAL_MS
+              value: {{ .Values.passmower.reconcileIntervalMs | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
             - name: REDIS_IP_FAMILY

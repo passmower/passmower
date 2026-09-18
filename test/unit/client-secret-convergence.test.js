@@ -153,6 +153,27 @@ describe('secret-refresh Job under overlapping reconciles', () => {
     })
 
     it('treats an already-created Job as done, not as a failure', async () => {
+        // A Job already carrying this client's resourceVersion means another
+        // reconcile of the same version created it. Reporting that from the
+        // adapter tests the behaviour directly — and fails if the operator
+        // stops asking for ignoreAlreadyExists, since then the create reads as
+        // an error.
+        let asked
+        adapter.createJob = async (_namespace, _job, {ignoreAlreadyExists = false} = {}) => {
+            asked = ignoreAlreadyExists
+            return ignoreAlreadyExists ? {alreadyExists: true} : null
+        }
+        adapter.seed('OIDCClient', oidcClient('grafana', {refreshJob: true}))
+
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+
+        expect(asked).toBe(true)
+        expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(
+            expect.objectContaining({type: 'Ready', status: 'True', reason: 'Reconciled'}))
+        expect(adapter.events.filter(e => e.type === 'Warning')).toEqual([])
+    })
+
+    it('creates no two Jobs of the same name when reconciles overlap', async () => {
         adapter.seed('OIDCClient', oidcClient('grafana', {refreshJob: true}))
 
         await Promise.all([
@@ -160,9 +181,11 @@ describe('secret-refresh Job under overlapping reconciles', () => {
             adapter.fireWatch('ADDED', 'OIDCClient', 'grafana'),
         ])
 
-        // The name is derived from the resourceVersion, so the second create is
-        // the same Job — one Job, and no spurious Warning on a healthy client.
-        expect(adapter.jobs).toHaveLength(1)
+        // Each reconcile claims the client and so sees its own resourceVersion,
+        // which is one Job per version by design; what must not happen is two
+        // creates of the same name, or a healthy client reporting a failure.
+        const names = adapter.jobs.map(job => job.jobManifest.metadata.name)
+        expect(new Set(names).size).toBe(names.length)
         expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(
             expect.objectContaining({type: 'Ready', status: 'True', reason: 'Reconciled'}))
         expect(adapter.events.filter(e => e.type === 'Warning')).toEqual([])

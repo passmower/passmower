@@ -1,5 +1,8 @@
 import OidcClient from "../models/oidc-client.js";
 import {
+    IngressApiGroup,
+    IngressApiGroupVersion,
+    IngressCrd,
     OIDCClientCrd,
     OIDCClientSecretClientSecretKey
 } from "../utils/kubernetes/kube-constants.js";
@@ -9,6 +12,7 @@ import {NamespaceFilter} from "../utils/kubernetes/namespace-filter.js";
 import {getActivityTracker} from "../services/activity-tracker.js";
 import {ClientReconcileState} from '../models/client-activity-state.js';
 import {validateClaimMappings} from '../utils/claim-mappings.js'
+import {resolveIngressRef} from '../utils/kubernetes/resolve-ingress-ref.js'
 
 export class KubeOIDCClientOperator {
     constructor(provider, adapter = new KubernetesAdapter(), redisAdapter = new RedisAdapter('Client')) {
@@ -31,11 +35,18 @@ export class KubeOIDCClientOperator {
         await this.adapter.watchObjects()
     }
 
+    // Stand down without ending the process: this pod keeps serving HTTP
+    // after it loses the operator lease (#236).
+    stop() {
+        this.adapter.stopWatching()
+    }
+
     async #createOIDCClient (OIDCClient) {
         this.reconcileState.register(OIDCClient)
         try {
             this.#assertValidClaimMappings(OIDCClient)
             if (OIDCClient.getInstance() === this.instance) {
+                await this.#resolveIngressRef(OIDCClient)
                 if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
                     await this.#reconcileClientSecret(OIDCClient)
                 }
@@ -45,6 +56,10 @@ export class KubeOIDCClientOperator {
                 const claimedClient = await this.#replaceClientStatus(OIDCClient)
                 if (claimedClient?.getInstance() === this.instance) {
                     OIDCClient = claimedClient
+                    // After the claim, not before: claiming rebuilds the model
+                    // from the stored resource, and the resolution is in-memory
+                    // only, so resolving first would be discarded here.
+                    await this.#resolveIngressRef(OIDCClient)
                     await this.#reconcileClientSecret(OIDCClient)
                 } else {
                     return
@@ -78,8 +93,8 @@ export class KubeOIDCClientOperator {
         )
     }
 
-    async #updateOIDCClient(OIDCClient) {
-        if (!this.reconcileState.shouldReconcile(OIDCClient)) return
+    async #updateOIDCClient(OIDCClient, {force = false} = {}) {
+        if (!this.reconcileState.shouldReconcile(OIDCClient) && !force) return
         if (OIDCClient.getInstance() !== this.instance) {
             if (OIDCClient.getInstance()) return
             const claimedClient = await this.#replaceClientStatus(OIDCClient)
@@ -88,6 +103,7 @@ export class KubeOIDCClientOperator {
         }
         try {
             this.#assertValidClaimMappings(OIDCClient)
+            await this.#resolveIngressRef(OIDCClient)
             if (OIDCClient.isDisabled()) {
                 await this.redisAdapter.destroy(OIDCClient.getClientId())
                 await this.#reportReady(OIDCClient, 'Disabled', 'Client is disabled and absent from Redis')
@@ -192,6 +208,53 @@ export class KubeOIDCClientOperator {
         }
     }
 
+    // A client with spec.ingressRef takes its host from an Ingress in its own
+    // namespace. Resolved on every reconcile and applied in memory, so nothing
+    // is written back into a resource its author owns, and a changed host is
+    // picked up the next time the client is reconciled — which the Ingress
+    // watch asks for as soon as it sees one (#35).
+    async #resolveIngressRef(OIDCClient) {
+        const ingressRef = OIDCClient.getIngressRef()
+        if (!ingressRef?.name) {
+            return
+        }
+        if (process.env.INGRESS_DISCOVERY_ENABLED !== 'true') {
+            throw this.#reconcileError('IngressRefUnresolved',
+                'spec.ingressRef needs Ingress access: set passmower.ingressDiscovery.enabled')
+        }
+        const ingress = await this.adapter.getNamespacedCustomObject(
+            IngressCrd,
+            OIDCClient.getClientNamespace(),
+            ingressRef.name,
+            (obj) => obj,
+            IngressApiGroup,
+            IngressApiGroupVersion,
+        )
+        const {uri, redirectUris, problems} = resolveIngressRef(ingress, OIDCClient.getRedirectPaths())
+        if (problems) {
+            // Registering the client with no redirect URI would fail logins with
+            // a mismatch instead; say so on the resource.
+            throw this.#reconcileError('IngressRefUnresolved',
+                `Cannot resolve spec.ingressRef ${ingressRef.name}: ${problems.join('; ')}`)
+        }
+        OIDCClient.setResolvedIngress({uri, redirectUris})
+    }
+
+    // Reconcile one client by name whatever its reconcile fingerprint says.
+    // A changed Ingress host changes what a client resolves to without touching
+    // the client itself, so its generation does not move and the usual
+    // fingerprint check would skip it.
+    async reconcileClientByName(namespace, name) {
+        const client = await this.adapter.getNamespacedCustomObject(
+            OIDCClientCrd, namespace, name,
+            (incoming) => (new OidcClient()).fromIncomingClient(incoming))
+        if (!client) {
+            return false
+        }
+        await this.#updateOIDCClient(client, {force: true})
+        return true
+    }
+
     async #reportReady(OIDCClient, reason, message) {
         const changed = OIDCClient.updateReadyCondition(true, reason, message)
         const updatedClient = await this.#replaceClientStatus(OIDCClient)
@@ -215,10 +278,22 @@ export class KubeOIDCClientOperator {
         globalThis.logger.error({error, client: OIDCClient.getClientId()}, 'Failed to reconcile OIDCClient')
     }
 
+    // The one Redis write with nothing to retry it: the resource is gone, so no
+    // watch event is ever redelivered and there is no resource left to carry a
+    // Ready condition. An unhandled rejection here used to lose the removal
+    // outright, leaving the client in the launcher for good (#257) — so it is
+    // logged, and the periodic sweep is what actually repairs it.
     async #deleteOIDCClient (OIDCClient) {
         this.reconcileState.unregister(OIDCClient)
-        if (OIDCClient.getInstance() === this.instance) {
+        if (OIDCClient.getInstance() !== this.instance) {
+            return
+        }
+        try {
             await this.redisAdapter.destroy(OIDCClient.getClientId())
+        } catch (error) {
+            globalThis.logger.error(
+                {error, client: OIDCClient.getClientId()},
+                'Failed to remove a deleted OIDCClient from Redis, leaving it to the reconcile sweep')
         }
     }
 }

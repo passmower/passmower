@@ -78,7 +78,11 @@ export class KubernetesAdapter {
         this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
         this.batchV1Api = kc.makeApiClient(k8s.BatchV1Api);
+        this.coordinationV1Api = kc.makeApiClient(k8s.CoordinationV1Api);
         this.defaultOptions = { middleware: [userAgentMiddleware] }
+        this.watchStopped = false
+        this.watchAbortController = null
+        this.watchRestartTimer = null
     }
 
     async listNamespacedCustomObject(kind, namespace, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
@@ -87,6 +91,29 @@ export class KubernetesAdapter {
             version: apiGroupVersion,
             namespace,
             plural: plurals[kind]
+        }, this.defaultOptions).then(async (r) => {
+            return await Promise.all(
+                r.items.map(async (s) => {
+                    return mapperFunction(s)
+                })
+            )
+        }).catch((e) => {
+            if (e.code !== 404) {
+                globalThis.logger.error(e)
+                return null
+            }
+        })
+    }
+
+    // The cluster-wide counterpart of listNamespacedCustomObject, for the
+    // NAMESPACE_SELECTOR shapes that leave NamespaceFilter.namespace undefined —
+    // the same ones watchObjects() covers by watching the unscoped path. Callers
+    // filter the result through their NamespaceFilter, as the watch does.
+    async listClusterCustomObject(kind, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        return await this.customObjectsApi.listCustomObjectForAllNamespaces({
+            group: apiGroup,
+            version: apiGroupVersion,
+            resourcePlural: plurals[kind]
         }, this.defaultOptions).then(async (r) => {
             return await Promise.all(
                 r.items.map(async (s) => {
@@ -146,6 +173,22 @@ export class KubernetesAdapter {
         })
     }
 
+    async deleteNamespacedCustomObject(kind, namespace, id, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
+        return await this.customObjectsApi.deleteNamespacedCustomObject({
+            group: apiGroup,
+            version: apiGroupVersion,
+            namespace,
+            plural: plurals[kind],
+            name: id
+        }, this.defaultOptions).then(() => true).catch((e) => {
+            if (e.code === 404) {
+                return true // already gone; the caller wanted it absent
+            }
+            globalThis.logger.error(e)
+            return false
+        })
+    }
+
     async patchNamespacedCustomObject(kind, namespace, id, values, existingValues, mapperFunction, apiGroup = defaultApiGroup, apiGroupVersion = defaultApiGroupVersion) {
         const delta = diff(existingValues, values)
         const patches = format(delta);
@@ -186,6 +229,14 @@ export class KubernetesAdapter {
         }, this.defaultOptions).then((r) => {
             return mapperFunction(r)
         }).catch((e) => {
+            // A 409 means another writer got to the resource first — with
+            // several replicas reconciling every event that is routine, and the
+            // caller already treats the undefined as "did not win, try later".
+            // Logging it as an error made a working cluster look broken (#236).
+            if (e.code === 409) {
+                globalThis.logger.debug({kind, namespace, id}, 'Kubernetes status replace conflicted')
+                return
+            }
             globalThis.logger.error(e)
         })
     }
@@ -322,6 +373,30 @@ export class KubernetesAdapter {
         })
     }
 
+    // Leases, for leader election (#236). Unlike the rest of this adapter these
+    // do not swallow failures: the election loop has to tell a lost race (409)
+    // and missing RBAC (403) apart from a resource that is simply absent, and
+    // deciding whether to reconcile the cluster on a guess is worse than
+    // handling the error at the caller.
+    async getLease(namespace, name) {
+        try {
+            return await this.coordinationV1Api.readNamespacedLease({name, namespace}, this.defaultOptions)
+        } catch (e) {
+            if ((e.code ?? e.statusCode) === 404) {
+                return undefined
+            }
+            throw e
+        }
+    }
+
+    async createLease(namespace, body) {
+        return await this.coordinationV1Api.createNamespacedLease({namespace, body}, this.defaultOptions)
+    }
+
+    async replaceLease(namespace, name, body) {
+        return await this.coordinationV1Api.replaceNamespacedLease({name, namespace, body}, this.defaultOptions)
+    }
+
     async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {
         return await this.batchV1Api.createNamespacedJob({
             namespace,
@@ -383,7 +458,23 @@ export class KubernetesAdapter {
         }
     }
 
+    // Stop the watch and keep it stopped. The reconnect is a self-rescheduling
+    // timer, so cancelling means both aborting the in-flight request and
+    // refusing the reschedule the abort itself provokes. Leadership can be lost
+    // at any moment and this pod goes on serving HTTP, so the operators have to
+    // be able to stand down without taking the process with them (#236).
+    stopWatching() {
+        this.watchStopped = true
+        clearTimeout(this.watchRestartTimer)
+        this.watchRestartTimer = null
+        this.watchAbortController?.abort()
+        this.watchAbortController = null
+    }
+
     async watchObjects() {
+        // Resuming after a stop is a fresh start, not a reconnect: the caller
+        // asks for it explicitly, so clear the flag rather than refuse.
+        this.watchStopped = false
         const kind = plurals[this.watchParameters.kind]
         globalThis.logger.info(`Watching Kubernetes API for ${kind}`)
         const watch = new k8s.Watch(this.kc);
@@ -423,6 +514,10 @@ export class KubernetesAdapter {
             },
             // done callback is called when the watch terminates for any reason
             (err) => {
+                if (this.watchStopped) {
+                    globalThis.logger.debug(`Kubernetes API watch for ${kind} stopped`)
+                    return
+                }
                 const delay = watchRestartDelayMs(err)
                 if (delay) {
                     globalThis.logger.warn('Kubernetes API watch terminated')
@@ -430,10 +525,16 @@ export class KubernetesAdapter {
                 } else {
                     globalThis.logger.debug(`Kubernetes API watch for ${kind} expired, reconnecting`)
                 }
-                setTimeout(() => { this.watchObjects(); }, delay);
+                this.watchRestartTimer = setTimeout(() => { this.watchObjects(); }, delay);
             }).then((abortController) => {
-            // watch returns an AbortController which you can use to abort the watch.
-            // setTimeout(() => { abortController.abort(); }, 10);
+            // Held so stopWatching() can end the request rather than wait out
+            // WATCH_TIMEOUT_MS. A stop that lands before the request is even
+            // established is caught by the flag in the done callback.
+            if (this.watchStopped) {
+                abortController?.abort()
+                return
+            }
+            this.watchAbortController = abortController
         });
     }
 

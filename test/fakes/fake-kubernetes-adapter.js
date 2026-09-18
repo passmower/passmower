@@ -34,25 +34,43 @@ export class FakeKubernetesAdapter {
         return Promise.all(items.map((v) => mapperFunction(structuredClone(v))))
     }
 
+    async listClusterCustomObject(kind, mapperFunction) {
+        return this.listNamespacedCustomObject(kind, undefined, mapperFunction)
+    }
+
     async getNamespacedCustomObject(kind, _namespace, id, mapperFunction) {
         const stored = this.store.get(this.#key(kind, id))
         if (!stored) return undefined // real adapter returns undefined on 404
         return mapperFunction(structuredClone(stored))
     }
 
-    async createNamespacedCustomObject(kind, _namespace, name, spec, mapperFunction, _owner, labels = {}) {
+    async createNamespacedCustomObject(kind, _namespace, name, spec, mapperFunction, owner, labels = {}) {
         const key = this.#key(kind, name)
         if (this.store.has(key)) return null // name already taken -> real adapter swallows the conflict
         const obj = {
             apiVersion: 'codemowers.cloud/v1',
             kind,
-            metadata: { name, labels, resourceVersion: this.#nextRv(), creationTimestamp: new Date().toISOString() },
+            metadata: {
+                name, labels,
+                // The real adapter turns `owner` into an ownerReference, which is
+                // what garbage-collects generated resources with their parent.
+                ownerReferences: owner ? [structuredClone(owner)] : undefined,
+                resourceVersion: this.#nextRv(),
+                creationTimestamp: new Date().toISOString(),
+            },
             status: {},
             ...structuredClone(spec),
         }
         this.store.set(key, obj)
         this.#emit('ADDED', kind, obj)
         return mapperFunction(structuredClone(obj))
+    }
+
+    async deleteNamespacedCustomObject(kind, _namespace, id) {
+        const key = this.#key(kind, id)
+        const existed = this.store.delete(key)
+        if (existed) this.#emit('DELETED', kind, {kind, metadata: {name: id}})
+        return true // absent either way, as the real adapter reports for a 404
     }
 
     async patchNamespacedCustomObject(kind, _namespace, id, values, _existingValues, mapperFunction) {
@@ -127,7 +145,11 @@ export class FakeKubernetesAdapter {
 
     // Real adapter opens a long-lived watch here; tests drive events explicitly
     // via fireWatch() instead.
-    async watchObjects() { /* no-op for tests */ }
+    async watchObjects() { this.watchStopped = false }
+
+    // Real adapter aborts the request and cancels the reconnect; here it is
+    // enough to record that the operator stood down (#236).
+    stopWatching() { this.watchStopped = true }
 
     /**
      * Drive a synthetic watch event for a seeded resource, mirroring what the

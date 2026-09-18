@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.3.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.4.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -324,6 +324,14 @@ spec:
 Both `labels` and `annotations` are optional and are reconciled onto the secret
 on every change to the `OIDCClient`.
 
+### Ingress integration
+
+An application that already declares its hostname in an `Ingress` need not
+repeat it: `codemowers.io/oidc-*` annotations on the Ingress derive the whole
+client, or a hand-written `OIDCClient` can read the host from one with
+`spec.ingressRef`. Off by default; see
+[docs/ingress-discovery.md](docs/ingress-discovery.md).
+
 ## Listing a user's applications
 
 Dashboards, launchers and shared navbars can fetch the applications a signed-in
@@ -424,6 +432,12 @@ event metadata, idempotency, and security model.
 
 Login and admin-impersonation behavior for each `OIDCUser.spec.type` is described
 in [docs/account-types.md](docs/account-types.md).
+
+## High availability
+
+`replicaCount` above 1 scales the authorization endpoints while one replica at a
+time reconciles the custom resources, elected through a `coordination.k8s.io`
+Lease. See [docs/high-availability.md](docs/high-availability.md).
 
 ## Traefik middleware
 

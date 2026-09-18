@@ -39,6 +39,14 @@ passmower:
   usernameSource: prompt
   # Allow enrolling new users automatically. Actual access will be based on requiredGroup parameter. Disable to only manually provision users.
   enrollUsers: true
+  # Enroll applications from `codemowers.io/oidc-*` annotations on Ingresses, in
+  # addition to hand-written OIDCClient resources. An annotated Ingress gets an
+  # OIDCClient owned by it, which the client operator then reconciles as usual;
+  # removing the Ingress removes the client with it. Off by default because it
+  # creates resources and needs cluster-wide read on Ingresses, which the chart
+  # only grants when this is on. See docs/ingress-discovery.md.
+  ingressDiscovery:
+    enabled: false
   # Disable making changes to users on their profile or via admin panel - use for enforcing GitOps practices via OIDCUser spec.
   disableFrontendEdit: false
   # Comma-separated, wildcard enabled namespace selector to select, in which namespaces Passmower looks for client CRDs.
@@ -134,6 +142,23 @@ passmower:
     # Only accounts already belonging to at least one group may request
     # access, so blank enrollments cannot spam administrators.
     requireExistingGroup: true
+
+  # The CRD operators run in one replica at a time, chosen with a
+  # coordination.k8s.io Lease. Every replica still serves HTTP: sessions and
+  # clients live in Redis and the login path writes users directly, so nothing
+  # on the request path needs the operators. Turning this off runs the operators
+  # in every replica, which is what releases before 2.3 did — safe, because the
+  # writers converge, but N times the API churn.
+  leaderElection:
+    enabled: true
+
+  # How often to sweep Redis for client records whose OIDCClient /
+  # OIDCMiddlewareClient is gone. The watch removes a record when it sees the
+  # resource deleted; a delete that is never delivered or never applied is never
+  # retried, and the app stays in the launcher until this sweep removes it. The
+  # sweep only ever deletes, and re-checks each resource individually before it
+  # does. Set to 0 to disable it.
+  reconcileIntervalMs: 300000
 
   # Prometheus metrics served on :9090/metrics; see docs/metrics.md.
   metrics:
@@ -232,11 +257,17 @@ redis:
     spec:
       capacity: 100Mi
       class: ephemeral
-  # Deploys a simple, non persistent Redis deployment.
+  # Deploys a simple, non persistent session store.
   internal:
     enabled: true
-    # Image for the internal (non-persistent) Redis. Pinned rather than :latest.
-    image: redis:7-alpine
+    # Image for the internal (non-persistent) store. Pinned rather than :latest.
+    # Valkey by default: it is BSD-licensed, where the redis:7 line is
+    # RSALv2/SSPLv1, and this chart ships as open source. Either works — the
+    # container command stays redis-server, which the Valkey image provides as a
+    # symlink, so setting this back to redis:7-alpine (or redis:8-alpine) needs
+    # no other change. Only the bundled store is affected; redisClaim and
+    # external are untouched.
+    image: valkey/valkey:8-alpine
     # Scheduling for the internal Redis, which holds every session and grant —
     # losing it signs everyone out at once. With neither requests nor limits the
     # pod is BestEffort, which is what a kubelet evicts first under node memory
@@ -323,12 +354,10 @@ securityContext: {}
   # runAsUser: 1000
 
 # Passmower's HTTP side is stateless (sessions in Redis, signing keys in a
-# Secret), but each replica also runs the CRD operators, and they are not
-# leader-elected — the instance identity they claim resources with is per
-# Deployment, not per Pod, so every replica reconciles every event. Reconciles
-# converge rather than corrupt (see #236), but raising this above 1 buys
-# duplicated work and API churn, not throughput. Leader election is tracked in
-# #236.
+# Secret), and the CRD operators run in one replica at a time, elected through a
+# coordination.k8s.io Lease (passmower.leaderElection). So raising this scales
+# the authorization endpoints — a rolling restart or a lost node no longer stops
+# new sign-ins — without N controllers racing on the same resources.
 replicaCount: 1
 
 resources: {}

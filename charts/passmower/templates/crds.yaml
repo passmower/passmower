@@ -778,9 +778,11 @@ spec:
             spec:
               type: object
               required:
-                - redirectUris
                 - grantTypes
                 - responseTypes
+              x-kubernetes-validations:
+                - rule: "has(self.redirectUris) != (has(self.ingressRef) && has(self.redirectPaths))"
+                  message: "set either redirectUris, or ingressRef with redirectPaths — not both and not neither"
               properties:
                 allowedCORSOrigins:
                   type: array
@@ -889,6 +891,26 @@ spec:
                   type: array
                   items:
                     type: string
+                ingressRef:
+                  type: object
+                  description: >-
+                    Take the host from an Ingress in this namespace instead of
+                    repeating it here. uri and redirectUris are then resolved
+                    from that host plus redirectPaths, and are never written
+                    back to this resource. Requires
+                    passmower.ingressDiscovery.enabled. Same namespace only:
+                    referencing another namespace's Ingress would let a client
+                    claim a hostname it does not own.
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                redirectPaths:
+                  type: array
+                  description: Paths resolved against the ingressRef host into redirectUris, e.g. /login/generic_oauth.
+                  items:
+                    type: string
                 responseTypes:
                   type: array
                   items:
@@ -944,6 +966,17 @@ spec:
                   type: string
                   format: date-time
                   description: Latest successful authorization or token exchange.
+                resolvedUri:
+                  type: string
+                  description: >-
+                    The uri an ingressRef resolved to. Reported rather than
+                    written into spec, so the resource stays as its author
+                    wrote it.
+                resolvedRedirectUris:
+                  type: array
+                  description: The redirectUris an ingressRef plus redirectPaths resolved to.
+                  items:
+                    type: string
       subresources: &oidcClientSubresources
         status: {}
       additionalPrinterColumns: &oidcClientPrinterColumns

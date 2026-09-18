@@ -22,17 +22,28 @@ function rawUser(name = 'alice', generation = 1, labels = {tenant: 'acme'}) {
     }
 }
 
+// The operator keeps the generation each user was last dispatched at in Redis,
+// so that a restart or a leader handover does not replay every user as new.
+class FakeStateRedis {
+    records = new Map()
+
+    async find(id) { return this.records.get(id) }
+    async upsert(id, value) { this.records.set(id, value) }
+    async destroy(id) { this.records.delete(id) }
+}
+
 describe('KubeOidcUserEventHookOperator', () => {
-    let adapter
+    let adapter, state
 
     beforeEach(() => {
         globalThis.logger = {error: vi.fn(), info: vi.fn(), warn: vi.fn()}
         adapter = new FakeKubernetesAdapter({namespace: 'users'})
         adapter.seed('OIDCUserEventHook', rawHook())
+        state = new FakeStateRedis()
     })
 
-    async function operator() {
-        const result = new KubeOidcUserEventHookOperator(adapter)
+    async function operator(stateRedis = state) {
+        const result = new KubeOidcUserEventHookOperator(adapter, stateRedis)
         await result.watchUsers()
         return result
     }
@@ -118,5 +129,62 @@ describe('KubeOidcUserEventHookOperator', () => {
         expect(adapter.events).toContainEqual(expect.objectContaining({
             reason: 'JobCreationFailed', type: 'Warning',
         }))
+    })
+    // Without a durable store this is where every user would look new again. A
+    // leader handover does exactly what a restart does, so once the operators
+    // are leader-elected this stops being a rare event (#236).
+    it('does not replay Added for known users when the process restarts', async () => {
+        await operator()
+        adapter.seed('OIDCUser', rawUser())
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+        expect(adapter.jobs).toHaveLength(1)
+
+        // A second operator on the same state, as a new leader would be.
+        await operator()
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+
+        expect(adapter.jobs).toHaveLength(1)
+    })
+
+    it('still reports a user created while nothing was watching as Added', async () => {
+        await operator()
+        adapter.seed('OIDCUser', rawUser('bob'))
+
+        await operator()
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'bob')
+
+        expect(adapter.jobs.map(item => item.jobManifest.metadata.labels['codemowers.cloud/event']))
+            .toEqual(['added'])
+    })
+
+    // The upgrade that introduces the store would otherwise be one big cold
+    // start: every existing user dispatched as Added, once.
+    it('seeds existing users on first run without dispatching', async () => {
+        adapter.seed('OIDCUser', rawUser('alice'))
+        adapter.seed('OIDCUser', rawUser('bob'))
+
+        await operator()
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'bob')
+
+        expect(adapter.jobs).toHaveLength(0)
+    })
+
+    // Seeding off a failed listing would suppress a real Added for every user
+    // it should have seen, so it has to be retried rather than marked done.
+    it('does not mark the store seeded when the listing fails', async () => {
+        adapter.seed('OIDCUser', rawUser('alice'))
+        const list = adapter.listNamespacedCustomObject.bind(adapter)
+        adapter.listNamespacedCustomObject = async (kind, ...rest) =>
+            kind === 'OIDCUser' ? null : list(kind, ...rest)
+
+        await operator()
+        expect(state.records.size).toBe(0)
+
+        adapter.listNamespacedCustomObject = list
+        await operator()
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+
+        expect(adapter.jobs).toHaveLength(0)
     })
 })

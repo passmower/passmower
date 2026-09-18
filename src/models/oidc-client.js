@@ -34,6 +34,8 @@ class OIDCClient {
     #idTokenSignedResponseAlg = null
     #applicationType = null
     #redirectUris = null
+    #ingressRef = null
+    #redirectPaths = null
     #allowedGroups = null
     #allowedUsers = null
     #claimMappings = null
@@ -92,7 +94,11 @@ class OIDCClient {
         this.#tokenEndpointAuthMethod = incomingClient.spec.tokenEndpointAuthMethod || configuration.clientDefaults.token_endpoint_auth_method
         this.#idTokenSignedResponseAlg = incomingClient.spec.idTokenSignedResponseAlg || configuration.clientDefaults.id_token_signed_response_alg
         this.#applicationType = incomingClient.spec.applicationType || configuration.clientDefaults.application_type
-        this.#redirectUris = incomingClient.spec.redirectUris
+        // Absent when the client takes its host from an Ingress; the operator
+        // resolves it before anything reads it.
+        this.#redirectUris = incomingClient.spec.redirectUris ?? []
+        this.#ingressRef = incomingClient.spec.ingressRef ?? null
+        this.#redirectPaths = incomingClient.spec.redirectPaths ?? []
         this.#allowedGroups = incomingClient.spec.allowedGroups || []
         this.#allowedUsers = incomingClient.spec.allowedUsers || []
         this.#claimMappings = incomingClient.spec.claimMappings ?? {}
@@ -147,6 +153,31 @@ class OIDCClient {
             ],
             ...this.#secretMetadata
         }
+    }
+
+    getIngressRef() {
+        return this.#ingressRef
+    }
+
+    getRedirectPaths() {
+        return this.#redirectPaths
+    }
+
+    getRedirectUris() {
+        return this.#redirectUris
+    }
+
+    getUri() {
+        return this.#uri
+    }
+
+    // The result of resolving spec.ingressRef against the Ingress host. Applied
+    // in memory only: writing it into spec would make the operator fight
+    // whatever wrote the resource, which for a hand-written client is Git.
+    setResolvedIngress({uri, redirectUris}) {
+        this.#uri = uri
+        this.#redirectUris = redirectUris
+        return this
     }
 
     getClaimMappings() {
@@ -218,7 +249,17 @@ class OIDCClient {
     }
 
     getIntendedStatus() {
-        return this.#activityState.getIntendedStatus()
+        const status = this.#activityState.getIntendedStatus()
+        if (!this.#ingressRef?.name) {
+            return status
+        }
+        // What the reference resolved to, reported rather than written into
+        // spec — the only place an operator gets to say what it derived.
+        return {
+            ...status,
+            resolvedUri: this.#uri ?? null,
+            resolvedRedirectUris: this.#redirectUris ?? [],
+        }
     }
 
     updateActivityCondition(now, inactiveAfterDays) {

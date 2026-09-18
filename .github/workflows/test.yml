@@ -27,7 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis:7-alpine
+        # Valkey, as the chart bundles. redis-cli is a symlink in that image, so
+        # the health check reads the same for either implementation.
+        image: valkey/valkey:8-alpine
         ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s
