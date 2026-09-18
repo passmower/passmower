@@ -12,6 +12,18 @@ description: A Helm chart for Kubernetes
 # pipeline. Library charts do not define any templates and therefore cannot be deployed.
 type: application
 
+# The oldest Kubernetes this chart works on. Set by the CEL rule on OIDCClient
+# (`x-kubernetes-validations`), which is on by default from 1.25 and GA in 1.29;
+# an older API server prunes it silently, so the client would install with the
+# redirectUris/ingressRef constraint quietly absent rather than rejected. The
+# other floors are lower: coordination.k8s.io/v1 Leases for operator leader
+# election need 1.14, Job ttlSecondsAfterFinished 1.23, networking.k8s.io/v1
+# Ingress 1.19 and apiextensions.k8s.io/v1 CRDs 1.16.
+#
+# The -0 suffix matters: without it semver treats a distribution's prerelease
+# version, like 1.28.3-gke.1286000, as below 1.25.0.
+kubeVersion: ">=1.25.0-0"
+
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
