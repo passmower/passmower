@@ -143,6 +143,15 @@ passmower:
     # access, so blank enrollments cannot spam administrators.
     requireExistingGroup: true
 
+  # The CRD operators run in one replica at a time, chosen with a
+  # coordination.k8s.io Lease. Every replica still serves HTTP: sessions and
+  # clients live in Redis and the login path writes users directly, so nothing
+  # on the request path needs the operators. Turning this off runs the operators
+  # in every replica, which is what releases before 2.3 did — safe, because the
+  # writers converge, but N times the API churn.
+  leaderElection:
+    enabled: true
+
   # How often to sweep Redis for client records whose OIDCClient /
   # OIDCMiddlewareClient is gone. The watch removes a record when it sees the
   # resource deleted; a delete that is never delivered or never applied is never
@@ -345,12 +354,10 @@ securityContext: {}
   # runAsUser: 1000
 
 # Passmower's HTTP side is stateless (sessions in Redis, signing keys in a
-# Secret), but each replica also runs the CRD operators, and they are not
-# leader-elected — the instance identity they claim resources with is per
-# Deployment, not per Pod, so every replica reconciles every event. Reconciles
-# converge rather than corrupt (see #236), but raising this above 1 buys
-# duplicated work and API churn, not throughput. Leader election is tracked in
-# #236.
+# Secret), and the CRD operators run in one replica at a time, elected through a
+# coordination.k8s.io Lease (passmower.leaderElection). So raising this scales
+# the authorization endpoints — a rolling restart or a lost node no longer stops
+# new sign-ins — without N controllers racing on the same resources.
 replicaCount: 1
 
 resources: {}

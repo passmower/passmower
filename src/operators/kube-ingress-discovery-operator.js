@@ -48,6 +48,12 @@ export class KubeIngressDiscoveryOperator {
         await this.adapter.watchObjects()
     }
 
+    // Stand down without ending the process: this pod keeps serving HTTP
+    // after it loses the operator lease (#236).
+    stop() {
+        this.adapter.stopWatching()
+    }
+
     async #reconcile(ingress) {
         const namespace = ingress?.metadata?.namespace
         const name = ingress?.metadata?.name

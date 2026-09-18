@@ -24,6 +24,7 @@ import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook
 import {ClientRedisReconciler} from './services/client-redis-reconciler.js';
 import {KubeIngressDiscoveryOperator} from "./operators/kube-ingress-discovery-operator.js";
 import {KubernetesAdapter} from "./adapters/kubernetes.js";
+import {LeaderElection, isLeaderElectionEnabled} from './services/leader-election.js';
 
 const __dirname = dirname(import.meta.url);
 
@@ -50,19 +51,25 @@ export async function buildProvider() {
     return provider
 }
 
-// Start the operators that watch the cluster for OIDC client/user resources.
-export async function startOperators(provider) {
-    const activityTracker = getActivityTracker()
+// Bring up every operator that watches the cluster, plus the Redis sweep that
+// cleans up after them. Returns a stop function that stands them all down.
+async function startReconcilers(provider) {
+    const running = []
     const kubeClientOperator = new KubeOIDCClientOperator(provider)
     await kubeClientOperator.watchClients()
+    running.push(kubeClientOperator)
     const kubeMiddlewareClientOperator = new KubeOIDCMiddlewareClientOperator(provider)
     await kubeMiddlewareClientOperator.watchClients()
+    running.push(kubeMiddlewareClientOperator)
     const kubeUserOperator = new KubeOidcUserOperator(provider)
     await kubeUserOperator.watchUsers()
+    running.push(kubeUserOperator)
     const kubeUserEventHookOperator = new KubeOidcUserEventHookOperator()
     await kubeUserEventHookOperator.watchUsers()
+    running.push(kubeUserEventHookOperator)
     const scimConnectionOperator = new KubeScimConnectionOperator()
     await scimConnectionOperator.watchConnections()
+    running.push(scimConnectionOperator)
     // Opt-in: discovery creates OIDCClient resources from annotations on any
     // Ingress it can read, so an installation says when it wants that.
     if (process.env.INGRESS_DISCOVERY_ENABLED === 'true') {
@@ -71,13 +78,43 @@ export async function startOperators(provider) {
         const ingressDiscoveryOperator = new KubeIngressDiscoveryOperator(
             new KubernetesAdapter(), kubeClientOperator)
         await ingressDiscoveryOperator.watchIngresses()
+        running.push(ingressDiscoveryOperator)
     }
     // The watch is the only thing that removes a client record from Redis, and a
     // missed DELETED is never replayed the way a missed upsert is. This sweeps
     // up the records left behind (#257).
     const clientReconciler = new ClientRedisReconciler()
     clientReconciler.start()
-    activityTracker.start()
+    return () => {
+        for (const operator of running) operator.stop()
+        clientReconciler.stop()
+    }
+}
+
+// Start the operators that watch the cluster for OIDC client/user resources.
+// Returns a shutdown hook, or undefined when nothing needs releasing.
+export async function startOperators(provider) {
+    // Per-Pod, whoever leads: a pod is the only place that knows which sign-ins
+    // it served, so its activity projection cannot be handed to the leader.
+    getActivityTracker().start()
+
+    if (!isLeaderElectionEnabled()) {
+        await startReconcilers(provider)
+        return
+    }
+    // Only one replica reconciles; the rest serve HTTP, which needs nothing from
+    // the operators — clients are read from the shared Redis and the login path
+    // writes users through KubeOIDCUserService directly (#236).
+    let stopReconcilers
+    const election = new LeaderElection({
+        onStartedLeading: async () => { stopReconcilers = await startReconcilers(provider) },
+        onStoppedLeading: async () => { stopReconcilers?.(); stopReconcilers = undefined },
+    })
+    await election.start()
+    return async () => {
+        await election.stop()
+        stopReconcilers?.()
+    }
 }
 
 // Boot the full application. Skipped when imported as a module (e.g. by tests),
@@ -94,7 +131,16 @@ export async function main() {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
     metricsServer()
-    await startOperators(provider)
+    const shutdown = await startOperators(provider)
+    // Hand the operator lease back on a rolling restart rather than making the
+    // next holder wait it out.
+    for (const signal of ['SIGTERM', 'SIGINT']) {
+        process.once(signal, () => {
+            Promise.resolve(shutdown?.())
+                .catch(err => globalThis.logger?.warn({err}, 'Shutdown hook failed'))
+                .finally(() => { if (server?.listening) server.close(); })
+        })
+    }
     } catch (err) {
         if (server?.listening) server.close();
         console.error(err);

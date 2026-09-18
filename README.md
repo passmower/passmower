@@ -433,6 +433,12 @@ event metadata, idempotency, and security model.
 Login and admin-impersonation behavior for each `OIDCUser.spec.type` is described
 in [docs/account-types.md](docs/account-types.md).
 
+## High availability
+
+`replicaCount` above 1 scales the authorization endpoints while one replica at a
+time reconciles the custom resources, elected through a `coordination.k8s.io`
+Lease. See [docs/high-availability.md](docs/high-availability.md).
+
 ## Traefik middleware
 
 For legacy applications `forwardAuth` based middleware option is supported.

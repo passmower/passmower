@@ -1,15 +1,21 @@
 import {KubernetesAdapter} from '../adapters/kubernetes.js'
+import RedisAdapter from '../adapters/redis.js'
 import {OidcUserEventHook} from '../models/oidc-user-event-hook.js'
 import {NamespaceFilter} from '../utils/kubernetes/namespace-filter.js'
 import {OIDCUserCrd, OIDCUserEventHookCrd} from '../utils/kubernetes/kube-constants.js'
 
+// Marks that the store has seen a full listing once. UIDs are UUIDs, so this
+// cannot collide with one.
+const initializedKey = '__initialized__'
+
 export class KubeOidcUserEventHookOperator {
-    constructor(adapter = new KubernetesAdapter()) {
+    constructor(adapter = new KubernetesAdapter(), stateRedis = new RedisAdapter('OIDCUserEventHookState')) {
         this.adapter = adapter
-        this.generations = new Map()
+        this.state = stateRedis
     }
 
     async watchUsers() {
+        await this.#seedOnFirstRun()
         this.adapter.setWatchParameters(
             OIDCUserCrd,
             user => user,
@@ -21,27 +27,70 @@ export class KubeOidcUserEventHookOperator {
         await this.adapter.watchObjects()
     }
 
+    // Stand down without ending the process: this pod keeps serving HTTP
+    // after it loses the operator lease (#236).
+    stop() {
+        this.adapter.stopWatching()
+    }
+
+    // The generation each user was last dispatched at lives in Redis rather than
+    // in this process. Kubernetes reports every existing object as ADDED when a
+    // watch is re-established, and an in-memory map only suppresses that for as
+    // long as the process lives: a restart — or, once the operators are
+    // leader-elected, an ordinary handover — would see every user as new and
+    // dispatch an Added hook for the lot. The Job name is a digest of the user
+    // and generation, so `ignoreAlreadyExists` hides the duplicate, but only
+    // until ttlSecondsAfterFinished collects the Job an hour later (#236).
+    async #lastGeneration(uid) {
+        return (await this.state.find(uid))?.generation
+    }
+
+    async #remember(uid, generation) {
+        await this.state.upsert(uid, {generation})
+    }
+
+    // On the very first run the store is empty, and without this every user
+    // would look new — the same mass dispatch, once, on the upgrade that
+    // introduces the store. Record what already exists instead, and dispatch
+    // nothing for it.
+    async #seedOnFirstRun() {
+        if (await this.state.find(initializedKey)) {
+            return
+        }
+        const users = await this.adapter.listNamespacedCustomObject(
+            OIDCUserCrd, this.adapter.namespace, user => user)
+        if (!Array.isArray(users)) {
+            // Marking the store initialized off a failed listing would suppress
+            // a real Added for every user it should have seen. Try again next boot.
+            globalThis.logger?.warn('Could not list OIDCUsers to seed event hook state; deferring')
+            return
+        }
+        for (const user of users) {
+            await this.#remember(user.metadata.uid, user.metadata.generation ?? 1)
+        }
+        await this.state.upsert(initializedKey, {initializedAt: new Date().toISOString()})
+        globalThis.logger?.info({users: users.length}, 'Seeded OIDCUser event hook state')
+    }
+
     async #added(user) {
         const generation = user.metadata.generation ?? 1
-        const previousGeneration = this.generations.get(user.metadata.uid)
-        // Kubernetes reports every existing object as ADDED when a watch is
-        // re-established. Suppress unchanged synthetic events within this
-        // process; if the generation advanced during the watch gap, preserve
-        // that missed spec edge by dispatching it as Modified instead.
+        const previousGeneration = await this.#lastGeneration(user.metadata.uid)
+        // Suppress the synthetic re-list event; if the generation advanced while
+        // nothing was watching, preserve that missed spec edge as a Modified.
         if (previousGeneration === generation) return
-        this.generations.set(user.metadata.uid, generation)
+        await this.#remember(user.metadata.uid, generation)
         await this.#dispatch({type: previousGeneration === undefined ? 'Added' : 'Modified', user})
     }
 
     async #modified(user) {
         const generation = user.metadata.generation ?? 1
-        if (this.generations.get(user.metadata.uid) === generation) return
-        this.generations.set(user.metadata.uid, generation)
+        if (await this.#lastGeneration(user.metadata.uid) === generation) return
+        await this.#remember(user.metadata.uid, generation)
         await this.#dispatch({type: 'Modified', user})
     }
 
     async #deleted(user) {
-        this.generations.delete(user.metadata.uid)
+        await this.state.destroy(user.metadata.uid)
         await this.#dispatch({type: 'Deleted', user})
     }
 

@@ -35,6 +35,12 @@ export class KubeOIDCClientOperator {
         await this.adapter.watchObjects()
     }
 
+    // Stand down without ending the process: this pod keeps serving HTTP
+    // after it loses the operator lease (#236).
+    stop() {
+        this.adapter.stopWatching()
+    }
+
     async #createOIDCClient (OIDCClient) {
         this.reconcileState.register(OIDCClient)
         try {
