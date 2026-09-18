@@ -34,6 +34,10 @@ export class FakeKubernetesAdapter {
         return Promise.all(items.map((v) => mapperFunction(structuredClone(v))))
     }
 
+    async listClusterCustomObject(kind, mapperFunction) {
+        return this.listNamespacedCustomObject(kind, undefined, mapperFunction)
+    }
+
     async getNamespacedCustomObject(kind, _namespace, id, mapperFunction) {
         const stored = this.store.get(this.#key(kind, id))
         if (!stored) return undefined // real adapter returns undefined on 404

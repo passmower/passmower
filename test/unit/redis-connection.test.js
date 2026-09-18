@@ -23,12 +23,16 @@ describe('Redis connection options', () => {
         })
     })
 
+    // 2, not true: ioredis rejects the failed command on `true` and resends it
+    // only on 2. Reconnecting without resending drops the write that hit a
+    // replica mid-failover, and a dropped delete is never replayed — which is
+    // how clients outlived their CRs in Redis (#257).
     it.each(['READONLY', 'MOVED', 'ASK', 'CLUSTERDOWN'])(
-        'reconnects on %s failover errors',
+        'reconnects and resends the failed command on %s failover errors',
         error => {
             const { reconnectOnError } = getRedisOptions()
 
-            expect(reconnectOnError(new Error(`${error} failover`))).toBe(true)
+            expect(reconnectOnError(new Error(`${error} failover`))).toBe(2)
         },
     )
 

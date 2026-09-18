@@ -21,6 +21,7 @@ import {validateEmailConfiguration} from './utils/email-configuration.js';
 import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
+import {ClientRedisReconciler} from './services/client-redis-reconciler.js';
 import {KubeIngressDiscoveryOperator} from "./operators/kube-ingress-discovery-operator.js";
 import {KubernetesAdapter} from "./adapters/kubernetes.js";
 
@@ -71,6 +72,11 @@ export async function startOperators(provider) {
             new KubernetesAdapter(), kubeClientOperator)
         await ingressDiscoveryOperator.watchIngresses()
     }
+    // The watch is the only thing that removes a client record from Redis, and a
+    // missed DELETED is never replayed the way a missed upsert is. This sweeps
+    // up the records left behind (#257).
+    const clientReconciler = new ClientRedisReconciler()
+    clientReconciler.start()
     activityTracker.start()
 }
 

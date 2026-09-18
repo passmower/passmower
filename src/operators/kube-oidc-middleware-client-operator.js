@@ -84,10 +84,20 @@ export class KubeOIDCMiddlewareClientOperator {
         }
     }
 
+    // See the note on KubeOIDCClientOperator#deleteOIDCClient: a failure here
+    // has no resource left to report on and is never retried by a watch event,
+    // so it is logged and left to the reconcile sweep (#257).
     async #deleteOIDCClient (OIDCMiddlewareClient) {
         this.reconcileState.unregister(OIDCMiddlewareClient)
-        if (OIDCMiddlewareClient.getInstance() === this.instance) {
+        if (OIDCMiddlewareClient.getInstance() !== this.instance) {
+            return
+        }
+        try {
             await this.redisAdapter.destroy(OIDCMiddlewareClient.getClientId())
+        } catch (error) {
+            globalThis.logger.error(
+                {error, client: OIDCMiddlewareClient.getClientId()},
+                'Failed to remove a deleted OIDCMiddlewareClient from Redis, leaving it to the reconcile sweep')
         }
     }
 
