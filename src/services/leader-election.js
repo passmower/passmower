@@ -19,6 +19,18 @@ export function isLeaderElectionEnabled(env = process.env) {
     return env.LEADER_ELECTION_ENABLED !== 'false'
 }
 
+// Lease timestamps are metav1.MicroTime, not metav1.Time. The API server
+// decodes them with the Go layout "2006-01-02T15:04:05.000000Z07:00", and Go
+// reference layouts are fixed width: ".000000" means exactly six fractional
+// digits, not "up to six". toISOString() emits three, so an unpadded timestamp
+// is rejected with a 400 at decode time — before validation, so the whole Lease
+// write fails every time rather than intermittently. The client-node serializer
+// has no V1MicroTime model and passes the value through untouched, which is why
+// padding has to happen here.
+export function microTime(date) {
+    return date.toISOString().replace(/\.(\d{3})Z$/, '.$1000Z')
+}
+
 function intEnv(name, fallback, env = process.env) {
     const value = Number.parseInt(env[name] ?? '', 10)
     return Number.isFinite(value) && value > 0 ? value : fallback
@@ -141,7 +153,7 @@ export class LeaderElection {
     }
 
     async #acquire(existing) {
-        const timestamp = this.now().toISOString()
+        const timestamp = microTime(this.now())
         const spec = {
             holderIdentity: this.identity,
             leaseDurationSeconds: this.leaseDurationSeconds,
@@ -175,7 +187,7 @@ export class LeaderElection {
         try {
             await this.adapter.replaceLease(this.namespace, this.name, {
                 ...lease,
-                spec: {...lease.spec, renewTime: this.now().toISOString(), leaseDurationSeconds: this.leaseDurationSeconds},
+                spec: {...lease.spec, renewTime: microTime(this.now()), leaseDurationSeconds: this.leaseDurationSeconds},
             })
         } catch (error) {
             const code = error.code ?? error.statusCode
