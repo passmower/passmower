@@ -3,8 +3,14 @@ import {
     LeaderElection,
     podIdentity,
     isLeaderElectionEnabled,
+    microTime,
     DEFAULT_LEASE_DURATION_SECONDS,
 } from '../../src/services/leader-election.js'
+
+// Lease timestamps are metav1.MicroTime, whose Go layout takes exactly six
+// fractional digits. Three — what toISOString() emits — is a 400 at decode
+// time, so every Lease write fails and there is never a leader.
+const MICRO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/
 
 // Just the Lease surface of the Kubernetes adapter, with the same error shapes:
 // these methods deliberately throw rather than swallow, because the election
@@ -85,6 +91,26 @@ describe('operator leader election', () => {
             leaseDurationSeconds: DEFAULT_LEASE_DURATION_SECONDS,
             leaseTransitions: 1,
         })
+    })
+
+    it('writes lease timestamps with microsecond precision when acquiring', async () => {
+        const subject = election()
+        await subject.start()
+
+        expect(adapter.lease.spec.acquireTime).toMatch(MICRO_TIME)
+        expect(adapter.lease.spec.renewTime).toMatch(MICRO_TIME)
+    })
+
+    it('writes lease timestamps with microsecond precision when renewing', async () => {
+        let clock = new Date('2026-09-18T12:00:00.000Z')
+        const subject = election({now: () => clock})
+        await subject.start()
+
+        clock = new Date('2026-09-18T12:00:02.563Z')
+        await subject.tick()
+
+        expect(adapter.lease.spec.renewTime).toBe('2026-09-18T12:00:02.563000Z')
+        expect(adapter.lease.spec.renewTime).toMatch(MICRO_TIME)
     })
 
     it('does not start leading while another pod holds a live lease', async () => {
@@ -232,6 +258,14 @@ describe('operator leader election', () => {
 })
 
 describe('leader election configuration', () => {
+    it('pads timestamps to the six fractional digits MicroTime demands', () => {
+        expect(microTime(new Date('2026-09-21T06:01:11.563Z'))).toBe('2026-09-21T06:01:11.563000Z')
+        expect(microTime(new Date('2026-09-21T06:01:11.000Z'))).toBe('2026-09-21T06:01:11.000000Z')
+        // Still a timestamp the election loop can read back and compare.
+        expect(new Date(microTime(new Date('2026-09-21T06:01:11.563Z'))).getTime())
+            .toBe(Date.parse('2026-09-21T06:01:11.563Z'))
+    })
+
     it('prefers the pod name over the hostname', () => {
         expect(podIdentity({POD_NAME: 'passmower-abc'})).toBe('passmower-abc')
         expect(podIdentity({})).toBeTruthy()
