@@ -242,21 +242,16 @@ spec:
             probes the same Redis, so a liveness dependency check restarts the
             whole Deployment at once (#265). Neither path reaches oidc-provider,
             so neither needs the x-forwarded-* headers that suppress its warning.
+            Both blocks come from values verbatim; null drops the probe.
           */}}
+          {{- with .Values.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /ready
-              port: 9090
-            initialDelaySeconds: 5
-            timeoutSeconds: 10
-            periodSeconds: 10
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 9090
-            initialDelaySeconds: 10
-            timeoutSeconds: 10
-            periodSeconds: 30
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /app/tos
               name: tos

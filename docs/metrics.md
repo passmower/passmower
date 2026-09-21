@@ -17,6 +17,11 @@ someone else's outage, the Redis client reconnects on its own, and because every
 replica probes the same Redis a liveness dependency check would restart the
 whole Deployment at once.
 
+Both probes come from the chart's `livenessProbe` / `readinessProbe` values and
+are passed through verbatim, so any probe field can be set and either can be
+dropped with `null`. Keep `/health` on liveness: pointing it at `/ready` is the
+configuration this split exists to avoid.
+
 ## Usage metrics
 
 | Metric | Type | Labels | Meaning |
