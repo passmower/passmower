@@ -7,6 +7,9 @@ WORKDIR /app
 # copy package.json and package-lock.json to /app
 COPY package.json /app
 COPY package-lock.json /app
+# .npmrc carries engine-strict, so the image build refuses a base image below
+# the Node floor instead of installing and failing at runtime.
+COPY .npmrc /app
 COPY nodemon.json /app
 
 # install node dependencies
@@ -52,6 +55,7 @@ WORKDIR /app
 # copy package.json and package-lock.json to /app
 COPY package.json /app
 COPY package-lock.json /app
+COPY .npmrc /app
 
 # install node dependencies
 RUN npm install --omit=dev

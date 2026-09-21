@@ -360,6 +360,36 @@ securityContext: {}
 # new sign-ins — without N controllers racing on the same resources.
 replicaCount: 1
 
+# Probes. Readiness gates traffic on the session store and the Kubernetes API;
+# liveness only asks whether the process still answers.
+#
+# Keep dependency checks out of liveness (#265). A Redis outage is not something
+# the pod can fix by dying — the client reconnects on its own — and because every
+# replica probes the same Redis, a liveness dependency check restarts the whole
+# Deployment at once. /health is deliberately shallow for that reason; pointing
+# it at /ready reintroduces the bug.
+#
+# Both blocks are passed through verbatim, so any probe field works here. Set
+# either to null to drop the probe entirely.
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 9090
+  initialDelaySeconds: 10
+  timeoutSeconds: 10
+  periodSeconds: 30
+
+# Raise initialDelaySeconds/failureThreshold if the first listUsers() against a
+# large cluster is slow enough to keep a starting pod out of the Service longer
+# than you would like.
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 9090
+  initialDelaySeconds: 5
+  timeoutSeconds: 10
+  periodSeconds: 10
+
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
