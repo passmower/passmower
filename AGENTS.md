@@ -144,6 +144,15 @@ npm run test:e2e         # Playwright browser login against Dex (docker-compose.
   paths in `configuration.findAccount` / `Account.findAccount` worked by accident;
   `test/unit/find-account-contract.test.js` pins the type. The same file validates
   `getResourceServerInfo`, `expiresWithSession`, `pkce.required` and friends.
+- **`metav1.MicroTime` needs exactly six fractional digits.** `coordination.k8s.io/v1`
+  `Lease.spec.acquireTime`/`renewTime` (and `events.k8s.io/v1` `Event.eventTime`)
+  decode with the Go layout `2006-01-02T15:04:05.000000Z07:00`, and Go reference
+  layouts are fixed width — `.000000` is not "up to six". `toISOString()` emits
+  three, which the API server rejects with a 400 at decode time. `metav1.Time`,
+  which types every other timestamp we write, is lenient, so only this path breaks.
+  `client-node` ships no `V1MicroTime` model, so its serializer passes the value
+  through untouched in both directions: pad at the call site
+  (`microTime()` in `src/services/leader-election.js`).
 - `oidc-provider` **silently drops any claim it was not configured with**: the mask
   in `helpers/claims.js` filters against `claimsSupported`, built once at boot from
   the `claims` config. Runtime claim names (per-client `spec.claimMappings`) must be
