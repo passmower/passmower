@@ -6,10 +6,18 @@ import { setupUsageMetrics } from "../utils/usage-metrics.js";
 import {KubeOIDCUserService} from "../services/kube-oidc-user-service.js";
 import RedisAdapter from "../adapters/redis.js";
 
-// Health check: verifies the Kubernetes API is reachable AND that Redis is
-// actually writable (a read-only replica or failing writes would pass a
-// read-only check but break the app — #77). Throws if a dependency is down.
-export const checkHealth = async (userService) => {
+// Readiness: can this pod serve a request right now? That means the Kubernetes
+// API is reachable and Redis is actually writable — a read-only replica or
+// failing writes pass a read-only check but break the app (#77). Throws if a
+// dependency is down.
+//
+// This is a readiness question, not a liveness one (#265). Neither dependency
+// is something the pod can fix by dying: the Redis client reconnects on its own
+// and the process stays healthy throughout, so restarting only throws away a
+// warm pod and, because every replica probes the same Redis, restarts all of
+// them at once. Failing readiness instead takes the pod out of the Service for
+// exactly as long as the outage lasts.
+export const checkReadiness = async (userService) => {
     const redis = new RedisAdapter('HealthCheck')
     const token = `${Date.now()}-${process.pid}`
     await redis.upsert('probe', { token }, 60)
@@ -18,7 +26,32 @@ export const checkHealth = async (userService) => {
     return Boolean(usersReachable && probe?.token === token)
 }
 
-export default async () => {
+// The two probe routes, separated from the server so they can be exercised
+// without binding a port. isServing reports whether the main provider listener
+// on port 3000 is up: the readiness probe used to hit that port's discovery
+// document directly, and moving readiness here must not quietly drop the "has
+// it finished booting" half of what that probe answered.
+export const probeRoutes = (router, {userService, isServing = () => true}) => {
+    // Liveness: is this process still turning its event loop? Answering at all
+    // is the whole answer. It deliberately touches no dependency — a probe that
+    // restarts the pod over someone else's outage is worse than no probe.
+    router.get('/health', async (ctx, next) => {
+        ctx.status = 200;
+        ctx.body = 'ok';
+    })
+
+    router.get('/ready', async (ctx, next) => {
+        try {
+            ctx.status = isServing() && await checkReadiness(userService) ? 200 : 503;
+        } catch (err) {
+            globalThis.logger?.warn({ err }, 'readiness check failed');
+            ctx.status = 503;
+        }
+    })
+    return router
+}
+
+export default async ({isServing = () => true} = {}) => {
     collectDefaultMetrics({
         timeout: 10000,
         gcDurationBuckets: [0.001, 0.01, 0.1, 1, 2, 5], // These are the default buckets.
@@ -48,14 +81,7 @@ export default async () => {
         ctx.body = await register.metrics()
     })
 
-    router.get('/health', async (ctx, next) => {
-        try {
-            ctx.status = await checkHealth(userService) ? 200 : 500;
-        } catch (err) {
-            globalThis.logger?.error({ err }, 'health check failed');
-            ctx.status = 500;
-        }
-    })
+    probeRoutes(router, {userService, isServing})
     metricsServer.use(router.routes())
     metricsServer.listen(9090)
 }

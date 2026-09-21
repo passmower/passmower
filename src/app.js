@@ -130,7 +130,7 @@ export async function main() {
         server = provider.listen(PORT, () => {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
     });
-    metricsServer()
+    metricsServer({isServing: () => Boolean(server?.listening)})
     const shutdown = await startOperators(provider)
     // Hand the operator lease back on a rolling restart rather than making the
     // next holder wait it out.

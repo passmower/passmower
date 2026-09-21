@@ -235,27 +235,23 @@ spec:
             - secretRef:
                 name: {{ .Values.passmower.slackClientSecretRef }}
             {{- end }}
+          {{- /*
+            Readiness gates traffic on the session store and the Kubernetes API;
+            liveness only asks whether the process still answers. A Redis outage
+            must not restart pods — restarting cannot fix it, and every replica
+            probes the same Redis, so a liveness dependency check restarts the
+            whole Deployment at once (#265). Neither path reaches oidc-provider,
+            so neither needs the x-forwarded-* headers that suppress its warning.
+            Both blocks come from values verbatim; null drops the probe.
+          */}}
+          {{- with .Values.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /.well-known/openid-configuration
-              port: 3000
-              httpHeaders:
-                - name: x-forwarded-for # suppress oidc-provider warning
-                  value: {{ include "passmower.url" . }}
-                - name: x-forwarded-proto # suppress oidc-provider warning
-                  value: https
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 9090
-              httpHeaders:
-                - name: x-forwarded-for # suppress oidc-provider warning
-                  value: {{ include "passmower.url" . }}
-                - name: x-forwarded-proto # suppress oidc-provider warning
-                  value: https
-            initialDelaySeconds: 10
-            timeoutSeconds: 10
-            periodSeconds: 30
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /app/tos
               name: tos
