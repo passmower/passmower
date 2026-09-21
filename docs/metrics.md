@@ -1,8 +1,21 @@
 # Prometheus metrics
 
-Passmower serves Prometheus metrics on port `9090` at `/metrics` (the same
-listener also serves `/health`). Default Node.js process metrics are included;
-every series carries `instance` (the issuer URL) and `deployment` labels.
+Passmower serves Prometheus metrics on port `9090` at `/metrics`. Default
+Node.js process metrics are included; every series carries `instance` (the
+issuer URL) and `deployment` labels.
+
+The same listener serves the two probe endpoints:
+
+| Path | Probe | Checks |
+|---|---|---|
+| `/health` | liveness | Nothing but the process itself — it answers whenever the event loop is turning. |
+| `/ready` | readiness | Redis is writable (write-then-read, so a read-only replica fails), the Kubernetes API is reachable, and the provider on port `3000` is listening. 503 when any of those is down. |
+
+Dependency failures belong on readiness alone: a Redis outage should take a pod
+out of the Service until it passes again, not restart it. Restarting cannot fix
+someone else's outage, the Redis client reconnects on its own, and because every
+replica probes the same Redis a liveness dependency check would restart the
+whole Deployment at once.
 
 ## Usage metrics
 
