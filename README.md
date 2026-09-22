@@ -237,6 +237,10 @@ spec:
   tokenEndpointAuthMethod: none
 ```
 
+`availableScopes` accepts any legal OAuth2 scope token, not just the ones
+Passmower serves — see [docs/api-scopes.md](docs/api-scopes.md) for scopes
+belonging to an application's own API.
+
 The generated client Secret exposes the scopes as `OIDC_AVAILABLE_SCOPES`,
 comma-delimited by default. Applications that split scope strings on spaces
 (the OAuth2 wire format) can set `availableScopesDelimiter: " "` on the
@@ -347,6 +351,15 @@ which one a user has, in a claim of their own naming. Per-client
 application's roles can be governed alongside its client in Git without Passmower
 knowing anything about that application — and without a code change here for the
 next one. See [docs/claim-mappings.md](docs/claim-mappings.md).
+
+## API scopes for application APIs
+
+`spec.availableScopes` is not limited to the scopes Passmower serves. An
+application that exposes an API can list scopes in its own naming
+(`gallery:images:read`); a client that requests one alongside an RFC 8707
+`resource` receives a JWT access token audience-bound to that API and carrying
+the scope, which the API validates against the JWKS endpoint without an
+introspection call. See [docs/api-scopes.md](docs/api-scopes.md).
 
 ## Audit logging and application activity
 

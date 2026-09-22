@@ -158,6 +158,14 @@ npm run test:e2e         # Playwright browser login against Dex (docker-compose.
   the `claims` config. Runtime claim names (per-client `spec.claimMappings`) must be
   added to `instance(provider).configuration` — `src/utils/claim-mappings.js` owns
   that, and `test/unit/claim-mappings.test.js` pins the internal shape.
+- **Scopes are the mirror image.** `actions/authorization/scopes.js` checks a
+  requested scope against the client allowlist only if that scope is in the *static*
+  `scopes` config, so an unknown scope passes `/auth` untouched and is then dropped
+  unless some resource server claims it. That is what lets `spec.availableScopes`
+  carry an application's own API scopes (`docs/api-scopes.md`) with no enum and no
+  provider config — `getResourceServerInfo` turns the list into the resource
+  server's scope set. The cost: a misspelt Passmower scope is accepted and silently
+  does nothing.
 
 ## Local development
 
@@ -258,6 +266,6 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
-See also: `README.md` (install + upstream config), `docs/application-listing.md`,
-`docs/claim-mappings.md`, `docs/ingress-discovery.md`,
-`docs/username-configuration.md`.
+See also: `README.md` (install + upstream config), `docs/api-scopes.md`,
+`docs/application-listing.md`, `docs/claim-mappings.md`,
+`docs/ingress-discovery.md`, `docs/username-configuration.md`.
