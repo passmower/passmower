@@ -810,20 +810,24 @@ spec:
                     type: string
                 availableScopes:
                   type: array
+                  description: >-
+                    Scopes this client may request. The scopes Passmower itself
+                    serves are openid, email, profile, offline_access, groups,
+                    allowed_groups, applications, all_applications and
+                    namespaces. Any other value is an API scope belonging to a
+                    resource server: it reaches the access token when the client
+                    requests that resource server with an RFC 8707 `resource`
+                    parameter, and is ignored otherwise. API scopes are the
+                    resource server's own vocabulary, so this is not an enum --
+                    which also means a misspelt Passmower scope is accepted here
+                    and then silently does nothing.
                   default:
                     - openid
                   items:
                     type: string
-                    enum:
-                      - openid
-                      - email
-                      - profile
-                      - offline_access
-                      - groups
-                      - allowed_groups
-                      - applications
-                      - all_applications
-                      - namespaces
+                    # RFC 6749 section 3.3 scope-token: printable ASCII except
+                    # space, double quote and backslash.
+                    pattern: '^[\x21\x23-\x5B\x5D-\x7E]+$'
                 availableScopesDelimiter:
                   type: string
                   default: ","

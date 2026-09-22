@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.5.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.6.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -75,7 +75,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.5.0
+  version: 2.6.0
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -237,6 +237,10 @@ spec:
   tokenEndpointAuthMethod: none
 ```
 
+`availableScopes` accepts any legal OAuth2 scope token, not just the ones
+Passmower serves — see [docs/api-scopes.md](docs/api-scopes.md) for scopes
+belonging to an application's own API.
+
 The generated client Secret exposes the scopes as `OIDC_AVAILABLE_SCOPES`,
 comma-delimited by default. Applications that split scope strings on spaces
 (the OAuth2 wire format) can set `availableScopesDelimiter: " "` on the
@@ -282,6 +286,8 @@ The generated secret carries these keys:
 | `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` | `spec.tokenEndpointAuthMethod` |
 | `OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG` | `spec.idTokenSignedResponseAlg` |
 | `OIDC_REDIRECT_URIS` | `spec.redirectUris` |
+| `OIDC_CLIENT_URI` | `spec.uri`, without a trailing slash; empty when unset |
+| `OIDC_CLIENT_ORIGIN` | `spec.uri` reduced to scheme, host and port; empty when unset |
 | `OIDC_AVAILABLE_SCOPES` | `spec.availableScopes`, joined by `spec.availableScopesDelimiter` |
 | `OIDC_ALLOWED_GROUPS` | `spec.allowedGroups` |
 | `OIDC_ALLOWED_USERS` | `spec.allowedUsers` |
@@ -293,6 +299,24 @@ The generated secret carries these keys:
 
 List-valued keys are comma-separated, except `OIDC_AVAILABLE_SCOPES` when
 `spec.availableScopesDelimiter` says otherwise.
+
+`OIDC_CLIENT_URI` and `OIDC_CLIENT_ORIGIN` describe the application itself
+rather than Passmower, so a Deployment can point an env var at the Secret
+instead of repeating its own hostname:
+
+```
+env:
+  - name: NEXTAUTH_URL
+    valueFrom:
+      secretKeyRef:
+        name: oidc-client-grafana-owner-secrets
+        key: OIDC_CLIENT_URI
+```
+
+Neither ever carries a trailing slash — consumers such as `NEXTAUTH_URL` treat
+one as part of the path and build broken callback URLs from it. Both are empty
+strings for a client with no `spec.uri`, rather than absent, so a `secretKeyRef`
+pointing at them cannot block a pod from starting.
 
 To list applications:
 
@@ -347,6 +371,15 @@ which one a user has, in a claim of their own naming. Per-client
 application's roles can be governed alongside its client in Git without Passmower
 knowing anything about that application — and without a code change here for the
 next one. See [docs/claim-mappings.md](docs/claim-mappings.md).
+
+## API scopes for application APIs
+
+`spec.availableScopes` is not limited to the scopes Passmower serves. An
+application that exposes an API can list scopes in its own naming
+(`gallery:images:read`); a client that requests one alongside an RFC 8707
+`resource` receives a JWT access token audience-bound to that API and carrying
+the scope, which the API validates against the JWKS endpoint without an
+introspection call. See [docs/api-scopes.md](docs/api-scopes.md).
 
 ## Audit logging and application activity
 
