@@ -58,21 +58,41 @@ describe('OIDCClient CRD schema', () => {
         }
     )
 
+    // oidc-provider derives its scopes from `scopes` plus every `claims` key
+    // that maps to a set of claims (helpers/configuration.js collectScopes),
+    // so this is the full set Passmower itself serves.
+    const claimDefinedScopes = Object.entries(configuration.claims)
+        .filter(([, claims]) => Array.isArray(claims))
+        .map(([scope]) => scope)
+    const supportedScopes = [...configuration.scopes, ...claimDefinedScopes]
+
     it.each(oidcClientCrd.spec.versions.map(version => version.name))(
-        '%s offers every scope the provider supports in availableScopes',
+        '%s accepts any scope token in availableScopes, not just the ones Passmower serves',
         (versionName) => {
             const version = oidcClientCrd.spec.versions.find(v => v.name === versionName)
             const availableScopes = version.schema.openAPIV3Schema.properties.spec.properties.availableScopes
 
-            // oidc-provider derives its scopes from `scopes` plus every `claims`
-            // key that maps to a set of claims (helpers/configuration.js
-            // collectScopes), so this is the full set a client may request.
-            const claimDefinedScopes = Object.entries(configuration.claims)
-                .filter(([, claims]) => Array.isArray(claims))
-                .map(([scope]) => scope)
-            const supportedScopes = new Set([...configuration.scopes, ...claimDefinedScopes])
+            // An enum here would be wrong: a resource server's API scopes are
+            // its own vocabulary, and the API server rejects the OIDCClient
+            // before Passmower ever sees it. getResourceServerInfo turns
+            // availableScopes into the resource server's scope, so an API scope
+            // reaches a resource-bound JWT access token with no enum to widen.
+            expect(availableScopes.items.enum).toBeUndefined()
 
-            expect(new Set(availableScopes.items.enum)).toEqual(supportedScopes)
+            // RFC 6749 section 3.3 scope-token. Validated here with a JS RegExp;
+            // the API server compiles the same source with RE2, which agrees on
+            // this pattern's constructs (hex escapes and ranges).
+            const scopeToken = new RegExp(availableScopes.items.pattern)
+
+            for (const scope of [...supportedScopes, 'gallery:images:read', 'https://api.example.com/read']) {
+                expect(scopeToken.test(scope), scope).toBe(true)
+            }
+
+            // Still not a free-for-all: these cannot survive a space-delimited
+            // scope parameter, so the schema keeps rejecting them.
+            for (const invalid of ['two words', '', 'has"quote', 'has\\backslash']) {
+                expect(scopeToken.test(invalid), invalid).toBe(false)
+            }
         }
     )
 })

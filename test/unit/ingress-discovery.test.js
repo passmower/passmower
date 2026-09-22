@@ -201,7 +201,17 @@ describe('the derived spec against the OIDCClient CRD', () => {
             expect(spec[required]).toBeDefined()
         }
         for (const field of ['availableScopes', 'grantTypes', 'responseTypes']) {
-            expect(schema.properties[field].items.enum).toEqual(expect.arrayContaining(spec[field]))
+            // availableScopes is constrained by a scope-token pattern rather
+            // than an enum, because an application's own API scopes cannot be
+            // enumerated here (docs/api-scopes.md).
+            const {enum: allowed, pattern} = schema.properties[field].items
+            if (allowed) {
+                expect(allowed).toEqual(expect.arrayContaining(spec[field]))
+            } else {
+                for (const value of spec[field]) {
+                    expect(new RegExp(pattern).test(value), value).toBe(true)
+                }
+            }
         }
     })
 })
