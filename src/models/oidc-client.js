@@ -8,7 +8,9 @@ import {
     OIDCClientSecretAuthUriKey,
     OIDCClientSecretAvailableScopesKey,
     OIDCClientSecretClientIdKey,
+    OIDCClientSecretClientOriginKey,
     OIDCClientSecretClientSecretKey,
+    OIDCClientSecretClientUriKey,
     OIDCClientSecretIdpUriKey,
     OIDCClientSecretGrantTypesKey,
     OIDCClientSecretIdTokenSignedResponseAlgKey,
@@ -22,6 +24,7 @@ import {
 } from "../utils/kubernetes/kube-constants.js";
 import {KubeOwnerMetadata} from "../utils/kubernetes/kube-owner-metadata.js";
 import sortObject from "../utils/sort-object.js";
+import {clientOrigin, clientUri} from "../utils/kubernetes/client-uri.js";
 import {ClientActivityState} from './client-activity-state.js';
 
 class OIDCClient {
@@ -131,6 +134,8 @@ class OIDCClient {
             [OIDCClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
             [OIDCClientSecretIdTokenSignedResponseAlgKey]: this.#idTokenSignedResponseAlg,
             [OIDCClientSecretRedirectUrisKey]: this.#redirectUris.join(','),
+            [OIDCClientSecretClientUriKey]: clientUri(this.#uri),
+            [OIDCClientSecretClientOriginKey]: clientOrigin(this.#uri),
             [OIDCClientSecretIdpUriKey]: this.#instanceUri,
             [OIDCClientSecretWellKnownUriKey]: new URL('.well-known/openid-configuration', this.#instanceUri).href,
             [OIDCClientSecretAvailableScopesKey]: this.#availableScopes.join(this.#availableScopesDelimiter),

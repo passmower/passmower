@@ -286,6 +286,8 @@ The generated secret carries these keys:
 | `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` | `spec.tokenEndpointAuthMethod` |
 | `OIDC_ID_TOKEN_SIGNED_RESPONSE_ALG` | `spec.idTokenSignedResponseAlg` |
 | `OIDC_REDIRECT_URIS` | `spec.redirectUris` |
+| `OIDC_CLIENT_URI` | `spec.uri`, without a trailing slash; empty when unset |
+| `OIDC_CLIENT_ORIGIN` | `spec.uri` reduced to scheme, host and port; empty when unset |
 | `OIDC_AVAILABLE_SCOPES` | `spec.availableScopes`, joined by `spec.availableScopesDelimiter` |
 | `OIDC_ALLOWED_GROUPS` | `spec.allowedGroups` |
 | `OIDC_ALLOWED_USERS` | `spec.allowedUsers` |
@@ -297,6 +299,24 @@ The generated secret carries these keys:
 
 List-valued keys are comma-separated, except `OIDC_AVAILABLE_SCOPES` when
 `spec.availableScopesDelimiter` says otherwise.
+
+`OIDC_CLIENT_URI` and `OIDC_CLIENT_ORIGIN` describe the application itself
+rather than Passmower, so a Deployment can point an env var at the Secret
+instead of repeating its own hostname:
+
+```
+env:
+  - name: NEXTAUTH_URL
+    valueFrom:
+      secretKeyRef:
+        name: oidc-client-grafana-owner-secrets
+        key: OIDC_CLIENT_URI
+```
+
+Neither ever carries a trailing slash — consumers such as `NEXTAUTH_URL` treat
+one as part of the path and build broken callback URLs from it. Both are empty
+strings for a client with no `spec.uri`, rather than absent, so a `secretKeyRef`
+pointing at them cannot block a pod from starting.
 
 To list applications:
 
