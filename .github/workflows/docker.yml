@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     branches:
-      - "master"
+      - "release/**"
 
 jobs:
   docker:
@@ -64,7 +64,6 @@ jobs:
           push: true
           tags: |
             ${{ github.repository }}:${{ steps.chart_version.outputs.CHART_VERSION }}
-            ${{ github.repository }}:latest
         if: steps.tag_exists.outputs.TAG_EXISTS == 'false'
 
       -
