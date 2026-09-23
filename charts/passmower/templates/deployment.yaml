@@ -9,7 +9,7 @@ kind: Deployment
 metadata:
   name: {{ include "passmower.fullname" . }}
   labels:
-    {{- merge (include "passmower.labels" . | fromYaml) .Values.deploymentLabels | toYaml | nindent 4 }}
+    {{- merge (include "passmower.chartLabels" . | fromYaml) (deepCopy .Values.deploymentLabels) (deepCopy .Values.commonLabels) | toYaml | nindent 4 }}
   {{- with .Values.deploymentAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        {{- merge (include "passmower.selectorLabels" . | fromYaml) .Values.podLabels | toYaml | nindent 8 }}
+        {{- merge (include "passmower.selectorLabels" . | fromYaml) (deepCopy .Values.podLabels) (deepCopy .Values.commonLabels) | toYaml | nindent 8 }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}

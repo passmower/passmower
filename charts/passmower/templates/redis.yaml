@@ -14,7 +14,7 @@ kind: Deployment
 metadata:
   name: redis
   labels:
-    app: redis
+    {{- merge (dict "app" "redis") (deepCopy .Values.commonLabels) | toYaml | nindent 4 }}
 spec:
   selector:
     matchLabels:
@@ -23,7 +23,7 @@ spec:
   template:
     metadata:
       labels:
-        app: redis
+        {{- merge (dict "app" "redis") (deepCopy .Values.commonLabels) | toYaml | nindent 8 }}
     spec:
       {{- with .Values.redis.internal.priorityClassName }}
       priorityClassName: {{ . }}
@@ -57,6 +57,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
+  {{- with .Values.commonLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: ClusterIP
   selector:
