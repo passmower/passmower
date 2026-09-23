@@ -47,6 +47,15 @@ spec:
               value: {{ include "passmower.url" . }}
             - name: DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
+            {{- if .Values.commonLabelsOnManagedResources }}
+            {{- /* Without the chart's own label keys: they never take a commonLabels
+                   value on chart objects either, and app.kubernetes.io/instance on
+                   a runtime OIDCUser would make Argo CD prune it as its own. */}}
+            {{- with omit .Values.commonLabels "helm.sh/chart" "app.kubernetes.io/name" "app.kubernetes.io/instance" "app.kubernetes.io/version" "app.kubernetes.io/managed-by" }}
+            - name: MANAGED_RESOURCE_LABELS
+              value: {{ toJson . | quote }}
+            {{- end }}
+            {{- end }}
             {{- /* Optional string settings: only emit when set & non-empty so a
                    commented-out/empty value falls back to the app default
                    instead of being forced to "" (#67). Booleans are always

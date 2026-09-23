@@ -318,6 +318,13 @@ image:
 # podMonitor.labels and prometheusRule.labels take precedence over them.
 commonLabels: {}
 
+# Also stamp commonLabels on what Passmower creates at runtime: OIDCUsers,
+# SCIM subjects and groups, Traefik Middlewares, client Secrets, and
+# secret-refresh and event-hook Jobs (and their pods). Custom resources are labelled when they are created and left alone
+# afterwards; client Secrets follow commonLabels as it changes. Passmower's own
+# labels win on collisions, and the chart's label keys are never passed on.
+commonLabelsOnManagedResources: false
+
 # Extra labels and annotations for the Deployment object itself.
 deploymentLabels: {}
 deploymentAnnotations: {}

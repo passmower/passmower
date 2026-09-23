@@ -246,6 +246,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `PREFERRED_EMAIL_DOMAIN`, `NORMALIZE_EMAIL_ADDRESSES` | Email handling. |
 | `NAMESPACE_SELECTOR` | Which namespaces to watch for client CRDs. |
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |
+| `MANAGED_RESOURCE_LABELS` | JSON object of labels stamped on resources Passmower creates at runtime (custom resources, client Secrets, Jobs and their pods), beneath Passmower's own labels. The chart fills it from `commonLabels` when `commonLabelsOnManagedResources` is on. |
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
 See also: `README.md` (install + upstream config), `docs/application-listing.md`,
