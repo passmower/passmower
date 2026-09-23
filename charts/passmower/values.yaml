@@ -406,6 +406,12 @@ nodeSelector: {}
 
 tolerations: []
 
+# PriorityClass for the Passmower pods and the pre-install key-manager Job.
+# Every sign-in to every enrolled application depends on Passmower, so on a
+# cluster that preempts or evicts by priority it usually deserves a high one.
+# The bundled Redis has its own: redis.internal.priorityClassName.
+priorityClassName: ""
+
 affinity: {}
 
 topologySpreadConstraints: {}
