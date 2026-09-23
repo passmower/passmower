@@ -39,9 +39,15 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels
+Common labels: the chart's own labels over .Values.commonLabels, so a
+user-supplied key can never replace one the chart relies on. Templates with a
+more specific label value merge chartLabels, that value, then commonLabels.
 */}}
 {{- define "passmower.labels" -}}
+{{- merge (include "passmower.chartLabels" . | fromYaml) (deepCopy .Values.commonLabels) | toYaml }}
+{{- end }}
+
+{{- define "passmower.chartLabels" -}}
 helm.sh/chart: {{ include "passmower.chart" . }}
 {{ include "passmower.selectorLabels" . }}
 {{ if .Chart.Version }}app.kubernetes.io/version: {{ .Chart.Version | quote }}{{- end }}

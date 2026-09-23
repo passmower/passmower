@@ -9,7 +9,11 @@ kind: Deployment
 metadata:
   name: {{ include "passmower.fullname" . }}
   labels:
-    {{- include "passmower.labels" . | nindent 4 }}
+    {{- merge (include "passmower.chartLabels" . | fromYaml) (deepCopy .Values.deploymentLabels) (deepCopy .Values.commonLabels) | toYaml | nindent 4 }}
+  {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -18,7 +22,11 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "passmower.selectorLabels" . | nindent 8 }}
+        {{- merge (include "passmower.selectorLabels" . | fromYaml) (deepCopy .Values.podLabels) (deepCopy .Values.commonLabels) | toYaml | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "passmower.fullname" . }}
       securityContext:

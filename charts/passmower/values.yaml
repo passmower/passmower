@@ -342,6 +342,26 @@ image:
   # Overrides the image tag whose default is the chart version.
   # tag: "develop"
 
+# Extra labels for every object the chart renders, including all pods (Passmower,
+# the pre-install key-manager Job and the bundled Redis) and the oidc-keys Secret
+# the key-manager creates. CRDs are left alone. The chart's own labels take
+# precedence over keys given here; the more specific deploymentLabels, podLabels,
+# podMonitor.labels and prometheusRule.labels take precedence over them.
+commonLabels: {}
+
+# Extra labels and annotations for the Deployment object itself.
+deploymentLabels: {}
+deploymentAnnotations: {}
+
+# Extra labels and annotations for the Passmower server pods — the ones
+# NetworkPolicies, admission policies and service meshes select on. The chart's
+# selector labels (app.kubernetes.io/name, app.kubernetes.io/instance) take
+# precedence over keys given here, so the Deployment selector cannot be broken.
+# Not applied to the key-manager Job: a sidecar injected there never exits, and
+# the Job — a pre-install hook — would then never complete.
+podLabels: {}
+podAnnotations: {}
+
 podSecurityContext: {}
   # fsGroup: 2000
 
