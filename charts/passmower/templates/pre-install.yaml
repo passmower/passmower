@@ -52,10 +52,18 @@ metadata:
     {{- include "passmower.labels" . | nindent 4 }}
 spec:
   template:
+    {{- with .Values.commonLabels }}
+    metadata:
+      labels:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
     spec:
       serviceAccountName: {{ include "passmower.fullname" . }}-key-manager
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -76,8 +84,8 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: [
             '/app/node_modules/.bin/key-manager', 'initialize',
-            {{- range $label := splitList "\n" (include "passmower.selectorLabels" .) }}
-            '-l', '{{ $label }}',
+            {{- range $key, $value := merge (include "passmower.selectorLabels" . | fromYaml) (deepCopy .Values.commonLabels) }}
+            '-l', '{{ $key }}: {{ $value }}',
             {{- end }}
             '-c', 'cluster'
           ]

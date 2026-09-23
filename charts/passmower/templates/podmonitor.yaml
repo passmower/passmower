@@ -4,10 +4,7 @@ kind: PodMonitor
 metadata:
   name: {{ include "passmower.fullname" . }}
   labels:
-    {{- include "passmower.labels" . | nindent 4 }}
-    {{- with .Values.podMonitor.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- merge (include "passmower.chartLabels" . | fromYaml) (deepCopy .Values.podMonitor.labels) (deepCopy .Values.commonLabels) | toYaml | nindent 4 }}
 spec:
   selector:
     matchLabels:

@@ -5,6 +5,7 @@ import {
     defaultApiGroupVersion,
     plurals
 } from "../utils/kubernetes/kube-constants.js";
+import {parseManagedResourceLabels, withManagedJobLabels, withManagedLabels} from "../utils/kubernetes/managed-labels.js";
 import {V1OwnerReference, V1Secret, setHeaderMiddleware, setHeaderOptions} from "@kubernetes/client-node";
 import {diff} from 'jsondiffpatch';
 import {format} from 'jsondiffpatch/formatters/jsonpatch';
@@ -74,6 +75,7 @@ export class KubernetesAdapter {
             ?? 'default';
         this.deployment = process.env.DEPLOYMENT_NAME
         this.instance = this.namespace + '-' + this.deployment
+        this.managedLabels = parseManagedResourceLabels()
         const userAgentMiddleware = setHeaderMiddleware('User-Agent', this.instance)
         this.customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
         this.coreV1Api = kc.makeApiClient(k8s.CoreV1Api);
@@ -156,7 +158,7 @@ export class KubernetesAdapter {
                 kind,
                 metadata: {
                     name,
-                    labels,
+                    labels: withManagedLabels(this.managedLabels, labels),
                     ownerReferences: owner ? [
                         this.#getOwnerReference(owner)
                     ] : undefined
@@ -317,7 +319,7 @@ export class KubernetesAdapter {
         let kubeSecret = new V1Secret()
         kubeSecret.metadata = {
             name: id,
-            ...metadata
+            ...this.#withManagedSecretLabels(metadata),
         }
         kubeSecret.data = await this.#generateSecretData(data)
         return await this.coreV1Api.createNamespacedSecret({
@@ -342,7 +344,9 @@ export class KubernetesAdapter {
                 data: existingSecret.data,
             },
             {
-                metadata: metadata,
+                // Passmower owns the Secret outright, so managed labels are
+                // reconciled here rather than only stamped at creation.
+                metadata: this.#withManagedSecretLabels(metadata),
                 data: await this.#generateSecretData(data),
             })
         const patches = format(delta);
@@ -357,6 +361,11 @@ export class KubernetesAdapter {
             globalThis.logger.error(e)
             return null
         })
+    }
+
+    #withManagedSecretLabels(metadata) {
+        const labels = withManagedLabels(this.managedLabels, metadata?.labels)
+        return labels === undefined ? metadata : {...metadata, labels}
     }
 
     async deleteSecret(namespace, id) {
@@ -400,7 +409,7 @@ export class KubernetesAdapter {
     async createJob(namespace, jobManifest, {ignoreAlreadyExists = false} = {}) {
         return await this.batchV1Api.createNamespacedJob({
             namespace,
-            body: jobManifest
+            body: withManagedJobLabels(this.managedLabels, jobManifest)
         }, this.defaultOptions).then((r) => {
             return r.status
         }).catch((e) => {
