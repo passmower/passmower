@@ -81,6 +81,10 @@ spec:
             - name: WELCOME_SUBTITLE
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.passmower.idpDisplayName }}
+            - name: IDP_DISPLAY_NAME
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.passmower.groupPrefix }}
             - name: GROUP_PREFIX
               value: {{ . | quote }}
