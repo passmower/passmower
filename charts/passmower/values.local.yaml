@@ -3,7 +3,7 @@ passmower:
   usernameSource: generated
   githubEnabled: false
   githubClientSecretRef: ""
-  emailEnabled: false
+  outboundEmailEnabled: false
   emailCredentialsSecretRef: ""
   webauthnEnabled: false
   namespaceSelector: passmower-dev
