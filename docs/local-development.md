@@ -45,7 +45,8 @@ kubectl --context=passmower-dev -n passmower-dev logs deployment/passmower-dev
 minikube stop -p passmower-dev
 ```
 
-The historical `charts/passmower/values.dev.yaml` is a Git-ignored personal
-override. The reproducible setup uses the checked-in `values.local.yaml` instead.
-If an old minikube profile reports a missing backing container, this dedicated
-profile avoids deleting any old cluster state.
+The script deploys with the checked-in `charts/passmower/values.local.yaml`.
+`charts/passmower/values.dev.yaml`, which `skaffold dev` reads, is a Git-ignored
+personal override and does not exist in a fresh checkout. The script uses its
+own `passmower-dev` profile, so it never modifies or deletes another minikube
+profile, including one that has lost its backing container.
