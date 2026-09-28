@@ -1,0 +1,21 @@
+# Used by scripts/dev-minikube.sh. No external credentials are required.
+passmower:
+  usernameSource: generated
+  githubEnabled: false
+  githubClientSecretRef: ""
+  outboundEmailEnabled: false
+  emailCredentialsSecretRef: ""
+  webauthnEnabled: false
+  namespaceSelector: passmower-dev
+  oidcAllowInsecureUpstream: true
+  oidcProviders:
+    dex:
+      displayName: Dex
+      clientSecretRef: dex-dev-client
+redis:
+  internal:
+    enabled: true
+ingress:
+  className: nginx
+image:
+  pullPolicy: Never

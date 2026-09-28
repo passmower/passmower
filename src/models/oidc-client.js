@@ -12,6 +12,7 @@ import {
     OIDCClientSecretClientSecretKey,
     OIDCClientSecretClientUriKey,
     OIDCClientSecretIdpUriKey,
+    OIDCClientSecretIdpDisplayNameKey,
     OIDCClientSecretGrantTypesKey,
     OIDCClientSecretIdTokenSignedResponseAlgKey,
     OIDCClientSecretName,
@@ -26,6 +27,7 @@ import {KubeOwnerMetadata} from "../utils/kubernetes/kube-owner-metadata.js";
 import sortObject from "../utils/sort-object.js";
 import {clientOrigin, clientUri} from "../utils/kubernetes/client-uri.js";
 import {ClientActivityState} from './client-activity-state.js';
+import {resolveIdpDisplayName} from '../utils/idp-display-name.js';
 
 class OIDCClient {
     #clientName = null
@@ -137,6 +139,7 @@ class OIDCClient {
             [OIDCClientSecretClientUriKey]: clientUri(this.#uri),
             [OIDCClientSecretClientOriginKey]: clientOrigin(this.#uri),
             [OIDCClientSecretIdpUriKey]: this.#instanceUri,
+            [OIDCClientSecretIdpDisplayNameKey]: resolveIdpDisplayName(),
             [OIDCClientSecretWellKnownUriKey]: new URL('.well-known/openid-configuration', this.#instanceUri).href,
             [OIDCClientSecretAvailableScopesKey]: this.#availableScopes.join(this.#availableScopesDelimiter),
             [OIDCClientSecretAuthUriKey]: provider.urlFor('authorization'),

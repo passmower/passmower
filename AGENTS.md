@@ -175,6 +175,14 @@ email/GitHub credentials.
 
 ### Cluster: minikube + Skaffold
 
+For a reproducible Linux setup, run `bash scripts/dev-minikube.sh` first. It
+creates a dedicated `passmower-dev` profile without changing the current kube
+context, builds inside containerd, and installs Redis, Dex, and local HTTPS.
+Trust `.local-dev/ca.crt` in the browser. See `docs/local-development.md`.
+The checked-in values are `charts/passmower/values.local.yaml`;
+`values.dev.yaml` below is a Git-ignored personal override, not a fresh-checkout
+default.
+
 A `skaffold.yaml` dev profile already exists — it builds the `dev` image target, syncs
 `src/`, `frontend/src/`, `styles/src/` into the running pod, and `helm install`s the
 chart with `charts/passmower/values.dev.yaml`.
@@ -248,6 +256,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | Env | Purpose |
 |---|---|
 | `ISSUER_URL` | Public base URL of Passmower, **with trailing slash**. |
+| `IDP_DISPLAY_NAME` | Login button label published to clients as `OIDC_IDP_DISPLAY_NAME`; unset resolves from the upstreams (README, "Login button label"). |
 | `WELCOME_MESSAGE` | Heading on the welcome/sign-in landing page; defaults to "Welcome to Passmower". |
 | `OIDC_COOKIE_KEYS` | JSON array of cookie-signing keys. |
 | `OIDC_JWKS` | JSON JWKS for token signing. |

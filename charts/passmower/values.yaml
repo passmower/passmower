@@ -11,6 +11,11 @@ passmower:
   # Smaller copy shown below the logo and heading on the welcome page.
   # Empty falls back to "One login. Every cluster. The Kubernetes-native OpenID provider.".
   welcomeSubtitle: ""
+  # Name applications show on their login button ("Sign in with <name>"),
+  # published as OIDC_IDP_DISPLAY_NAME in every generated client Secret.
+  # Empty resolves it: a lone upstream (GitHub or one oidcProviders entry, with
+  # outbound email off) supplies its own display name, anything else "Passmower".
+  idpDisplayName: ""
   # Local groups will be created with given prefix.
   groupPrefix: "passmower"
   # Local or remote group which members will automatically become admins.
@@ -216,6 +221,8 @@ passmower:
   #    groupsClaim: groups
   #    groupPrefix: entraid
   #    clientSecretRef: entraid-client
+  # Development only: allow an HTTP upstream such as a local Dex instance.
+  oidcAllowInsecureUpstream: false
   # Slack API client secret name. Secret must contain SLACK_TOKEN and may contain
   # SLACK_TEAM_ID to avoid resolving the workspace ID through auth.test.
   # slackClientSecretRef: "slack-client"
