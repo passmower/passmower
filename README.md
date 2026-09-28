@@ -273,6 +273,11 @@ env:
       secretKeyRef:
         name: oidc-client-grafana-owner-secrets
         key: OIDC_IDP_AUTH_URI
+  - name: GF_AUTH_GENERIC_OAUTH_NAME
+    valueFrom:
+      secretKeyRef:
+        name: oidc-client-grafana-owner-secrets
+        key: OIDC_IDP_DISPLAY_NAME
 ```
 
 The generated secret carries these keys:
@@ -292,6 +297,7 @@ The generated secret carries these keys:
 | `OIDC_ALLOWED_GROUPS` | `spec.allowedGroups` |
 | `OIDC_ALLOWED_USERS` | `spec.allowedUsers` |
 | `OIDC_IDP_URI` | Issuer base URL |
+| `OIDC_IDP_DISPLAY_NAME` | Login button label, see [below](#login-button-label) |
 | `OIDC_IDP_WELL_KNOWN_URI` | Discovery document |
 | `OIDC_IDP_AUTH_URI` | Authorization endpoint |
 | `OIDC_IDP_TOKEN_URI` | Token endpoint |
@@ -317,6 +323,56 @@ Neither ever carries a trailing slash — consumers such as `NEXTAUTH_URL` treat
 one as part of the path and build broken callback URLs from it. Both are empty
 strings for a client with no `spec.uri`, rather than absent, so a `secretKeyRef`
 pointing at them cannot block a pod from starting.
+
+### Login button label
+
+`OIDC_IDP_DISPLAY_NAME` is the name an application shows on its login button,
+such as Grafana's "Sign in with GitHub". It resolves the same for every client:
+
+1. `passmower.idpDisplayName` in the Helm values, when set.
+2. Otherwise, when exactly one upstream is enabled and outbound email is off,
+   that upstream's display name: `GitHub`, or the `displayName` of the single
+   `oidcProviders` entry.
+3. Otherwise `Passmower`.
+
+Passkeys do not count towards the number of upstreams, since they only sign in
+an account that an upstream or email login created. Magic-link email does: with
+it enabled, a user may not be signing in with the upstream at all.
+
+A single upstream names itself:
+
+```yaml
+passmower:
+  githubEnabled: true
+  outboundEmailEnabled: false
+  oidcProviders: {}
+# OIDC_IDP_DISPLAY_NAME=GitHub -> "Sign in with GitHub"
+```
+
+Several upstreams fall back to `Passmower`:
+
+```yaml
+passmower:
+  githubEnabled: true
+  oidcProviders:
+    google:
+      displayName: Google
+      issuer: https://accounts.google.com
+# OIDC_IDP_DISPLAY_NAME=Passmower -> "Sign in with Passmower"
+```
+
+An explicit name overrides either:
+
+```yaml
+passmower:
+  idpDisplayName: Example Corp
+# OIDC_IDP_DISPLAY_NAME=Example Corp -> "Sign in with Example Corp"
+```
+
+The value is written when Passmower reconciles a client, which it does for
+every client on startup, so a changed upstream set reaches the Secrets with the
+Passmower rollout. Applications that read it from an env var, Grafana among
+them, keep the old label until they are restarted.
 
 To list applications:
 

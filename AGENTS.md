@@ -248,6 +248,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | Env | Purpose |
 |---|---|
 | `ISSUER_URL` | Public base URL of Passmower, **with trailing slash**. |
+| `IDP_DISPLAY_NAME` | Login button label published to clients as `OIDC_IDP_DISPLAY_NAME`; unset resolves from the upstreams (README, "Login button label"). |
 | `WELCOME_MESSAGE` | Heading on the welcome/sign-in landing page; defaults to "Welcome to Passmower". |
 | `OIDC_COOKIE_KEYS` | JSON array of cookie-signing keys. |
 | `OIDC_JWKS` | JSON JWKS for token signing. |
