@@ -216,6 +216,8 @@ passmower:
   #    groupsClaim: groups
   #    groupPrefix: entraid
   #    clientSecretRef: entraid-client
+  # Development only: allow an HTTP upstream such as a local Dex instance.
+  oidcAllowInsecureUpstream: false
   # Slack API client secret name. Secret must contain SLACK_TOKEN and may contain
   # SLACK_TEAM_ID to avoid resolving the workspace ID through auth.test.
   # slackClientSecretRef: "slack-client"

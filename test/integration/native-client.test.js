@@ -30,6 +30,13 @@ describe('native client custom-scheme redirect URIs', () => {
         const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
         await new RedisAdapter('Client').upsert('native-rp', { ...base, client_id: 'native-rp', application_type: 'native' })
         await new RedisAdapter('Client').upsert('web-rp', { ...base, client_id: 'web-rp', application_type: 'web' })
+        await new RedisAdapter('Client').upsert('loopback-rp', {
+            ...base,
+            client_id: 'loopback-rp',
+            application_type: 'native',
+            pkce: true,
+            redirect_uris: ['http://127.0.0.1:33418/callback'],
+        })
     })
 
     afterAll(async () => {
@@ -37,11 +44,11 @@ describe('native client custom-scheme redirect URIs', () => {
         await disconnect()
     })
 
-    function authReq(clientId) {
+    function authReq(clientId, redirectUri = NATIVE_REDIRECT) {
         const q = new URLSearchParams({
             client_id: clientId,
             response_type: 'code',
-            redirect_uri: NATIVE_REDIRECT,
+            redirect_uri: redirectUri,
             scope: 'openid',
             code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
             code_challenge_method: 'S256',
@@ -61,5 +68,21 @@ describe('native client custom-scheme redirect URIs', () => {
         // oidc-provider renders an error page (not a redirect to the interaction).
         expect(res.status).not.toBe(303)
         expect(res.text).toMatch(/redirect_uri|invalid_redirect_uri|web clients/i)
+    })
+
+    it('accepts the registered loopback callback with S256 PKCE (#276)', async () => {
+        const res = await authReq('loopback-rp', 'http://127.0.0.1:33418/callback')
+        expect(res.status).toBe(303)
+        expect(res.headers.location).toMatch(/\/interaction\//)
+    })
+
+    it('allows an ephemeral loopback port but rejects an unregistered path (#276)', async () => {
+        const ephemeral = await authReq('loopback-rp', 'http://127.0.0.1:49152/callback')
+        expect(ephemeral.status).toBe(303)
+        expect(ephemeral.headers.location).toMatch(/\/interaction\//)
+
+        const suffix = await authReq('loopback-rp', 'http://127.0.0.1:33418/callback/opaque-id')
+        expect(suffix.status).toBe(400)
+        expect(suffix.text).toContain('invalid_redirect_uri')
     })
 })

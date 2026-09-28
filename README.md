@@ -254,6 +254,9 @@ into the originating namespace.
 configured, access is granted if the account matches at least one group or one
 account ID. Leaving both lists empty allows every authenticated user.
 
+For Codex MCP clients with loopback redirects, see
+[Codex MCP OAuth callbacks](docs/codex-mcp-oauth.md).
+
 In most cases application deployment can directly read the generated secret:
 
 ```
@@ -506,6 +509,9 @@ For the ingress refer to automatically created middleware
 
 
 # Contributing
+
+For a local Kubernetes stack with HTTPS, Redis, and a Dex test login, see
+[Local development](docs/local-development.md).
 
 We welcome contributions to enhance the functionality and features of Passmower.
 If you find any issues or have suggestions for improvement,

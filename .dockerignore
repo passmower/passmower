@@ -5,6 +5,11 @@ skaffold.yaml
 README.md
 .git/
 node_modules/
+**/node_modules/
+.codex/
+.local-dev/
+test-results/
+playwright-report/
 .drone.yml
 .github/
 
