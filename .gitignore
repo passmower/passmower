@@ -12,6 +12,7 @@ test/e2e/k3s-output
 # local env files
 .env.local
 .env.*.local
+.local-dev/
 values.dev.yaml
 
 # Log files

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: passmower-dev-support
+description: Local development Dex upstream; never install in production
+type: application
+version: 0.1.0

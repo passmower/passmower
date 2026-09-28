@@ -172,6 +172,8 @@ spec:
               value: {{ .Values.passmower.reconcileIntervalMs | quote }}
             - name: OIDC_PROVIDERS
               value: {{ .Values.passmower.oidcProviders | default dict | toJson | quote }}
+            - name: OIDC_ALLOW_INSECURE_UPSTREAM
+              value: {{ .Values.passmower.oidcAllowInsecureUpstream | quote }}
             - name: REDIS_IP_FAMILY
               value: {{ .Values.redis.ipFamily | default "0" | quote }}
             {{- if .Values.redis.internal.enabled }}

@@ -175,6 +175,14 @@ email/GitHub credentials.
 
 ### Cluster: minikube + Skaffold
 
+For a reproducible Linux setup, run `bash scripts/dev-minikube.sh` first. It
+creates a dedicated `passmower-dev` profile without changing the current kube
+context, builds inside containerd, and installs Redis, Dex, and local HTTPS.
+Trust `.local-dev/ca.crt` in the browser. See `docs/local-development.md`.
+The checked-in values are `charts/passmower/values.local.yaml`;
+`values.dev.yaml` below is a Git-ignored personal override, not a fresh-checkout
+default.
+
 A `skaffold.yaml` dev profile already exists — it builds the `dev` image target, syncs
 `src/`, `frontend/src/`, `styles/src/` into the running pod, and `helm install`s the
 chart with `charts/passmower/values.dev.yaml`.
