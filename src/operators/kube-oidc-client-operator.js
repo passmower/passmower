@@ -13,6 +13,7 @@ import {getActivityTracker} from "../services/activity-tracker.js";
 import {ClientReconcileState} from '../models/client-activity-state.js';
 import {validateClaimMappings} from '../utils/claim-mappings.js'
 import {resolveIngressRef} from '../utils/kubernetes/resolve-ingress-ref.js'
+import {secretDataChanged} from '../utils/kubernetes/secret-data-changed.js'
 
 export class KubeOIDCClientOperator {
     constructor(provider, adapter = new KubernetesAdapter(), redisAdapter = new RedisAdapter('Client')) {
@@ -42,13 +43,20 @@ export class KubeOIDCClientOperator {
     }
 
     async #createOIDCClient (OIDCClient) {
+        const replayed = this.reconcileState.isCurrent(OIDCClient)
         this.reconcileState.register(OIDCClient)
         try {
             this.#assertValidClaimMappings(OIDCClient)
             if (OIDCClient.getInstance() === this.instance) {
                 await this.#resolveIngressRef(OIDCClient)
-                if (!await this.redisAdapter.find(OIDCClient.getClientId())) {
-                    await this.#reconcileClientSecret(OIDCClient)
+                // The Secret also carries values derived from Passmower's own
+                // configuration (OIDC_IDP_DISPLAY_NAME, the endpoint URIs), so the
+                // first ADDED a process sees rewrites it even when Redis already
+                // holds the client. A watch reconnect replays ADDED for every
+                // client; those are left alone. The workload restarts only if
+                // the Secret actually changed.
+                if (!replayed || !await this.redisAdapter.find(OIDCClient.getClientId())) {
+                    await this.#reconcileClientSecret(OIDCClient, {refreshOnlyIfChanged: true})
                 }
             } else if (!OIDCClient.getInstance()) {
                 // Claim that client. Continue with the returned resource so later
@@ -135,12 +143,12 @@ export class KubeOIDCClientOperator {
     // Whoever creates the Secret first wins; everyone else adopts it. Nothing
     // here deletes a Secret, so a client_secret is never rotated as a
     // side effect of a reconcile.
-    async #reconcileClientSecret(OIDCClient) {
+    async #reconcileClientSecret(OIDCClient, {refreshOnlyIfChanged = false} = {}) {
         const namespace = OIDCClient.getClientNamespace()
         const name = OIDCClient.getSecretName()
         const existing = await this.adapter.getSecret(namespace, name)
         if (existing) {
-            return await this.#adoptKubeSecret(OIDCClient, existing)
+            return await this.#adoptKubeSecret(OIDCClient, existing, {refreshOnlyIfChanged})
         }
         OIDCClient.generateSecret()
         const created = await this.adapter.createSecret(
@@ -162,17 +170,20 @@ export class KubeOIDCClientOperator {
         await this.#reconcileRefreshJob(OIDCClient)
     }
 
-    async #adoptKubeSecret(OIDCClient, existingSecret) {
+    async #adoptKubeSecret(OIDCClient, existingSecret, {refreshOnlyIfChanged = false} = {}) {
         OIDCClient.setSecret(existingSecret.data[OIDCClientSecretClientSecretKey])
+        const data = OIDCClient.toClientSecret(this.provider)
         const secret = await this.adapter.patchSecret(
             OIDCClient.getClientNamespace(),
             OIDCClient.getSecretName(),
-            OIDCClient.toClientSecret(this.provider),
+            data,
             OIDCClient.toClientSecretMetadata(),
             existingSecret
         )
         if (!secret) throw this.#reconcileError('SecretReconcileFailed', 'Failed to update client Secret')
-        await this.#reconcileRefreshJob(OIDCClient)
+        if (!refreshOnlyIfChanged || secretDataChanged(existingSecret.data, data)) {
+            await this.#reconcileRefreshJob(OIDCClient)
+        }
     }
 
     // The Job name is derived from the client's resourceVersion, so an existing

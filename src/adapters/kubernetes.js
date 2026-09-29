@@ -25,10 +25,12 @@ import isEqual from 'lodash/isEqual.js';
 // 'never' disables it. Returns the replacement server URL, or null to leave it as-is.
 export const WATCH_TIMEOUT_MS = 60 * 60 * 1000
 
-// A clean end or the client-node request timeout is routine — reconnect
-// immediately so no CRD events are missed; back off only on genuine errors.
+// A clean end, the client-node request timeout or an idle HTTP/2 stream
+// expiring (undici's `terminated: HTTP/2: "stream timeout after 300000"`, seen
+// every five minutes against EKS) is routine — reconnect immediately so no CRD
+// events are missed; back off only on genuine errors.
 export const watchRestartDelayMs = (err) =>
-    !err || err.name === 'TimeoutError' ? 0 : 10 * 1000
+    !err || err.name === 'TimeoutError' || /\bstream timeout\b/.test(err.message ?? '') ? 0 : 10 * 1000
 
 export function apiServerUrlViaServiceDns({
     host = process.env.KUBERNETES_SERVICE_HOST,
