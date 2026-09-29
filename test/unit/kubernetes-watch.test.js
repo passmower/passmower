@@ -12,6 +12,8 @@ describe('kubernetes watch lifecycle', () => {
         expect(watchRestartDelayMs(undefined)).toBe(0)
         // client-node 2.x requestTimeoutMs abort
         expect(watchRestartDelayMs(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))).toBe(0)
+        // idle HTTP/2 stream expiring, as EKS does every five minutes
+        expect(watchRestartDelayMs(new TypeError('terminated: HTTP/2: "stream timeout after 300000"'))).toBe(0)
         // genuine failure
         expect(watchRestartDelayMs(new Error('connection refused'))).toBe(10 * 1000)
     })

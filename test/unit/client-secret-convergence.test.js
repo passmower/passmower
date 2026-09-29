@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeKubernetesAdapter} from '../fakes/fake-kubernetes-adapter.js'
 import {KubeOIDCClientOperator} from '../../src/operators/kube-oidc-client-operator.js'
 
@@ -199,5 +199,67 @@ describe('secret-refresh Job under overlapping reconciles', () => {
 
         expect(adapter.list('OIDCClient')[0].status.conditions).toContainEqual(
             expect.objectContaining({type: 'Ready', status: 'False', reason: 'RefreshJobReconcileFailed'}))
+    })
+})
+
+// A restart keeps Redis, so the client is already there when its ADDED
+// arrives. Values in the Secret that come from Passmower's own configuration
+// must still follow that configuration, without restarting every consuming
+// workload on every Passmower restart.
+describe('client Secret after a Passmower restart', () => {
+    let adapter, redis
+
+    const restart = async () => {
+        const operator = new KubeOIDCClientOperator(
+            {urlFor: endpoint => `https://id.example.com/${endpoint}`}, adapter, redis)
+        await operator.watchClients()
+        return operator
+    }
+    const secret = () => adapter.secrets.get('apps/oidc-client-grafana-owner-secrets').data
+
+    beforeEach(async () => {
+        globalThis.logger = {debug() {}, info() {}, warn() {}, error() {}, trace() {}}
+        vi.stubEnv('IDP_DISPLAY_NAME', 'Example Corp')
+        adapter = new FakeKubernetesAdapter({namespace: 'apps', instance: 'test-passmower'})
+        adapter.deployment = 'passmower'
+        redis = new FakeRedisAdapter()
+        await restart()
+        adapter.seed('OIDCClient', oidcClient('grafana', {refreshJob: true}))
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+    })
+
+    afterEach(() => vi.unstubAllEnvs())
+
+    it('rewrites values derived from Passmower configuration', async () => {
+        const clientSecret = secret().OIDC_CLIENT_SECRET
+        vi.stubEnv('IDP_DISPLAY_NAME', 'GitHub')
+
+        await restart()
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+
+        expect(secret().OIDC_IDP_DISPLAY_NAME).toBe('GitHub')
+        expect(secret().OIDC_CLIENT_SECRET).toBe(clientSecret)
+        expect(redis.records.get('apps.grafana').client_secret).toBe(clientSecret)
+    })
+
+    it('restarts the workload only when the Secret changed', async () => {
+        const createJob = vi.spyOn(adapter, 'createJob')
+
+        await restart()
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+        expect(createJob).not.toHaveBeenCalled()
+
+        vi.stubEnv('IDP_DISPLAY_NAME', 'GitHub')
+        await restart()
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+        expect(createJob).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves the Secret alone when a watch reconnect replays ADDED', async () => {
+        const patchSecret = vi.spyOn(adapter, 'patchSecret')
+
+        await adapter.fireWatch('ADDED', 'OIDCClient', 'grafana')
+
+        expect(patchSecret).not.toHaveBeenCalled()
     })
 })

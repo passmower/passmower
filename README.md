@@ -372,10 +372,11 @@ passmower:
 # OIDC_IDP_DISPLAY_NAME=Example Corp -> "Sign in with Example Corp"
 ```
 
-The value is written when Passmower reconciles a client, which it does for
-every client on startup, so a changed upstream set reaches the Secrets with the
-Passmower rollout. Applications that read it from an env var, Grafana among
-them, keep the old label until they are restarted.
+Passmower rewrites every client Secret when it starts, so a changed upstream
+set reaches the Secrets with the Passmower rollout. Applications that read the
+value from an env var, Grafana among them, keep the old label until they
+restart. A client with `spec.secretRefreshJobSpec` gets its refresh Job then,
+but only if its Secret actually changed.
 
 To list applications:
 
