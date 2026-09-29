@@ -72,6 +72,12 @@ export class ClientReconcileState {
         this.fingerprints.set(client.getClientId(), client.getReconcileFingerprint())
     }
 
+    // Whether this process has already registered the client at its current
+    // fingerprint, as when a watch reconnect replays ADDED for every object.
+    isCurrent(client) {
+        return this.fingerprints.get(client.getClientId()) === client.getReconcileFingerprint()
+    }
+
     shouldReconcile(client) {
         this.activityTracker.registerClient(client)
         const fingerprint = client.getReconcileFingerprint()

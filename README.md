@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.8.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.8.1 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -75,7 +75,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.8.0
+  version: 2.8.1
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -372,10 +372,11 @@ passmower:
 # OIDC_IDP_DISPLAY_NAME=Example Corp -> "Sign in with Example Corp"
 ```
 
-The value is written when Passmower reconciles a client, which it does for
-every client on startup, so a changed upstream set reaches the Secrets with the
-Passmower rollout. Applications that read it from an env var, Grafana among
-them, keep the old label until they are restarted.
+Passmower rewrites every client Secret when it starts, so a changed upstream
+set reaches the Secrets with the Passmower rollout. Applications that read the
+value from an env var, Grafana among them, keep the old label until they
+restart. A client with `spec.secretRefreshJobSpec` gets its refresh Job then,
+but only if its Secret actually changed.
 
 To list applications:
 
