@@ -313,6 +313,18 @@ redis:
     passwordSecretKeyRef:
       name: ""
       key: "password"
+    # Connect over TLS. Applies to the sliced host settings and to a URI from
+    # secretKeyRef/envFromSecretRef alike; a rediss:// URI enables TLS on its own.
+    tls:
+      enabled: false
+      # Certificate name to verify when it differs from the connected host.
+      servername: ""
+      # Secret holding the CA bundle (PEM) that signed the server certificate.
+      caSecretKeyRef:
+        name: ""
+        key: "ca.crt"
+      # Skip certificate verification. Local development only.
+      insecureSkipVerify: false
 
 podMonitor:
   # Enable PodMonitor for Prometheus Operator
