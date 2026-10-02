@@ -224,6 +224,24 @@ spec:
                   name: {{ .Values.redis.external.passwordSecretKeyRef.name }}
                   key: {{ .Values.redis.external.passwordSecretKeyRef.key }}
             {{- end }}
+            {{- with .Values.redis.external.tls }}
+            {{- if .enabled }}
+            - name: REDIS_TLS
+              value: "true"
+            {{- with .servername }}
+            - name: REDIS_TLS_SERVERNAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .caSecretKeyRef.name }}
+            - name: REDIS_TLS_CA_FILE
+              value: /etc/passmower/redis-tls/{{ .caSecretKeyRef.key }}
+            {{- end }}
+            {{- if .insecureSkipVerify }}
+            - name: REDIS_TLS_INSECURE_SKIP_VERIFY
+              value: "true"
+            {{- end }}
+            {{- end }}
+            {{- end }}
             {{- end }}
           envFrom:
             - secretRef:
@@ -284,6 +302,11 @@ spec:
               name: disable-frontend-edit
             - mountPath: /app/src/views/custom/emails
               name: email-templates
+            {{- if and .Values.redis.external.enabled .Values.redis.external.tls.enabled .Values.redis.external.tls.caSecretKeyRef.name }}
+            - mountPath: /etc/passmower/redis-tls
+              name: redis-tls-ca
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.priorityClassName }}
@@ -334,3 +357,8 @@ spec:
             {{- else }}
             name: {{ include "passmower.fullname" . }}-email-templates
             {{- end }}
+        {{- if and .Values.redis.external.enabled .Values.redis.external.tls.enabled .Values.redis.external.tls.caSecretKeyRef.name }}
+        - name: redis-tls-ca
+          secret:
+            secretName: {{ .Values.redis.external.tls.caSecretKeyRef.name }}
+        {{- end }}

@@ -56,7 +56,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.8.1 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.9.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -75,7 +75,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.8.1
+  version: 2.9.0
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -119,6 +119,33 @@ also supported. Set `redis.external.envFromSecretRef` instead to import a Secret
 keys use the `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, and
 `REDIS_DB` names. The existing `redis.external.secretKeyRef` URI configuration
 continues to work unchanged.
+
+### Redis over TLS
+
+A `rediss://` URI enables TLS by itself. For the sliced settings, or to supply
+a private CA, set `REDIS_TLS=true` together with any of `REDIS_TLS_CA_FILE`
+(path to a PEM bundle), `REDIS_TLS_CA` (PEM content), `REDIS_TLS_SERVERNAME`
+(certificate name when it differs from the host), and
+`REDIS_TLS_INSECURE_SKIP_VERIFY` (local development only). The chart exposes
+these as `redis.external.tls` and mounts the CA from a Secret:
+
+```yaml
+redis:
+  internal:
+    enabled: false
+  external:
+    enabled: true
+    host: redis.example.com
+    port: 6380
+    passwordSecretKeyRef:
+      name: redis-auth
+      key: password
+    tls:
+      enabled: true
+      caSecretKeyRef:
+        name: redis-ca
+        key: ca.crt
+```
 
 ## Upstream login providers
 

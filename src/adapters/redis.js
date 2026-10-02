@@ -2,6 +2,7 @@
 import Redis from 'ioredis'; // eslint-disable-line import/no-unresolved
 import isEmpty from 'lodash/isEmpty.js';
 import dns from 'node:dns/promises';
+import { readFileSync } from 'node:fs';
 
 // Track connection state
 let connectionErrorCount = 0;
@@ -22,7 +23,8 @@ export function getRedisUrl(env = process.env) {
 
     const host = env.REDIS_HOST.trim();
     const formattedHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
-    const url = new URL(`redis://${formattedHost}`);
+    const scheme = isTruthy(env.REDIS_TLS) ? 'rediss' : 'redis';
+    const url = new URL(`${scheme}://${formattedHost}`);
     const port = env.REDIS_PORT || '6379';
     const database = env.REDIS_DB || '0';
 
@@ -44,6 +46,38 @@ export function getRedisUrl(env = process.env) {
     return url.href;
 }
 
+function isTruthy(value) {
+    return ['true', '1', 'yes'].includes(String(value ?? '').trim().toLowerCase());
+}
+
+// TLS is on when REDIS_TLS says so or when any TLS detail is configured; a
+// rediss:// REDIS_URI turns it on by itself inside ioredis. The returned
+// object is handed to tls.connect(), so a private CA goes in as `ca` and a
+// server name that differs from the connected host as `servername`.
+// REDIS_TLS_INSECURE_SKIP_VERIFY disables certificate verification — local
+// development only.
+export function getRedisTlsOptions(env = process.env) {
+    const enabled = isTruthy(env.REDIS_TLS)
+        || env.REDIS_TLS_CA_FILE || env.REDIS_TLS_CA || env.REDIS_TLS_SERVERNAME
+        || env.REDIS_TLS_INSECURE_SKIP_VERIFY !== undefined;
+    if (!enabled) {
+        return undefined;
+    }
+    const tls = {};
+    if (env.REDIS_TLS_CA_FILE) {
+        tls.ca = readFileSync(env.REDIS_TLS_CA_FILE, 'utf8');
+    } else if (env.REDIS_TLS_CA) {
+        tls.ca = env.REDIS_TLS_CA;
+    }
+    if (env.REDIS_TLS_SERVERNAME) {
+        tls.servername = env.REDIS_TLS_SERVERNAME;
+    }
+    if (isTruthy(env.REDIS_TLS_INSECURE_SKIP_VERIFY)) {
+        tls.rejectUnauthorized = false;
+    }
+    return tls;
+}
+
 // Resolve a host to its current set of IPs, honoring REDIS_IP_FAMILY
 // (0 = both, 4 = IPv4 only, 6 = IPv6 only) so the DNS-change watcher resolves
 // the same address family the connection itself uses. dns.resolve() only
@@ -63,10 +97,14 @@ let client;
 let timers = [];
 
 export function getRedisOptions(isInitial = false, env = process.env) {
+    const tls = getRedisTlsOptions(env);
     return {
         keyPrefix: 'oidc:',
         family: parseInt(env.REDIS_IP_FAMILY ?? '0'),
         protocol: 3,
+        // ioredis fills `tls` from a rediss:// URL only when nothing set it,
+        // so this stays absent unless TLS is configured through the environment.
+        ...(tls && { tls }),
         // Only enable offline queue for initial connection, disable after ready
         enableOfflineQueue: isInitial,
         // Shorter timeouts for faster failover detection

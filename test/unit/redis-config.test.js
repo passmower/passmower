@@ -35,6 +35,13 @@ describe('getRedisUrl', () => {
         })).toBe('redis://:secret@[2001:db8::1]:6379/0')
     })
 
+    it('switches the sliced URL to rediss:// when REDIS_TLS is set', () => {
+        expect(getRedisUrl({ REDIS_HOST: 'redis.example.com', REDIS_TLS: 'true' }))
+            .toBe('rediss://redis.example.com:6379/0')
+        expect(getRedisUrl({ REDIS_HOST: 'redis.example.com', REDIS_TLS: 'false' }))
+            .toBe('redis://redis.example.com:6379/0')
+    })
+
     it.each([
         [{ REDIS_HOST: 'redis', REDIS_PORT: '0' }, 'REDIS_PORT'],
         [{ REDIS_HOST: 'redis', REDIS_PORT: '65536' }, 'REDIS_PORT'],
