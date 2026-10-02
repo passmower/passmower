@@ -120,6 +120,33 @@ keys use the `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, and
 `REDIS_DB` names. The existing `redis.external.secretKeyRef` URI configuration
 continues to work unchanged.
 
+### Redis over TLS
+
+A `rediss://` URI enables TLS by itself. For the sliced settings, or to supply
+a private CA, set `REDIS_TLS=true` together with any of `REDIS_TLS_CA_FILE`
+(path to a PEM bundle), `REDIS_TLS_CA` (PEM content), `REDIS_TLS_SERVERNAME`
+(certificate name when it differs from the host), and
+`REDIS_TLS_INSECURE_SKIP_VERIFY` (local development only). The chart exposes
+these as `redis.external.tls` and mounts the CA from a Secret:
+
+```yaml
+redis:
+  internal:
+    enabled: false
+  external:
+    enabled: true
+    host: redis.example.com
+    port: 6380
+    passwordSecretKeyRef:
+      name: redis-auth
+      key: password
+    tls:
+      enabled: true
+      caSecretKeyRef:
+        name: redis-ca
+        key: ca.crt
+```
+
 ## Upstream login providers
 
 Passmower authenticates users against GitHub (a dedicated handler), email

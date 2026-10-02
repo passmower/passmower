@@ -261,6 +261,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `OIDC_COOKIE_KEYS` | JSON array of cookie-signing keys. |
 | `OIDC_JWKS` | JSON JWKS for token signing. |
 | `REDIS_URI`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_IP_FAMILY` | Redis connection; `REDIS_URI` takes precedence over sliced settings. |
+| `REDIS_TLS`, `REDIS_TLS_CA_FILE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, `REDIS_TLS_INSECURE_SKIP_VERIFY` | Redis TLS; `REDIS_TLS=true` switches the sliced URL to `rediss://`, the rest feed ioredis `tls` options (README, "Redis over TLS"). |
 | `OIDC_PROVIDERS` | JSON object of generic upstream OIDC providers keyed by provider slug. |
 | `OIDC_ALLOW_INSECURE_UPSTREAM` | Permit `http://` upstreams (local dev only). |
 | `GITHUB_ENABLED`, `GH_CLIENT_ID/SECRET`, `GITHUB_ORGANIZATION` | GitHub upstream. |
