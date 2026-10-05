@@ -7,6 +7,7 @@ import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
 import {mappedClaimsFor} from "./utils/claim-mappings.js";
 import {getAccountAccessFailure} from './utils/user/check-account-access.js';
 import {auditLog} from './utils/session/audit-log.js';
+import {isResourceAllowed, isResourceIndicator} from './utils/resource-allowlist.js';
 
 export default {
     async findAccount(ctx, id, token) {
@@ -136,6 +137,9 @@ export default {
             // request omits an explicit `resource` parameter.
             useGrantedResource: () => true,
             getResourceServerInfo(ctx, resourceIndicator, client) {
+                if (!isResourceAllowed(client, resourceIndicator)) {
+                    throw new errors.InvalidTarget('the client is not allowed to request this resource');
+                }
                 return {
                     audience: resourceIndicator,
                     accessTokenTTL: 60 * 60,
@@ -211,6 +215,7 @@ export default {
             'claimMappings',
             'clientNamespace',
             'availableScopes',
+            'allowedResources',
             'kind',
             'uri',
             'displayName',
@@ -224,6 +229,19 @@ export default {
             // can read client.claimMappings without guarding.
             if (key === 'claimMappings' && (value === undefined || value === null)) {
                 metadata['claimMappings'] = {};
+                return;
+            }
+            if (key === 'allowedResources') {
+                // Unset (null or absent) is distinct from an empty list: the
+                // former defers to RESOURCE_ALLOWLIST_REQUIRED, the latter
+                // allows no resource at all.
+                if (value === undefined || value === null) {
+                    delete metadata['allowedResources'];
+                    return;
+                }
+                if (!Array.isArray(value) || !value.every(isResourceIndicator)) {
+                    throw new errors.InvalidClientMetadata('allowedResources must be an array of absolute URIs without a fragment');
+                }
                 return;
             }
             if (key === 'allowedCORSOrigins') {

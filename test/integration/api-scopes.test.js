@@ -21,6 +21,9 @@ const RP = {
 const RESOURCE = 'https://gallery.test/api'
 const GRANTED_SCOPE = 'gallery:images:read'
 const UNLISTED_SCOPE = 'gallery:images:delete'
+// A second client that may only call the gallery API, and an API it may not call.
+const RESTRICTED = { client_id: 'gallery-restricted', client_secret: 'restricted-secret' }
+const FOREIGN_RESOURCE = 'https://admin.test/api'
 
 const base64url = (buf) => buf.toString('base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -49,6 +52,18 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
             token_endpoint_auth_method: 'client_secret_basic',
             // None of these beyond openid/email are scopes Passmower serves.
             availableScopes: ['openid', 'email', GRANTED_SCOPE, 'gallery:images:write'],
+            allowedGroups: [],
+            allowedCORSOrigins: [],
+        })
+        await new RedisAdapter('Client').upsert(RESTRICTED.client_id, {
+            client_id: RESTRICTED.client_id,
+            client_secret: RESTRICTED.client_secret,
+            redirect_uris: [RP.redirect_uri],
+            grant_types: ['authorization_code'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_basic',
+            availableScopes: ['openid', 'email', GRANTED_SCOPE],
+            allowedResources: [RESOURCE],
             allowedGroups: [],
             allowedCORSOrigins: [],
         })
@@ -115,12 +130,12 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
 
     // Log in by magic link asking for `scope` (and optionally a resource), and
     // return the token response.
-    async function login(scope, resource = RESOURCE) {
+    async function login(scope, resource = RESOURCE, { client = RP, prompt } = {}) {
         const j = jar()
         const verifier = base64url(randomBytes(32))
         const challenge = base64url(createHash('sha256').update(verifier).digest())
         const authQuery = new URLSearchParams({
-            client_id: RP.client_id,
+            client_id: client.client_id,
             redirect_uri: RP.redirect_uri,
             response_type: 'code',
             scope,
@@ -132,6 +147,9 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         if (resource) {
             authQuery.set('resource', resource)
         }
+        if (prompt) {
+            authQuery.set('prompt', prompt)
+        }
 
         let res = await follow(j, await req(j, 'get', `/auth?${authQuery}`))
         const uid = (res.headers.location ?? res.request.url).match(/\/interaction\/([^/?]+)/)[1]
@@ -142,7 +160,7 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
 
         const tokenRes = await request(callback)
             .post('/token')
-            .auth(RP.client_id, RP.client_secret)
+            .auth(client.client_id, client.client_secret)
             .type('form')
             .send({
                 grant_type: 'authorization_code',
@@ -188,5 +206,86 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         // API scope — so it is silently not granted rather than an error.
         expect(token.access_token.split('.')).toHaveLength(1)
         expect((token.scope ?? '').split(' ')).not.toContain(GRANTED_SCOPE)
+    })
+
+    // The authorization request alone: where does /auth send the browser?
+    async function authorize(clientId, resource) {
+        const query = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: RP.redirect_uri,
+            response_type: 'code',
+            scope: 'openid email',
+            state: 'state-resources',
+            nonce: 'nonce-resources',
+            code_challenge: base64url(createHash('sha256').update('verifier-verifier-verifier-verifier-1234').digest()),
+            code_challenge_method: 'S256',
+            resource,
+        })
+        return request(callback).get(`/auth?${query}`)
+    }
+
+    it('refuses a resource the client does not list in allowedResources', async () => {
+        const res = await authorize(RESTRICTED.client_id, FOREIGN_RESOURCE)
+        const location = new URL(res.headers.location)
+        expect(location.host).toBe(rpHost)
+        expect(location.searchParams.get('error')).toBe('invalid_target')
+    })
+
+    it('issues a token for a resource the client lists', async () => {
+        const res = await authorize(RESTRICTED.client_id, RESOURCE)
+        // On to the login interaction rather than back to the client with an error.
+        expect(res.headers.location).toMatch(/\/interaction\//)
+    })
+
+    it('refuses any resource from a client without a list when the deployment requires one', async () => {
+        process.env.RESOURCE_ALLOWLIST_REQUIRED = 'true'
+        try {
+            const res = await authorize(RP.client_id, RESOURCE)
+            expect(new URL(res.headers.location).searchParams.get('error')).toBe('invalid_target')
+            // A client with a list is unaffected.
+            const listed = await authorize(RESTRICTED.client_id, RESOURCE)
+            expect(listed.headers.location).toMatch(/\/interaction\//)
+        } finally {
+            delete process.env.RESOURCE_ALLOWLIST_REQUIRED
+        }
+    })
+
+    it('refuses to refresh for a resource since removed from allowedResources', async () => {
+        const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
+        const client = { client_id: 'gallery-refreshable', client_secret: 'refreshable-secret' }
+        const metadata = (allowedResources) => ({
+            client_id: client.client_id,
+            client_secret: client.client_secret,
+            redirect_uris: [RP.redirect_uri],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_basic',
+            availableScopes: ['openid', 'email', 'offline_access', GRANTED_SCOPE],
+            allowedResources,
+            allowedGroups: [],
+            allowedCORSOrigins: [],
+        })
+        await new RedisAdapter('Client').upsert(client.client_id, metadata([RESOURCE]))
+
+        const token = await login(`openid email offline_access ${GRANTED_SCOPE}`, RESOURCE,
+            { client, prompt: 'consent' })
+        expect(token.refresh_token).toBeTruthy()
+        const refresh = () => request(callback)
+            .post('/token')
+            .auth(client.client_id, client.client_secret)
+            .type('form')
+            .send({ grant_type: 'refresh_token', refresh_token: token.refresh_token })
+
+        // While the resource is listed, the refresh token renews it.
+        const renewed = await refresh().expect(200)
+        expect(decodeJwt(renewed.body.access_token).aud).toBe(RESOURCE)
+
+        // The refresh grant re-derives the resource server, so narrowing the
+        // list takes effect on the next refresh rather than when the refresh
+        // token expires.
+        await new RedisAdapter('Client').upsert(client.client_id, metadata([]))
+        const refused = await refresh()
+        expect(refused.status).toBe(400)
+        expect(refused.body.error).toBe('invalid_target')
     })
 })
