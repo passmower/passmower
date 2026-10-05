@@ -46,6 +46,7 @@ class OIDCClient {
     #claimMappings = null
     #overrideIncomingScopes = null
     #availableScopes = null
+    #allowedResources = null
     #availableScopesDelimiter = ','
     #instanceUri = null
     #uri = null
@@ -79,6 +80,7 @@ class OIDCClient {
             allowedUsers: this.#allowedUsers,
             claimMappings: this.#claimMappings,
             availableScopes: this.#availableScopes,
+            allowedResources: this.#allowedResources,
             instanceUri: this.#instanceUri,
             uri: this.#uri,
             displayName: this.#displayName,
@@ -109,6 +111,8 @@ class OIDCClient {
         this.#claimMappings = incomingClient.spec.claimMappings ?? {}
         this.#overrideIncomingScopes = incomingClient.spec.overrideIncomingScopes
         this.#availableScopes = incomingClient.spec.availableScopes
+        // null = unset, which is not the same as an empty list (no resources).
+        this.#allowedResources = incomingClient.spec.allowedResources ?? null
         // OAuth2 scope strings are space-delimited, but the generated secret
         // historically used a comma; the CR can pick what its consumer expects.
         this.#availableScopesDelimiter = incomingClient.spec.availableScopesDelimiter ?? ','

@@ -125,6 +125,8 @@ spec:
             - name: EXTRA_CLAIMS_WEBHOOK_URL
               value: {{ . | quote }}
             {{- end }}
+            - name: RESOURCE_ALLOWLIST_REQUIRED
+              value: {{ .Values.passmower.requireResourceAllowlist | quote }}
             - name: NORMALIZE_EMAIL_ADDRESSES
               value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
             - name: SITE_SESSION_IP_BINDING

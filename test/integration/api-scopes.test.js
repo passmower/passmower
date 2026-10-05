@@ -21,6 +21,9 @@ const RP = {
 const RESOURCE = 'https://gallery.test/api'
 const GRANTED_SCOPE = 'gallery:images:read'
 const UNLISTED_SCOPE = 'gallery:images:delete'
+// A second client that may only call the gallery API, and an API it may not call.
+const RESTRICTED = { client_id: 'gallery-restricted', client_secret: 'restricted-secret' }
+const FOREIGN_RESOURCE = 'https://admin.test/api'
 
 const base64url = (buf) => buf.toString('base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -49,6 +52,18 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
             token_endpoint_auth_method: 'client_secret_basic',
             // None of these beyond openid/email are scopes Passmower serves.
             availableScopes: ['openid', 'email', GRANTED_SCOPE, 'gallery:images:write'],
+            allowedGroups: [],
+            allowedCORSOrigins: [],
+        })
+        await new RedisAdapter('Client').upsert(RESTRICTED.client_id, {
+            client_id: RESTRICTED.client_id,
+            client_secret: RESTRICTED.client_secret,
+            redirect_uris: [RP.redirect_uri],
+            grant_types: ['authorization_code'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_basic',
+            availableScopes: ['openid', 'email', GRANTED_SCOPE],
+            allowedResources: [RESOURCE],
             allowedGroups: [],
             allowedCORSOrigins: [],
         })
@@ -188,5 +203,47 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         // API scope — so it is silently not granted rather than an error.
         expect(token.access_token.split('.')).toHaveLength(1)
         expect((token.scope ?? '').split(' ')).not.toContain(GRANTED_SCOPE)
+    })
+
+    // The authorization request alone: where does /auth send the browser?
+    async function authorize(clientId, resource) {
+        const query = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: RP.redirect_uri,
+            response_type: 'code',
+            scope: 'openid email',
+            state: 'state-resources',
+            nonce: 'nonce-resources',
+            code_challenge: base64url(createHash('sha256').update('verifier-verifier-verifier-verifier-1234').digest()),
+            code_challenge_method: 'S256',
+            resource,
+        })
+        return request(callback).get(`/auth?${query}`)
+    }
+
+    it('refuses a resource the client does not list in allowedResources', async () => {
+        const res = await authorize(RESTRICTED.client_id, FOREIGN_RESOURCE)
+        const location = new URL(res.headers.location)
+        expect(location.host).toBe(rpHost)
+        expect(location.searchParams.get('error')).toBe('invalid_target')
+    })
+
+    it('issues a token for a resource the client lists', async () => {
+        const res = await authorize(RESTRICTED.client_id, RESOURCE)
+        // On to the login interaction rather than back to the client with an error.
+        expect(res.headers.location).toMatch(/\/interaction\//)
+    })
+
+    it('refuses any resource from a client without a list when the deployment requires one', async () => {
+        process.env.RESOURCE_ALLOWLIST_REQUIRED = 'true'
+        try {
+            const res = await authorize(RP.client_id, RESOURCE)
+            expect(new URL(res.headers.location).searchParams.get('error')).toBe('invalid_target')
+            // A client with a list is unaffected.
+            const listed = await authorize(RESTRICTED.client_id, RESOURCE)
+            expect(listed.headers.location).toMatch(/\/interaction\//)
+        } finally {
+            delete process.env.RESOURCE_ALLOWLIST_REQUIRED
+        }
     })
 })

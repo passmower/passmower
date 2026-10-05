@@ -49,7 +49,8 @@ GET /auth
 ```
 
 The resource is any absolute URI without a fragment — conventionally the API's
-own base URL. It does not have to be registered anywhere.
+own base URL. Which resources a client may name is controlled by
+`allowedResources` (below).
 
 The resulting access token is a **self-contained JWT** audience-bound to that
 resource, rather than the opaque reference token Passmower issues by default:
@@ -73,6 +74,31 @@ also requests the `groups` scope, and any
 A client that requests no `resource` keeps getting an opaque access token, and
 any API scopes it asked for are quietly not granted — there is no token for them
 to be in.
+
+## Restricting resources
+
+Passmower signs a token for whatever resource the client names, and a resource
+server accepts any token from this issuer whose `aud` is itself. Left
+unrestricted, any registered client could therefore obtain tokens for any API
+that trusts Passmower, for every user who signs in to that client.
+`allowedResources` closes this per client:
+
+```yaml
+spec:
+  allowedResources:
+    - https://gallery.example.com/api
+```
+
+- **Set:** the client may request only these resources, matched exactly; any
+  other is refused with `invalid_target`. An empty list allows none.
+- **Unset:** the client may request any resource, unless the deployment sets
+  `passmower.requireResourceAllowlist: true` (`RESOURCE_ALLOWLIST_REQUIRED`),
+  in which case it may request none.
+
+Where people other than the IdP's administrators can create `OIDCClient`
+resources, list resources on the clients that call APIs and then turn on
+`requireResourceAllowlist`. Resource servers that know their legitimate
+clients should also check the token's `client_id` (or `azp`).
 
 ## Semantics
 

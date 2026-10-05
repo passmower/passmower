@@ -808,6 +808,19 @@ spec:
                   description: Account IDs allowed to access this client; combined with allowedGroups using OR semantics
                   items:
                     type: string
+                allowedResources:
+                  type: array
+                  description: >-
+                    Resource servers this client may request audience-bound
+                    access tokens for: RFC 8707 `resource` URIs, matched
+                    exactly. When set, a request naming any other resource is
+                    refused with invalid_target. When unset, the client may
+                    name any resource, unless the deployment requires an
+                    allowlist (`passmower.requireResourceAllowlist`), in which
+                    case it may name none.
+                  items:
+                    type: string
+                    pattern: '^https?://[^#\s]+$'
                 availableScopes:
                   type: array
                   description: >-

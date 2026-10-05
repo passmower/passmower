@@ -99,6 +99,13 @@ passmower:
   # bearer token.
   extraClaimsWebhookTokenSecretRef: ""
 
+  # Refuse RFC 8707 resource requests from clients without an
+  # `allowedResources` list. Off by default for compatibility: such clients may
+  # then name any resource. Turn it on once every client that calls an API
+  # lists its resources, so that no client can obtain tokens for another
+  # application's API (docs/api-scopes.md).
+  requireResourceAllowlist: false
+
   # Emit a minimal, versioned JSON audit record for successful application
   # authorizations and token exchanges. Records go to stdout and should be
   # collected into a durable audit backend; see docs/audit-logging.md.
