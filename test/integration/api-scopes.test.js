@@ -130,12 +130,12 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
 
     // Log in by magic link asking for `scope` (and optionally a resource), and
     // return the token response.
-    async function login(scope, resource = RESOURCE) {
+    async function login(scope, resource = RESOURCE, { client = RP, prompt } = {}) {
         const j = jar()
         const verifier = base64url(randomBytes(32))
         const challenge = base64url(createHash('sha256').update(verifier).digest())
         const authQuery = new URLSearchParams({
-            client_id: RP.client_id,
+            client_id: client.client_id,
             redirect_uri: RP.redirect_uri,
             response_type: 'code',
             scope,
@@ -147,6 +147,9 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         if (resource) {
             authQuery.set('resource', resource)
         }
+        if (prompt) {
+            authQuery.set('prompt', prompt)
+        }
 
         let res = await follow(j, await req(j, 'get', `/auth?${authQuery}`))
         const uid = (res.headers.location ?? res.request.url).match(/\/interaction\/([^/?]+)/)[1]
@@ -157,7 +160,7 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
 
         const tokenRes = await request(callback)
             .post('/token')
-            .auth(RP.client_id, RP.client_secret)
+            .auth(client.client_id, client.client_secret)
             .type('form')
             .send({
                 grant_type: 'authorization_code',
@@ -245,5 +248,44 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         } finally {
             delete process.env.RESOURCE_ALLOWLIST_REQUIRED
         }
+    })
+
+    it('refuses to refresh for a resource since removed from allowedResources', async () => {
+        const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
+        const client = { client_id: 'gallery-refreshable', client_secret: 'refreshable-secret' }
+        const metadata = (allowedResources) => ({
+            client_id: client.client_id,
+            client_secret: client.client_secret,
+            redirect_uris: [RP.redirect_uri],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'client_secret_basic',
+            availableScopes: ['openid', 'email', 'offline_access', GRANTED_SCOPE],
+            allowedResources,
+            allowedGroups: [],
+            allowedCORSOrigins: [],
+        })
+        await new RedisAdapter('Client').upsert(client.client_id, metadata([RESOURCE]))
+
+        const token = await login(`openid email offline_access ${GRANTED_SCOPE}`, RESOURCE,
+            { client, prompt: 'consent' })
+        expect(token.refresh_token).toBeTruthy()
+        const refresh = () => request(callback)
+            .post('/token')
+            .auth(client.client_id, client.client_secret)
+            .type('form')
+            .send({ grant_type: 'refresh_token', refresh_token: token.refresh_token })
+
+        // While the resource is listed, the refresh token renews it.
+        const renewed = await refresh().expect(200)
+        expect(decodeJwt(renewed.body.access_token).aud).toBe(RESOURCE)
+
+        // The refresh grant re-derives the resource server, so narrowing the
+        // list takes effect on the next refresh rather than when the refresh
+        // token expires.
+        await new RedisAdapter('Client').upsert(client.client_id, metadata([]))
+        const refused = await refresh()
+        expect(refused.status).toBe(400)
+        expect(refused.body.error).toBe('invalid_target')
     })
 })

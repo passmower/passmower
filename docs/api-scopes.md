@@ -81,7 +81,7 @@ Passmower signs a token for whatever resource the client names, and a resource
 server accepts any token from this issuer whose `aud` is itself. Left
 unrestricted, any registered client could therefore obtain tokens for any API
 that trusts Passmower, for every user who signs in to that client.
-`allowedResources` closes this per client:
+`allowedResources` limits this per client:
 
 ```yaml
 spec:
@@ -94,11 +94,33 @@ spec:
 - **Unset:** the client may request any resource, unless the deployment sets
   `passmower.requireResourceAllowlist: true` (`RESOURCE_ALLOWLIST_REQUIRED`),
   in which case it may request none.
+- **Refresh re-checks it.** A refresh exchange looks the resource up against
+  the current list, so removing a resource refuses the next refresh for it
+  with `invalid_target` rather than waiting for the refresh token to expire.
+
+### Who writes the list
+
+`allowedResources` is part of the client's own spec, so it constrains a client
+only as far as the people who write that spec are trusted. It protects against
+misconfiguration and against a leaked client secret, which cannot widen the
+list. It is not a boundary between tenants: anyone who can create or edit an
+`OIDCClient` can list any resource on it, and `requireResourceAllowlist` only
+makes them list it explicitly.
 
 Where people other than the IdP's administrators can create `OIDCClient`
-resources, list resources on the clients that call APIs and then turn on
-`requireResourceAllowlist`. Resource servers that know their legitimate
-clients should also check the token's `client_id` (or `azp`).
+resources, pair the allowlist with at least one control those people cannot
+write:
+
+- **An admission policy** on `OIDCClient` create and update that limits which
+  resources a namespace may list, for example to hosts it owns. Derive "owns"
+  from something the namespace cannot claim on its own, such as hostnames
+  already restricted per namespace on Ingress.
+- **A check at the resource server** of the token's `client_id` (or `azp`)
+  against the clients it expects. This holds even if the IdP is misconfigured,
+  and is the defence a resource server can apply by itself.
+
+Then list resources on the clients that call APIs and turn on
+`requireResourceAllowlist`, so that no client is left unrestricted by omission.
 
 ## Semantics
 
