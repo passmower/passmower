@@ -66,5 +66,6 @@
   "author": "Erki Aas",
   "overrides": {
     "js-yaml": "^4.2.0"
-  }
+  },
+  "license": "Apache-2.0"
 }

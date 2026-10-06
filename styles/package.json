@@ -9,5 +9,6 @@
   "devDependencies": {
     "sass": "^1.105.0"
   },
-  "author": "Erki Aas"
+  "author": "Erki Aas",
+  "license": "Apache-2.0"
 }
