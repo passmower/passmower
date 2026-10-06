@@ -67,9 +67,11 @@ resource, rather than the opaque reference token Passmower issues by default:
 
 So the API validates the token against Passmower's JWKS endpoint, checks `aud`
 is itself, and authorizes from `scope` — with no introspection call and no
-shared secret. Group membership rides along in the same token when the client
-also requests the `groups` scope, and any
-[claim mappings](claim-mappings.md) the client has are included unconditionally.
+shared secret. The UserInfo endpoint does not accept a resource-bound token, so
+what the resource server needs to know about the user rides along in the token
+itself: `email` and `email_verified` when the client was granted the `email`
+scope, group membership when it was granted `groups`, and any
+[claim mappings](claim-mappings.md) the client has, unconditionally.
 
 A client that requests no `resource` keeps getting an opaque access token, and
 any API scopes it asked for are quietly not granted — there is no token for them

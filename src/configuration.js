@@ -34,15 +34,16 @@ export default {
         policy: setupPolicies()
     },
     conformIdTokenClaims: false, // https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#id-token-does-not-include-claims-other-than-sub
-    // Include the user's groups (and, via the enrichment webhook, namespaces)
-    // in JWT access tokens when the matching scope was granted, so resource
-    // servers can authorize without an extra userinfo call. Only applies to
+    // Include the user's email, groups (and, via the enrichment webhook,
+    // namespaces) in JWT access tokens when the matching scope was granted, so
+    // resource servers can identify and authorize without an extra userinfo call. Only applies to
     // self-contained (JWT) access tokens; see features.resourceIndicators.
     async extraTokenClaims(ctx, token) {
         if (token.kind !== 'AccessToken') {
             return undefined;
         }
         const scopes = token.scope ? token.scope.split(' ') : [];
+        const wantsEmail = scopes.includes('email');
         const wantsGroups = scopes.includes('groups');
         const wantsNamespaces = scopes.includes('namespaces');
         // Mapped claims are bound to the openid scope rather than requested, so
@@ -51,7 +52,7 @@ export default {
             ? ctx.oidc.client
             : await ctx?.oidc?.provider?.Client?.find(token.clientId);
         const hasClaimMappings = !!Object.keys(client?.claimMappings ?? {}).length;
-        if (!wantsGroups && !wantsNamespaces && !hasClaimMappings) {
+        if (!wantsEmail && !wantsGroups && !wantsNamespaces && !hasClaimMappings) {
             return undefined;
         }
         const account = await Account.findAccount(ctx, token.accountId);
@@ -60,6 +61,11 @@ export default {
         }
         const groups = (account.groups || []).map(g => `${g.prefix}:${g.name}`);
         const claims = {};
+        // Same claims the ID token and userinfo return for the email scope.
+        if (wantsEmail && account.primaryEmail) {
+            claims.email = account.primaryEmail;
+            claims.email_verified = account.isPrimaryEmailVerified();
+        }
         if (wantsGroups) {
             claims.groups = groups;
         }
