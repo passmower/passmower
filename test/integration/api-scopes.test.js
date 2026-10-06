@@ -188,6 +188,25 @@ describe('custom API scopes on resource-bound access tokens (HTTP)', () => {
         expect(decodeJwt(token.id_token).sub).toBe('testuser')
     })
 
+    it('carries the email claims into the JWT access token when email is granted', async () => {
+        const token = await login(`openid email ${GRANTED_SCOPE}`)
+
+        // A resource server keyed by email cannot call userinfo with a
+        // resource-bound token, so the address has to be in the token itself.
+        const accessToken = decodeJwt(token.access_token)
+        expect(accessToken.email).toBe('test@example.com')
+        expect(accessToken.email_verified).toBe(true)
+    })
+
+    it('leaves the email claims out of the JWT access token without the email scope', async () => {
+        const token = await login(`openid ${GRANTED_SCOPE}`)
+
+        const accessToken = decodeJwt(token.access_token)
+        expect(accessToken.scope.split(' ')).toContain(GRANTED_SCOPE)
+        expect(accessToken).not.toHaveProperty('email')
+        expect(accessToken).not.toHaveProperty('email_verified')
+    })
+
     it('drops an API scope the client does not list in availableScopes', async () => {
         const token = await login(`openid email ${GRANTED_SCOPE} ${UNLISTED_SCOPE}`)
 
