@@ -1,5 +1,5 @@
 import {parseDomain} from "parse-domain";
-import microMatch from "micromatch";
+import picomatch from "picomatch";
 
 export const getBaseDomainFromUrl = (url) => {
     url = new URL(url)
@@ -19,7 +19,7 @@ export const getBaseDomainFromUrl = (url) => {
 export const providerBaseDomain = getBaseDomainFromUrl(process.env.ISSUER_URL)
 
 export const isHostInProviderBaseDomain = (host) => {
-    return microMatch.isMatch(host, '*' + providerBaseDomain)
+    return picomatch('*' + providerBaseDomain)(host)
 }
 
 export const getUrlsInProviderBaseDomain = (urls) => {
