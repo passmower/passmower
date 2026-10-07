@@ -1,5 +1,4 @@
 import {parseDomain} from "parse-domain";
-import picomatch from "picomatch";
 
 export const getBaseDomainFromUrl = (url) => {
     url = new URL(url)
@@ -18,8 +17,13 @@ export const getBaseDomainFromUrl = (url) => {
 
 export const providerBaseDomain = getBaseDomainFromUrl(process.env.ISSUER_URL)
 
-export const isHostInProviderBaseDomain = (host) => {
-    return picomatch('*' + providerBaseDomain)(host)
+// The base domain itself or a subdomain of it. A bare suffix match would also
+// accept look-alike registrable domains such as "evil" + providerBaseDomain.
+export const isHostInProviderBaseDomain = (host, baseDomain = providerBaseDomain) => {
+    if (typeof host !== 'string') return false
+    host = host.toLowerCase().replace(/\.$/, '')
+    baseDomain = baseDomain.toLowerCase()
+    return host === baseDomain || host.endsWith('.' + baseDomain)
 }
 
 export const getUrlsInProviderBaseDomain = (urls) => {
