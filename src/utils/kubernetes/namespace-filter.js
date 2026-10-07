@@ -1,4 +1,4 @@
-import microMatch from "micromatch";
+import picomatch from "picomatch";
 
 export class NamespaceFilter {
     namespace = undefined
@@ -22,7 +22,9 @@ export class NamespaceFilter {
         }
     }
 
+    // Every selector entry must match, so exclusions narrow a wildcard:
+    // "*,!kube-*" is every namespace except the kube-* ones.
     filter (namespace) {
-        return microMatch.every(namespace, this.#namespaces)
+        return [].concat(this.#namespaces).every((pattern) => picomatch(pattern)(namespace))
     }
 }
