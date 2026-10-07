@@ -65,5 +65,6 @@
   "overrides": {
     "js-yaml": "^4.2.0",
     "shell-quote": "^1.11.0"
-  }
+  },
+  "license": "Apache-2.0"
 }

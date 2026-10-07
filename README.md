@@ -1,7 +1,7 @@
 # Passmower authorization server
 
 [![Release](https://img.shields.io/github/v/release/passmower/passmower)](https://github.com/passmower/passmower/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
 
@@ -603,4 +603,5 @@ please open an issue or submit a pull request.
 
 # License
 
-Passmower is licensed under the MIT License.
+Passmower project code is licensed under the [Apache License 2.0](LICENSE).
+Third-party dependencies and assets retain their respective licenses.
