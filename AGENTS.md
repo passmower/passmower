@@ -243,7 +243,7 @@ already stands up, so the Dex config there is a working reference.
 ### Running pieces directly
 
 ```
-npm run dev            # nodemon, src/app.js with --inspect (needs env: ISSUER_URL,
+npm run dev            # node --watch-path=src src/app.js with --inspect (needs env: ISSUER_URL,
                        # OIDC_COOKIE_KEYS, OIDC_JWKS, REDIS_URI, a reachable kube context)
 npm run dev-frontend   # Vue dev server
 npm run dev-styles     # SCSS watch
