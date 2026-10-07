@@ -29,10 +29,9 @@ export default async (ctx, provider, account, method, {impersonation = false} = 
         // notification instead. Fire-and-forget: notifyAccount never rejects.
         if (!impersonation && loginNotificationsEnabled()) {
             const request = parseRequestMetadata(ctx.headers)
-            const os = request.os?.startsWith('undefined') ? undefined : request.os
             const location = [request.ip && `from ${request.ip}`,
                 request.browser && `using ${request.browser}`,
-                os && `on ${os}`].filter(Boolean).join(' ')
+                request.os && `on ${request.os}`].filter(Boolean).join(' ')
             void notifyAccount(account,
                 `New sign-in to ${new URL(process.env.ISSUER_URL).host}`,
                 `Your account ${account.accountId} signed in via ${method}${location ? ' ' + location : ''}. If this was not you, end your sessions on your profile page and contact an administrator.`)
