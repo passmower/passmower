@@ -49,7 +49,6 @@
     "prom-client": "^15.1.1",
     "query-string": "^9.5.1",
     "short-unique-id": "^5.0.3",
-    "ua-parser-js": "^2.0.10",
     "uuid": "^14.0.2",
     "validator": "^13.15.35"
   },
