@@ -28,11 +28,20 @@ spec:
       {{- with .Values.redis.internal.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      {{- with .Values.redis.internal.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: redis
           image: {{ .Values.redis.internal.image | default "valkey/valkey:8-alpine" }}
           command:
             - redis-server
+          workingDir: /data
+          {{- with .Values.redis.internal.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             - name: MASTER
               value: "true"
@@ -40,6 +49,12 @@ spec:
             - containerPort: 6379
           resources:
             {{- toYaml .Values.redis.internal.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
       {{- with .Values.redis.internal.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
