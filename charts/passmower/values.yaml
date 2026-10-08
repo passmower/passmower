@@ -299,6 +299,23 @@ redis:
     affinity: {}
     tolerations: []
     priorityClassName: ""
+    # The store runs as the image's unprivileged user (UID 999, GID 1000 in
+    # both the Valkey and redis:*-alpine images) under the Pod Security
+    # "restricted" profile. Its snapshots go to an emptyDir at /data, so the
+    # root filesystem stays read-only.
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 999
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
   # Use your own implementation. REDIS_URI remains supported through
   # secretKeyRef. Alternatively set host/port/username/database here and source
   # the password from a Secret, or import a Secret whose keys are REDIS_HOST,
@@ -396,16 +413,22 @@ deploymentAnnotations: {}
 podLabels: {}
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+# Passmower and its key-manager Job meet the Pod Security "restricted" profile:
+# they run as the image's unprivileged node user (UID 1000) and never write to
+# the filesystem. Set both to {} to run the dev image, which builds into /app.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
 
 # Passmower's HTTP side is stateless (sessions in Redis, signing keys in a
 # Secret), and the CRD operators run in one replica at a time, elected through a

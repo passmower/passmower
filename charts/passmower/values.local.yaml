@@ -19,3 +19,8 @@ ingress:
   className: nginx
 image:
   pullPolicy: Never
+
+# The dev image builds the frontend and styles into /app at runtime as root,
+# so it cannot run under the restricted defaults.
+podSecurityContext: {}
+securityContext: {}

@@ -72,4 +72,7 @@ COPY --from=build /app/styles/dist/. /app/styles/dist/
 
 # we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
 ENV NODE_ENV=production
+# The base image's unprivileged node user, numeric so a runAsNonRoot kubelet
+# can verify it.
+USER 1000:1000
 ENTRYPOINT node --no-warnings src/app.js
