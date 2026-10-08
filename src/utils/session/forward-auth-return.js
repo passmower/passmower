@@ -11,15 +11,21 @@ export const forwardAuthRedirectUri = () => `${process.env.ISSUER_URL}${forwardA
 
 const first = (value) => value?.split(',')[0].trim() || undefined
 
+// WebSocket upgrades reach forward-auth with a ws(s) scheme. They are checked
+// like the page they belong to, and a sign-in redirect for one returns to that
+// page, since a browser cannot be redirected to a WebSocket URL.
+const PAGE_SCHEME = new Map([['http', 'http'], ['https', 'https'], ['ws', 'http'], ['wss', 'https']])
+
 // The URL the proxy was asked for, from the X-Forwarded-* headers Traefik and
 // nginx set on forward-auth subrequests. RFC 7239 Forwarded is deliberately
-// not consulted. Only http(s) URLs in the provider base domain qualify.
+// not consulted. Only http(s) and ws(s) URLs in the provider base domain
+// qualify, returned with an http(s) scheme.
 export const requestedUrl = (headers) => {
-    const proto = first(headers['x-forwarded-proto']) ?? 'https'
+    const proto = PAGE_SCHEME.get(first(headers['x-forwarded-proto'])?.toLowerCase() ?? 'https')
     let host = first(headers['x-forwarded-host'])
     const port = first(headers['x-forwarded-port'])
     const path = headers['x-forwarded-uri'] || '/'
-    if (!['http', 'https'].includes(proto) || !host || !path.startsWith('/')) return undefined
+    if (!proto || !host || !path.startsWith('/')) return undefined
     // Proxies that send a port-less host (nginx $host) carry the port separately.
     if (port && !/\]:\d+$|^[^[\]]+:\d+$/.test(host)) host = `${host}:${port}`
     let authority, url

@@ -69,8 +69,16 @@ describe('requestedUrl', () => {
         expect(requestedUrl(headers({'x-forwarded-uri': '//evilexample.com/x'})).hostname).toBe('app.example.com')
     })
 
-    it('rejects non-http schemes and a missing host', () => {
+    it('treats WebSocket upgrades as the page they belong to', () => {
+        expect(requestedUrl(headers({'x-forwarded-proto': 'wss', 'x-forwarded-uri': '/v1/ws/1s/volumes'})).href)
+            .toBe('https://app.example.com/v1/ws/1s/volumes')
+        expect(requestedUrl(headers({'x-forwarded-proto': 'ws'})).protocol).toBe('http:')
+        expect(requestedUrl(headers({'x-forwarded-proto': 'WSS'})).protocol).toBe('https:')
+    })
+
+    it('rejects other schemes and a missing host', () => {
         expect(requestedUrl(headers({'x-forwarded-proto': 'javascript'}))).toBeUndefined()
+        expect(requestedUrl(headers({'x-forwarded-proto': 'constructor'}))).toBeUndefined()
         expect(requestedUrl(headers({'x-forwarded-host': undefined}))).toBeUndefined()
     })
 })

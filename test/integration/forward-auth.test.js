@@ -148,6 +148,11 @@ describe('forward-auth sign-in (HTTP)', () => {
         const authed = await forwardAuth(j)
         expect(authed.status).toBe(200)
         expect(authed.headers['remote-user']).toBe('testuser')
+
+        // Traefik forwards WebSocket upgrades with X-Forwarded-Proto: wss.
+        const socket = await forwardAuth(j, forwardAuthHeaders({'x-forwarded-proto': 'wss', 'x-forwarded-uri': '/ws'}))
+        expect(socket.status).toBe(200)
+        expect(socket.headers['remote-user']).toBe('testuser')
     })
 
     it('delivers repeat authorization responses to Passmower, then redirects to the page', async () => {
