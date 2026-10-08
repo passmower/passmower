@@ -6,6 +6,7 @@ import {
 } from "../utils/kubernetes/kube-constants.js";
 import {randomUUID} from "crypto";
 import {ClientActivityState} from './client-activity-state.js';
+import {forwardAuthRedirectUri} from "../utils/session/forward-auth-return.js";
 
 export const grantType = 'implicit'
 export const responseType = 'id_token'
@@ -49,6 +50,7 @@ export default class OIDCMiddlewareClient {
             client_secret: randomUUID(),
             grant_types: [ grantType ],
             response_types: [ responseType ],
+            redirect_uris: [ forwardAuthRedirectUri() ],
             availableScopes: [ scope ],
             allowedGroups: this.#allowedGroups,
             allowedUsers: this.#allowedUsers,
