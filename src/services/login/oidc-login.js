@@ -7,6 +7,7 @@ import { getOidcClient, oidcRedirectUri } from "../../utils/oidc-providers.js";
 import ScimLinkService from "../scim-link-service.js";
 import {isOutboundEmailEnabled} from '../../utils/email-configuration.js';
 import {canonicalizeEmail} from '../../utils/user/identity-integrity.js';
+import { takeSelectAccount } from '../../utils/session/select-account.js';
 
 // An explicit upstream `email_verified: false` is heeded from every issuer,
 // trusted or not: a negative signal can only deny email-based account linking,
@@ -124,6 +125,7 @@ export default async (ctx, provider, providerConfig) => {
             nonce,
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
+            ...(takeSelectAccount(ctx, provider) ? {prompt: 'select_account'} : {}),
         }).href);
     }
 

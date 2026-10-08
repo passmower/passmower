@@ -5,6 +5,7 @@ import accessDenied from "../../utils/session/access-denied.js";
 import getLoginResult from "../../utils/user/get-login-result.js";
 import {GitHubGroupPrefix} from "../../utils/kubernetes/kube-constants.js";
 import {auditLog} from "../../utils/session/audit-log.js";
+import {takeSelectAccount} from "../../utils/session/select-account.js";
 
 // EMAIL_ENABLED governs outbound delivery only; emails are always collected
 // from GitHub so downstream clients keep receiving email claims even on
@@ -14,7 +15,7 @@ export const getGitHubScopes = (env = process.env) => [
     ...(env.GITHUB_ORGANIZATION ? ['read:org'] : []),
 ]
 
-export const getGitHubAuthorizeParams = (state, env = process.env) => {
+export const getGitHubAuthorizeParams = (state, env = process.env, {selectAccount = false} = {}) => {
     const scopes = getGitHubScopes(env)
     return {
         redirect_uri: `${env.ISSUER_URL}interaction/callback/gh`,
@@ -23,6 +24,7 @@ export const getGitHubAuthorizeParams = (state, env = process.env) => {
         // a token without user:email.
         ...(scopes.length ? {scope: scopes.join(' ')} : {}),
         state,
+        ...(selectAccount ? {prompt: 'select_account'} : {}),
     }
 }
 
@@ -61,7 +63,9 @@ export default async (ctx, provider) => {
         })
         ctx.status = 302;
         auditLog(ctx, {interactionDetails, state}, 'Redirecting user to GitHub')
-        return ctx.redirect(ghOauth.getAuthorizeUrl(getGitHubAuthorizeParams(state)));
+        return ctx.redirect(ghOauth.getAuthorizeUrl(getGitHubAuthorizeParams(state, process.env, {
+            selectAccount: takeSelectAccount(ctx, provider),
+        })));
     }
 
     if (!token) {
