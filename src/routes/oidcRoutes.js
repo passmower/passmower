@@ -25,6 +25,7 @@ import {addSiteSession} from "../utils/session/site-session.js";
 import {confirmTos} from "../utils/user/confirm-tos.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
 import {authorizationUrl} from "../utils/session/authorization-url.js";
+import {rememberLogout} from "../utils/session/select-account.js";
 import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import {recordIncident} from "../utils/session/incident-log.js";
@@ -610,6 +611,7 @@ export default (provider) => {
 
 
     router.get('/interaction/:uid/abort', async (ctx) => {
+        rememberLogout(ctx, provider)
         return accessDenied(ctx, provider,  'End-User aborted interaction')
     });
 

@@ -31,6 +31,12 @@ describe('GitHub email collection', () => {
         expect(params.scope).toBe('user:email read:org')
     })
 
+    it('asks GitHub for its account picker only when requested', () => {
+        const env = {EMAIL_ENABLED: 'true', ISSUER_URL: 'https://passmower.example/'}
+        expect(getGitHubAuthorizeParams('state', env)).not.toHaveProperty('prompt')
+        expect(getGitHubAuthorizeParams('state', env, {selectAccount: true}).prompt).toBe('select_account')
+    })
+
     it('surfaces the GitHub error body when the email API rejects the token', async () => {
         const fetchImpl = vi.fn().mockResolvedValue({
             status: 404,
