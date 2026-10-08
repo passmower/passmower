@@ -10,7 +10,7 @@ vi.mock('../../src/utils/session/site-session.js', () => ({
 vi.mock('../../src/adapters/redis.js', () => ({
     default: class RedisAdapter {
         async find() {
-            return {headerMapping: {user: 'Remote-User'}}
+            return {kind: 'OIDCMiddlewareClient', headerMapping: {user: 'Remote-User'}}
         }
     },
 }))

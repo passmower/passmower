@@ -68,11 +68,9 @@ export default async (provider) => {
     provider.use(async (ctx, next) => {
         await next();
         if (ctx.oidc?.route === 'resume') {
-            if (ctx?.oidc?.entities?.Client?.clientId === clientId || ctx?.oidc?.entities?.Client?.kind === OIDCMiddlewareClientCrd) {
-                if (ctx.oidc?.entities?.Interaction?.result?.consent) {
-                    // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard or forwardAuth origin.
-                    ctx.redirect(ctx?.oidc?.entities?.Interaction?.params?.redirect_uri)
-                }
+            if (ctx?.oidc?.entities?.Client?.clientId === clientId && ctx.oidc?.entities?.Interaction?.result?.consent) {
+                // Violate RFC for selfOIDCClient - no parameters when redirecting to dashboard.
+                ctx.redirect(ctx.oidc.entities.Interaction.params?.redirect_uri)
             }
         }
     });
