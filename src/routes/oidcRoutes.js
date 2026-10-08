@@ -24,7 +24,7 @@ import {signedInToSelf} from "../utils/session/signed-in.js";
 import {addSiteSession} from "../utils/session/site-session.js";
 import {confirmTos} from "../utils/user/confirm-tos.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
-import {enableAndGetRedirectUri} from "../utils/session/enable-and-get-redirect-uri.js";
+import {authorizationUrl} from "../utils/session/authorization-url.js";
 import {clientId, responseType, scope} from "../utils/session/self-oidc-client.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import {recordIncident} from "../utils/session/incident-log.js";
@@ -133,7 +133,12 @@ export default (provider) => {
                 return ctx.render('frontend', { layout: false, title: 'Passmower' })
             }
         } else {
-            const url = await enableAndGetRedirectUri(provider, process.env.ISSUER_URL, clientId, responseType, scope)
+            const url = authorizationUrl(provider, {
+                client_id: clientId,
+                response_type: responseType,
+                scope,
+                redirect_uri: process.env.ISSUER_URL,
+            })
             // When only a single login method is enabled there is nothing to pick,
             // so skip the welcome page and go straight to the sign-in interaction.
             if (enabledAuthMethodCount() === 1) {
