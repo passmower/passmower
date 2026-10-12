@@ -10,6 +10,16 @@ let isReady = false;
 let readyResolve;
 let readyPromise = new Promise(resolve => { readyResolve = resolve; });
 
+// Callbacks invoked each time any Redis client emits 'ready', including
+// reconnections. Used by components (e.g. self-oidc-client) that must
+// re-seed Redis after a flush or restart erases their records.
+// A Set deduplicates by reference so registering the same function twice is safe.
+const readyCallbacks = new Set();
+
+export function onRedisReady(cb) {
+    readyCallbacks.add(cb);
+}
+
 const MAX_ERROR_COUNT = 5;
 const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -152,6 +162,9 @@ function createRedisClient(redisUrl, isInitial = false) {
         // Disable offline queue after initial connection is ready
         newClient.options.enableOfflineQueue = false;
         readyResolve();
+        for (const cb of readyCallbacks) {
+            cb().catch(err => globalThis.logger?.error({ err }, 'Redis ready callback failed'));
+        }
     });
 
     newClient.on('close', () => {
@@ -245,6 +258,7 @@ export function connect() {
 export async function disconnect() {
     timers.forEach(clearInterval);
     timers = [];
+    readyCallbacks.clear();
     if (client) {
         const c = client;
         client = undefined;

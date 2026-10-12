@@ -1,5 +1,5 @@
 import {randomUUID} from "crypto";
-import RedisAdapter from "../../adapters/redis.js";
+import RedisAdapter, {onRedisReady} from "../../adapters/redis.js";
 import {getUrlsInProviderBaseDomain} from "./base-domain.js";
 
 export const clientId = 'passmower'
@@ -19,6 +19,17 @@ export const initializeSelfOidcClient = async () => {
     const redis = new RedisAdapter('Client')
     const client = await redis.find(clientId)
     baseClient.redirect_uris = validateUris(client?.redirect_uris ?? []) // Validate that existing URLs do not have prohibited values
+    await redis.upsert(clientId, baseClient)
+    onRedisReady(restoreSelfOidcClient)
+}
+
+// Re-seeds the self-client record after Redis reconnects following a flush or
+// restart. Falls back to in-memory redirect_uris so the record is always valid
+// even when Redis has no existing value to read.
+async function restoreSelfOidcClient() {
+    const redis = new RedisAdapter('Client')
+    const client = await redis.find(clientId)
+    baseClient.redirect_uris = validateUris(client?.redirect_uris ?? baseClient.redirect_uris ?? [])
     await redis.upsert(clientId, baseClient)
 }
 
