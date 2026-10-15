@@ -36,6 +36,12 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Application Listing**: Dashboards and launchers can fetch the list of applications a signed-in user is allowed to open via the `applications` userinfo claim, or the full admin-only catalog via `GET /api/apps/all`. See [docs/application-listing.md](docs/application-listing.md).
 
+## Support
+
+For community questions, use [Cloud Native Slack](https://cloud-native.slack.com/archives/C0C8YHGCM9D).
+Report bugs and request features through [GitHub issues](https://github.com/passmower/passmower/issues).
+For commercial support, contact [info@codemowers.io](mailto:info@codemowers.io).
+
 ## Supported Applications
 
 Passmower has been tested and supports the following applications:
