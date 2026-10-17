@@ -121,3 +121,38 @@ describe('OIDCClient model — client URI in the generated Secret', () => {
         })
     })
 })
+
+describe('OIDCClient model — OIDC_CLIENT_SECRET in generated Secret', () => {
+    const urlFor = route => `https://oidc.example/${route}`
+
+    it('omits OIDC_CLIENT_SECRET when tokenEndpointAuthMethod is none', () => {
+        const client = new OIDCClient()
+            .fromIncomingClient(incomingClient({
+                tokenEndpointAuthMethod: 'none',
+                pkce: true,
+            }))
+            .generateSecret()
+        const secret = client.toClientSecret({urlFor})
+        expect(Object.keys(secret)).not.toContain('OIDC_CLIENT_SECRET')
+    })
+
+    it('includes OIDC_CLIENT_SECRET when tokenEndpointAuthMethod is client_secret_basic', () => {
+        const client = new OIDCClient()
+            .fromIncomingClient(incomingClient({
+                tokenEndpointAuthMethod: 'client_secret_basic',
+            }))
+            .generateSecret()
+        const secret = client.toClientSecret({urlFor})
+        expect(Object.keys(secret)).toContain('OIDC_CLIENT_SECRET')
+        expect(secret.OIDC_CLIENT_SECRET).toBeTruthy()
+    })
+
+    it('includes OIDC_CLIENT_SECRET when tokenEndpointAuthMethod is default', () => {
+        const client = new OIDCClient()
+            .fromIncomingClient(incomingClient({}))
+            .generateSecret()
+        const secret = client.toClientSecret({urlFor})
+        expect(Object.keys(secret)).toContain('OIDC_CLIENT_SECRET')
+        expect(secret.OIDC_CLIENT_SECRET).toBeTruthy()
+    })
+})

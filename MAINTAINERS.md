@@ -5,7 +5,7 @@ documentation. Changes to this list are reviewed through a pull request.
 
 | Name | GitHub ID | Company/Organization | Email |
 | --- | --- | --- | --- |
-| Erki Aas | [@erkiaas](https://github.com/erkiaas) | Codemowers OÜ | [erki@veebkolm.ee](mailto:erki@veebkolm.ee) |
+| Erki Aas | [@erkiaas](https://github.com/erkiaas) | VeebKolm OÜ | [erki@veebkolm.ee](mailto:erki@veebkolm.ee) |
 | Lauri Võsandi | [@laurivosandi](https://github.com/laurivosandi) | Codemowers OÜ | [lauri@codemowers.io](mailto:lauri@codemowers.io) |
 
 The maintainers contribute through architecture proposals, development, review,
