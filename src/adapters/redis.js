@@ -10,6 +10,12 @@ let isReady = false;
 let readyResolve;
 let readyPromise = new Promise(resolve => { readyResolve = resolve; });
 
+const readyCallbacks = new Set();
+
+export function onReady(callback) {
+    readyCallbacks.add(callback);
+}
+
 const MAX_ERROR_COUNT = 5;
 const DNS_REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -152,6 +158,9 @@ function createRedisClient(redisUrl, isInitial = false) {
         // Disable offline queue after initial connection is ready
         newClient.options.enableOfflineQueue = false;
         readyResolve();
+        for (const cb of readyCallbacks) {
+            cb().catch(err => globalThis.logger?.error({ err }, 'Redis ready callback failed'));
+        }
     });
 
     newClient.on('close', () => {
@@ -256,6 +265,7 @@ export async function disconnect() {
     }
     isReady = false;
     readyPromise = new Promise(resolve => { readyResolve = resolve; });
+    readyCallbacks.clear();
 }
 
 // Export a getter to always use the current client instance. Connects on first use.
