@@ -132,9 +132,8 @@ class OIDCClient {
     }
 
     toClientSecret(provider) {
-        return sortObject({
+        const data = {
             [OIDCClientSecretClientIdKey]: this.getClientId(),
-            [OIDCClientSecretClientSecretKey]: this.#clientSecret,
             [OIDCClientSecretGrantTypesKey]: this.#grantTypes.join(','),
             [OIDCClientSecretResponseTypesKey]: this.#responseTypes.join(','),
             [OIDCClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
@@ -151,7 +150,11 @@ class OIDCClient {
             [OIDCClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
             [OIDCClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
             [OIDCClientSecretAllowedUsersKey]: this.#allowedUsers.join(','),
-        })
+        }
+        if (this.#tokenEndpointAuthMethod !== 'none') {
+            data[OIDCClientSecretClientSecretKey] = this.#clientSecret
+        }
+        return sortObject(data)
     }
 
     toClientSecretMetadata() {
