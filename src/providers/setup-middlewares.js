@@ -10,6 +10,7 @@ import {OIDCMiddlewareClientCrd} from "../utils/kubernetes/kube-constants.js";
 import Account from "../models/account.js";
 import nanoid from "oidc-provider/lib/helpers/nanoid.js";
 import requestErrorHandler from "../utils/request-error-handler.js";
+import rejectEncodedBody from "../utils/reject-encoded-body.js";
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
 
@@ -19,6 +20,8 @@ export default async (provider) => {
     // Keep this first so it encloses every Passmower middleware and route added
     // after provider setup.
     provider.use(requestErrorHandler)
+    // Ahead of every body parser, including the ones mounted on routers.
+    provider.use(rejectEncodedBody)
 
     const directives = helmet.contentSecurityPolicy.getDefaultDirectives();
     delete directives['form-action'];
