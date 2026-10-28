@@ -14,9 +14,9 @@ By participating, you agree to uphold it.
 2. Set up the local development environment — see [docs/local-development.md](docs/local-development.md).
    The `scripts/dev-minikube.sh` script creates an isolated minikube profile with Redis,
    a stub Dex upstream, and HTTPS via sslip.io. No external credentials are needed.
-3. Create a **topic branch** (`git checkout -b fix/my-fix`).
+3. Create a **topic branch** from `develop` (`git checkout -b fix/my-fix develop`).
 4. Make your changes and run the tests (see [Running tests](#running-tests)).
-5. Open a pull request against `master`.
+5. Open a pull request against `develop`. `master` only receives releases.
 
 ## Running tests
 
