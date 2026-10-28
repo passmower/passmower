@@ -1,6 +1,6 @@
 import {dirname} from "desm";
-// ejs 6 is CommonJS and only exposes renderFile on its default export
-// (no named ESM export), so import the default and destructure.
+// ejs exposes renderFile only on its default export (no named ESM export),
+// so import the default and destructure.
 import ejs from "ejs";
 import path from "path";
 import fs from "fs";

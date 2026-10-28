@@ -62,7 +62,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.13.3 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.14.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -81,7 +81,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.13.3
+  version: 2.14.0
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -321,7 +321,7 @@ The generated secret carries these keys:
 | Key | Value |
 |---|---|
 | `OIDC_CLIENT_ID` | `<namespace>.<name>` |
-| `OIDC_CLIENT_SECRET` | Generated client secret |
+| `OIDC_CLIENT_SECRET` | Generated client secret; absent when `spec.tokenEndpointAuthMethod` is `none` |
 | `OIDC_GRANT_TYPES` | `spec.grantTypes` |
 | `OIDC_RESPONSE_TYPES` | `spec.responseTypes` |
 | `OIDC_TOKEN_ENDPOINT_AUTH_METHOD` | `spec.tokenEndpointAuthMethod` |
@@ -341,6 +341,11 @@ The generated secret carries these keys:
 
 List-valued keys are comma-separated, except `OIDC_AVAILABLE_SCOPES` when
 `spec.availableScopesDelimiter` says otherwise.
+
+A public client (`tokenEndpointAuthMethod: none`) authenticates with PKCE alone,
+so its Secret has no `OIDC_CLIENT_SECRET` for an application to present by
+mistake. A workload that reads the key through `secretKeyRef` must mark it
+`optional: true`, or its pods fail to start.
 
 `OIDC_CLIENT_URI` and `OIDC_CLIENT_ORIGIN` describe the application itself
 rather than Passmower, so a Deployment can point an env var at the Secret

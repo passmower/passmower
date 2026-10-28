@@ -171,7 +171,14 @@ export class KubeOIDCClientOperator {
     }
 
     async #adoptKubeSecret(OIDCClient, existingSecret, {refreshOnlyIfChanged = false} = {}) {
-        OIDCClient.setSecret(existingSecret.data[OIDCClientSecretClientSecretKey])
+        const existingClientSecret = existingSecret.data[OIDCClientSecretClientSecretKey]
+        if (existingClientSecret || !OIDCClient.usesClientSecret()) {
+            OIDCClient.setSecret(existingClientSecret)
+        } else {
+            // A public client's Secret holds no client_secret, so one switched
+            // to a confidential method has none to adopt and needs a new one.
+            OIDCClient.generateSecret()
+        }
         const data = OIDCClient.toClientSecret(this.provider)
         const secret = await this.adapter.patchSecret(
             OIDCClient.getClientNamespace(),
