@@ -132,9 +132,8 @@ class OIDCClient {
     }
 
     toClientSecret(provider) {
-        return sortObject({
+        const data = {
             [OIDCClientSecretClientIdKey]: this.getClientId(),
-            [OIDCClientSecretClientSecretKey]: this.#clientSecret,
             [OIDCClientSecretGrantTypesKey]: this.#grantTypes.join(','),
             [OIDCClientSecretResponseTypesKey]: this.#responseTypes.join(','),
             [OIDCClientSecretTokenEndpointAuthMethodKey]: this.#tokenEndpointAuthMethod,
@@ -151,7 +150,11 @@ class OIDCClient {
             [OIDCClientSecretUserInfoUriKey]: provider.urlFor('userinfo'),
             [OIDCClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
             [OIDCClientSecretAllowedUsersKey]: this.#allowedUsers.join(','),
-        })
+        }
+        if (this.usesClientSecret()) {
+            data[OIDCClientSecretClientSecretKey] = this.#clientSecret
+        }
+        return sortObject(data)
     }
 
     toClientSecretMetadata() {
@@ -217,6 +220,12 @@ class OIDCClient {
     setSecret(secret) {
         this.#clientSecret = secret
         return this
+    }
+
+    // A public client (tokenEndpointAuthMethod: none) authenticates with PKCE
+    // alone, so its application gets no secret it could present by mistake.
+    usesClientSecret() {
+        return this.#tokenEndpointAuthMethod !== 'none'
     }
 
     getSecretName() {
