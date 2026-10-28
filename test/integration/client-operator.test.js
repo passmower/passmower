@@ -165,4 +165,63 @@ describe('KubeOIDCClientOperator reconciliation', () => {
         }))
         expect(await clientRedis().find(idOf('app-job-failure'))).toBeUndefined()
     })
+
+    // A public client (tokenEndpointAuthMethod: none) gets no OIDC_CLIENT_SECRET
+    // in its Secret (#310). These pin what that means for the reconcile, which
+    // reads the client_secret back from the Secret it finds.
+    describe('public clients (#310)', () => {
+        const publicClient = (name, {tokenEndpointAuthMethod = 'none', resourceVersion = '1', generation = 1} = {}) => {
+            const raw = rawClient(name, {secretRefreshJobSpec: refreshJobSpec})
+            raw.metadata.resourceVersion = resourceVersion
+            raw.metadata.generation = generation
+            raw.spec.tokenEndpointAuthMethod = tokenEndpointAuthMethod
+            raw.spec.pkce = true
+            return raw
+        }
+        const secretOf = (name) => adapter.secrets.get(`apps/oidc-client-${name}-owner-secrets`)
+
+        it('creates the Secret without OIDC_CLIENT_SECRET and still serves the client', async () => {
+            adapter.seed('OIDCClient', publicClient('app-public'))
+            await adapter.fireWatch('ADDED', 'OIDCClient', 'app-public')
+
+            expect(secretOf('app-public').data).not.toHaveProperty('OIDC_CLIENT_SECRET')
+            expect(secretOf('app-public').data.OIDC_CLIENT_ID).toBe(idOf('app-public'))
+            const configured = await provider.Client.find(idOf('app-public'))
+            expect(configured.tokenEndpointAuthMethod).toBe('none')
+        })
+
+        it('drops the secret an older version wrote, then settles without refreshing again', async () => {
+            adapter.seed('OIDCClient', publicClient('app-upgraded'))
+            adapter.secrets.set('apps/oidc-client-app-upgraded-owner-secrets', {
+                data: {OIDC_CLIENT_ID: idOf('app-upgraded'), OIDC_CLIENT_SECRET: 'from-an-older-version'},
+                metadata: {},
+            })
+
+            await adapter.fireWatch('ADDED', 'OIDCClient', 'app-upgraded')
+            expect(secretOf('app-upgraded').data).not.toHaveProperty('OIDC_CLIENT_SECRET')
+            const jobs = adapter.jobs.length
+
+            // A watch replay of the same resource changes nothing.
+            await adapter.fireWatch('ADDED', 'OIDCClient', 'app-upgraded')
+            expect(secretOf('app-upgraded').data).not.toHaveProperty('OIDC_CLIENT_SECRET')
+            expect(adapter.jobs.length).toBe(jobs)
+            expect(await provider.Client.find(idOf('app-upgraded'))).toBeTruthy()
+        })
+
+        it('generates a secret when the client switches to a confidential method', async () => {
+            adapter.seed('OIDCClient', publicClient('app-switch'))
+            await adapter.fireWatch('ADDED', 'OIDCClient', 'app-switch')
+
+            adapter.seed('OIDCClient', publicClient('app-switch', {
+                tokenEndpointAuthMethod: 'client_secret_basic', resourceVersion: '2', generation: 2,
+            }))
+            await adapter.fireWatch('MODIFIED', 'OIDCClient', 'app-switch')
+
+            const secret = secretOf('app-switch').data.OIDC_CLIENT_SECRET
+            expect(secret).toBeTruthy()
+            const configured = await provider.Client.find(idOf('app-switch'))
+            expect(configured.tokenEndpointAuthMethod).toBe('client_secret_basic')
+            expect(configured.clientSecret).toBe(secret)
+        })
+    })
 })

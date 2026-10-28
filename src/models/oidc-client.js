@@ -151,7 +151,7 @@ class OIDCClient {
             [OIDCClientSecretAllowedGroupsKey]: this.#allowedGroups.join(','),
             [OIDCClientSecretAllowedUsersKey]: this.#allowedUsers.join(','),
         }
-        if (this.#tokenEndpointAuthMethod !== 'none') {
+        if (this.usesClientSecret()) {
             data[OIDCClientSecretClientSecretKey] = this.#clientSecret
         }
         return sortObject(data)
@@ -220,6 +220,12 @@ class OIDCClient {
     setSecret(secret) {
         this.#clientSecret = secret
         return this
+    }
+
+    // A public client (tokenEndpointAuthMethod: none) authenticates with PKCE
+    // alone, so its application gets no secret it could present by mistake.
+    usesClientSecret() {
+        return this.#tokenEndpointAuthMethod !== 'none'
     }
 
     getSecretName() {
