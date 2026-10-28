@@ -3,13 +3,15 @@ import { clientId, responseType, scope, buildSelfOidcClient } from '../../src/ut
 
 describe('buildSelfOidcClient', () => {
     const ISSUER = 'https://auth.example.com/'
+    let previousIssuer
 
     beforeEach(() => {
+        previousIssuer = process.env.ISSUER_URL
         process.env.ISSUER_URL = ISSUER
     })
 
     afterEach(() => {
-        delete process.env.ISSUER_URL
+        process.env.ISSUER_URL = previousIssuer
     })
 
     it('returns the correct client_id, grant and response types', () => {
