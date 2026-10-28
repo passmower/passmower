@@ -70,6 +70,11 @@ frontend/ styles/     # Vue frontend + SCSS (built into the image)
 - **Operator reconcile = CRD event → Redis/Secret/status.** Operators set watch
   parameters (mapper + added/modified/deleted callbacks) and react. The fake adapter's
   `fireWatch(type, kind, name)` drives synthetic events in tests.
+- **Redis is a cache the watches rebuild.** A connected watch never replays what it
+  already delivered, so `RedisWipeDetector` (`src/services/redis-wipe-detector.js`)
+  checks a marker key and restarts the operators when Redis loses its data. Anything
+  an operator keeps in Redis must survive that restart's ADDED replay: a re-seed,
+  not a mass dispatch.
 - **Models map CRD spec ⇄ domain ⇄ Redis.** `fromIncomingClient` / `fromKubernetes`
   build from CRD objects; `toRedis()`, `toClientSecret()`, `getIntendedStatus()`,
   `claims()` produce the various projections. Owner references (`KubeOwnerMetadata`)
