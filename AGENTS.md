@@ -137,7 +137,9 @@ npm run test:e2e         # Playwright browser login against Dex (docker-compose.
 
 - `oidc-provider` v9: `instance(provider).configuration` is an **object**, not a
   function — `configuration('ttl.X')` is `configuration.ttl.X`.
-- `ejs` 6 has **no named `renderFile` export** — `import ejs from "ejs"; const { renderFile } = ejs`.
+- `ejs` (6 and 7) has **no named `renderFile` export** — `import ejs from "ejs"; const { renderFile } = ejs`.
+  Since 7, keys in the data object are plain locals, never options; page views render
+  through `@koa/ejs`, which bundles its own ejs.
 - **Don't redact `set-cookie` via pino** response-header redaction paths — it rewrites
   the live `Set-Cookie` header to `[Redacted]` on the wire and breaks every login.
 - `end_session` reads `ctx.cookies`, not `ctx.oidc.cookies` (set both if shimming).
