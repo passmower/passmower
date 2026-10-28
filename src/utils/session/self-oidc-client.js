@@ -27,6 +27,23 @@ export const getSelfOidcClient = async () => {
     return await redis.find(clientId)
 }
 
+// Nothing but initializeSelfOidcClient() writes this client, and it runs once
+// at boot, so a Redis that loses its data (an in-memory store restarting) takes
+// the dashboard login down with "client not found" until the pod restarts. This
+// adapter writes the client back on the first lookup that misses it.
+export const withSelfOidcClient = (Adapter) => class extends Adapter {
+    async find(id) {
+        const found = await super.find(id)
+        if (found || this.name !== 'Client' || id !== clientId) {
+            return found
+        }
+        globalThis.logger?.warn({clientId}, 'Self OIDC client missing from Redis, restoring it')
+        const client = {...baseClient, redirect_uris: baseClient.redirect_uris ?? validateUris([])}
+        await this.upsert(clientId, client)
+        return client
+    }
+}
+
 const validateUris = (uris) => {
     const filteredUris = [
         ...getUrlsInProviderBaseDomain(uris),
