@@ -22,6 +22,7 @@ import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 import {ClientRedisReconciler} from './services/client-redis-reconciler.js';
+import {restartOnRedisWipe} from './services/redis-wipe-detector.js';
 import {KubeIngressDiscoveryOperator} from "./operators/kube-ingress-discovery-operator.js";
 import {KubernetesAdapter} from "./adapters/kubernetes.js";
 import {LeaderElection, isLeaderElectionEnabled} from './services/leader-election.js';
@@ -52,8 +53,15 @@ export async function buildProvider() {
 }
 
 // Bring up every operator that watches the cluster, plus the Redis sweep that
-// cleans up after them. Returns a stop function that stands them all down.
-async function startReconcilers(provider) {
+// cleans up after them. A Redis that loses its data loses everything the
+// watches wrote, so they are restarted then: the LIST each watch opens with
+// replays every resource (#309). Returns a stop function that stands them all
+// down.
+function startReconcilers(provider) {
+    return restartOnRedisWipe(() => startWatches(provider))
+}
+
+async function startWatches(provider) {
     const running = []
     const kubeClientOperator = new KubeOIDCClientOperator(provider)
     await kubeClientOperator.watchClients()

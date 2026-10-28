@@ -187,4 +187,21 @@ describe('KubeOidcUserEventHookOperator', () => {
 
         expect(adapter.jobs).toHaveLength(0)
     })
+
+    // Redis losing its data takes the dispatch state with it. The watch is
+    // restarted then (#309), and the restarted operator seeds again from the
+    // listing instead of dispatching Added for every user it replays.
+    it('does not replay every user as Added after Redis loses its state', async () => {
+        const first = await operator()
+        adapter.seed('OIDCUser', rawUser())
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+        expect(adapter.jobs).toHaveLength(1)
+
+        state.records.clear()
+        first.stop()
+        await operator()
+        await adapter.fireWatch('ADDED', 'OIDCUser', 'alice')
+
+        expect(adapter.jobs).toHaveLength(1)
+    })
 })
