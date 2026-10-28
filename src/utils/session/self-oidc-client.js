@@ -1,53 +1,15 @@
 import {randomUUID} from "crypto";
-import RedisAdapter from "../../adapters/redis.js";
-import {getUrlsInProviderBaseDomain} from "./base-domain.js";
 
 export const clientId = 'passmower'
 export const responseType = 'id_token'
 export const scope = 'openid'
 
-const baseClient = {
+export const buildSelfOidcClient = () => ({
     client_id: clientId,
-    client_secret: randomUUID(), // Doesn't matter as GW frontpage relies solely on cookies.
-    grant_types: [ 'implicit' ],
-    response_types: [ responseType ],
-    availableScopes: [ scope ],
+    client_secret: randomUUID(),
+    grant_types: ['implicit'],
+    response_types: [responseType],
+    redirect_uris: [process.env.ISSUER_URL],
+    availableScopes: [scope],
     kind: 'SelfOIDCClient'
-}
-
-export const initializeSelfOidcClient = async () => {
-    const redis = new RedisAdapter('Client')
-    const client = await redis.find(clientId)
-    baseClient.redirect_uris = validateUris(client?.redirect_uris ?? []) // Validate that existing URLs do not have prohibited values
-    await redis.upsert(clientId, baseClient)
-}
-
-export const getSelfOidcClient = async () => {
-    const redis = new RedisAdapter('Client')
-    return await redis.find(clientId)
-}
-
-// Nothing but initializeSelfOidcClient() writes this client, and it runs once
-// at boot, so a Redis that loses its data (an in-memory store restarting) takes
-// the dashboard login down with "client not found" until the pod restarts. This
-// adapter writes the client back on the first lookup that misses it.
-export const withSelfOidcClient = (Adapter) => class extends Adapter {
-    async find(id) {
-        const found = await super.find(id)
-        if (found || this.name !== 'Client' || id !== clientId) {
-            return found
-        }
-        globalThis.logger?.warn({clientId}, 'Self OIDC client missing from Redis, restoring it')
-        const client = {...baseClient, redirect_uris: baseClient.redirect_uris ?? validateUris([])}
-        await this.upsert(clientId, client)
-        return client
-    }
-}
-
-const validateUris = (uris) => {
-    const filteredUris = [
-        ...getUrlsInProviderBaseDomain(uris),
-        process.env.ISSUER_URL
-    ]
-    return Array.from(new Set(filteredUris))
-}
+})
