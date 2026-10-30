@@ -463,6 +463,12 @@ spec:
                           default: false
                         verified:
                           type: boolean
+                        trusted:
+                          type: boolean
+                          description: >-
+                            The address counts as verified because the provider
+                            is configured emailVerification: trusted, and only
+                            while it still is.
                         observedAt:
                           type: string
                           format: date-time
@@ -1076,12 +1082,21 @@ spec:
                   type: object
                   default:
                     email: Remote-Email
+                    emailVerified: Remote-Email-Verified
                     groups: Remote-Groups
                     name: Remote-Name
                     user: Remote-User
                   properties:
                     email:
                       type: string
+                    emailVerified:
+                      type: string
+                      default: Remote-Email-Verified
+                      description: >-
+                        Header carrying "true" or "false": whether the address in
+                        the email header is verified, matching the email_verified
+                        claim. Sent only alongside the email header. Set to an
+                        empty string to omit it.
                     groups:
                       type: string
                     name:

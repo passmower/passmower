@@ -68,7 +68,7 @@ export default class OIDCMiddlewareClient {
             forwardAuth: {
                 address: TraefikMiddlewareForwardAuthAddress(deployment, namespace, this.getClientId()),
                 trustForwardHeader: true,
-                authResponseHeaders: Object.values(this.#headerMapping)
+                authResponseHeaders: Object.values(this.#headerMapping).filter(Boolean)
             }
         }
     }

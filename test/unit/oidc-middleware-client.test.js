@@ -12,3 +12,16 @@ describe('OIDCMiddlewareClient user ACL', () => {
         expect(client.toRedis().allowedUsers).toEqual(['alice', 'bob'])
     })
 })
+
+describe('OIDCMiddlewareClient Traefik middleware', () => {
+    it('lists only the mapped headers, leaving out ones set to an empty string', () => {
+        const client = new OIDCMiddlewareClient().fromIncomingClient({
+            metadata: {name: 'webmail', namespace: 'apps', resourceVersion: '1', uid: 'uid-1'},
+            spec: {headerMapping: {user: 'Remote-User', email: 'Remote-Email', emailVerified: ''}},
+            status: {},
+        })
+
+        expect(client.toMiddlewareSpec('passmower', 'passmower').forwardAuth.authResponseHeaders)
+            .toEqual(['Remote-User', 'Remote-Email'])
+    })
+})

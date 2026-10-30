@@ -10,6 +10,7 @@ import {mappedClaimsFor} from "../utils/claim-mappings.js";
 import {canonicalizeEmail, IdentityIntegrityError} from '../utils/user/identity-integrity.js';
 import {getTermsOfServiceDocument} from '../utils/user/tos-required.js';
 import {canImpersonateAccount} from '../utils/user/account-type-access.js';
+import {getOidcProvider} from '../utils/oidc-providers.js';
 
 export const AdminGroup = process.env.ADMIN_GROUP;
 export const GroupPrefix = process.env.GROUP_PREFIX;
@@ -237,6 +238,9 @@ class Account {
             [headerMapping['user'], this.accountId],
             [headerMapping['name'], this.profile.name],
             [headerMapping['email'], this.primaryEmail],
+            // Mirrors the email_verified claim, so header-based SSO can tell an
+            // address Passmower verified from one an upstream merely asserted.
+            [headerMapping['emailVerified'], this.primaryEmail ? String(this.isPrimaryEmailVerified()) : undefined],
             [headerMapping['groups'], this.#mapGroups().map(g => g.displayName).join(',')],
         ].filter(([header, value]) => header && value != null))
     }
@@ -355,10 +359,14 @@ class Account {
             for (const item of identity.emails ?? []) {
                 const email = canonicalizeEmail(item.email)
                 if (!email) continue
+                // Operator trust holds only while the provider is still trusted.
+                const trusted = item.trusted === true
+                const verified = trusted && getOidcProvider(provider)?.emailVerification !== 'trusted'
+                    ? undefined : item.verified
                 evidence.push({
                     email,
-                    status: item.verified === true ? 'verified' : item.verified === false ? 'unverified' : 'unknown',
-                    method: 'oidc-claim',
+                    status: verified === true ? 'verified' : verified === false ? 'unverified' : 'unknown',
+                    method: trusted ? 'operator-trust' : 'oidc-claim',
                     provider,
                     ...(item.observedAt ? {observedAt: item.observedAt} : {}),
                 })
@@ -368,6 +376,18 @@ class Account {
             `${item.email}\0${item.method}\0${item.provider}`,
             item,
         ])).values()]
+    }
+
+    // Whether a login proving control of `email` may be linked into this
+    // account. An address the account holds only because an upstream asserted
+    // it, unverified, may have been claimed by anyone able to set it there.
+    isEmailLinkable(email) {
+        email = canonicalizeEmail(email)
+        if (!email || !this.getClaimedEmails().includes(email)) return false
+        if (this.getEmailVerifications().some(item => item.email === email && item.status === 'verified')) return true
+        if ([this.#spec?.email, this.#spec?.companyEmail].map(canonicalizeEmail).includes(email)) return true
+        return !Object.values(this.#identities ?? {}).some(identity =>
+            (identity.emails ?? []).some(item => canonicalizeEmail(item.email) === email))
     }
 
     isPrimaryEmailVerified() {
@@ -474,6 +494,16 @@ class Account {
             canonicalizeEmail(email),
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
+        // Only an address whose control is proven may link a login to an
+        // existing account, and only into an account that holds it on better
+        // grounds than an upstream's word (isEmailLinkable). A bare `email`
+        // comes from magic-link login or an admin invite; an OIDC upstream's
+        // addresses arrive in `githubEmails` and count only with trusted
+        // `verified: true` evidence.
+        const linkableEmails = [
+            identity.providerKey ? undefined : canonicalizeEmail(email),
+            ...(githubEmails ?? []).filter(ghEmail => ghEmail.verified === true).map(ghEmail => ghEmail.email)
+        ].filter(e => e)
         auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
         let user
         try {
@@ -489,6 +519,17 @@ class Account {
                     identityAccountId: user.accountId,
                     emailAccountId: emailUser.accountId,
                 })
+            }
+            if (!user && emailUser && !linkableEmails.some(e => emailUser.isEmailLinkable(e))) {
+                auditLog(ctx, {emails, linkableEmails, identity, accountId: emailUser.accountId},
+                    'Refusing to link an existing account by an unverified email')
+                await provider.interactionResult(ctx.req, ctx.res, {
+                    error: 'access_denied',
+                    error_description: 'This email belongs to an existing account that this sign-in cannot be '
+                        + 'linked to, because the address is not verified. Sign in with a method already '
+                        + 'linked to that account, or contact an administrator.',
+                })
+                return undefined
             }
             user ??= emailUser
         } catch (error) {
