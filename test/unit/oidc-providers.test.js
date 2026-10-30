@@ -58,6 +58,15 @@ describe('getOidcProviders', () => {
         })
     })
 
+    it.each(['common', 'organizations', 'consumers'])('never trusts the multi-tenant Entra %s endpoint', (tenant) => {
+        vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
+            entra: {issuer: `https://login.microsoftonline.com/${tenant}/v2.0`, emailVerification: 'trusted'},
+        }))
+        vi.stubEnv('ENTRA_CLIENT_ID', 'id')
+        vi.stubEnv('ENTRA_CLIENT_SECRET', 'secret')
+        expect(getOidcProvider('entra').emailVerification).toBe('none')
+    })
+
     it('requests email by default even when delivery is disabled, preserving explicit scopes', () => {
         vi.stubEnv('EMAIL_ENABLED', 'false')
         vi.stubEnv('GITLAB_CLIENT_ID', 'id')

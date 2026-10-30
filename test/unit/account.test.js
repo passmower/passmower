@@ -247,6 +247,26 @@ describe('Account.claims', () => {
         })
     })
 
+    it('honors operator-trust evidence only while the provider is still trusted', () => {
+        vi.stubEnv('ENTRA_CLIENT_ID', 'id')
+        vi.stubEnv('ENTRA_CLIENT_SECRET', 'secret')
+        const configure = emailVerification => vi.stubEnv('OIDC_PROVIDERS', JSON.stringify({
+            entra: {issuer: 'https://login.microsoftonline.com/tenant/v2.0', emailVerification},
+        }))
+        const a = account({
+            identities: {entra: {emails: [{email: 'a@x.com', primary: true, verified: true, trusted: true}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+
+        configure('trusted')
+        expect(a.isPrimaryEmailVerified()).toBe(true)
+        expect(a.getEmailVerifications()).toContainEqual(expect.objectContaining({
+            email: 'a@x.com', status: 'verified', method: 'operator-trust', provider: 'entra',
+        }))
+        configure('none')
+        expect(a.isPrimaryEmailVerified()).toBe(false)
+    })
+
     it('ignores provider evidence after an identity is deactivated', async () => {
         const a = account({
             identities: {google: {active: false, emails: [{email: 'a@x.com', primary: true, verified: true}]}},

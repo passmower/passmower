@@ -64,12 +64,17 @@ Use `trusted` only when no one outside your control can choose an address the
 issuer asserts. For Entra ID that means:
 
 - a tenant-specific issuer, never `common` or `organizations`, where any
-  tenant's administrator can set any address;
+  tenant's administrator can set any address. Passmower ignores `trusted` on
+  those endpoints and logs an error;
 - only administrators you trust can set the `mail` attribute, directly or
   through directory synchronization. Entra does not check that its domain is
   one the tenant owns;
 - no guest (B2B) accounts, whose addresses your tenant does not control, or an
   accepted risk that a guest may claim one.
+
+Evidence recorded under `trusted` appears with method `operator-trust` and is
+honored only while the provider is still configured `trusted`. Switching it back
+to `none` withdraws it from every account at once.
 
 Use `emailVerification: none` to override an automatic Google or GitLab.com
 default. Passmower accepts provider login when the signal is missing, but stores
@@ -96,14 +101,21 @@ cannot transfer verification to a replacement primary address.
 ## Linking a login to an existing account
 
 A login from an upstream identity Passmower has not seen before is linked to an
-existing account by email only through an address with trusted evidence: a
-magic link, a verified GitHub address, or a verified address from an
-`oidc-claim` or `trusted` upstream. When the only matching address is
-unverified, Passmower refuses the login instead of linking it, because anyone
-able to set that address at the upstream could otherwise take over the account.
+existing account by email only when both sides of the match are trustworthy:
+
+- the login proves control of the address: a magic link, a verified GitHub
+  address, or a verified address from an `oidc-claim` or `trusted` upstream;
+- the account holds the address on more than an upstream's word: it has
+  verification evidence for it, it is the account's `spec.email` or
+  `spec.companyEmail`, or no linked upstream identity asserts it.
+
+Otherwise Passmower refuses the login instead of linking it. The first rule
+stops anyone able to set a victim's address at an upstream from signing in to
+the victim's account. The second stops them from enrolling an account under the
+victim's address first and waiting for the victim's magic link to land in it.
 The user can sign in with a method already linked to the account, or an
-administrator can mark the upstream `trusted`. An identity that is already
-linked keeps signing in regardless of its email.
+administrator can mark the upstream `trusted` or set the address in `spec.email`.
+An identity that is already linked keeps signing in regardless of its email.
 
 ## Remediation and lifecycle
 

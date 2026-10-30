@@ -12,7 +12,8 @@ import { takeSelectAccount } from '../../utils/session/select-account.js';
 // An explicit upstream `email_verified: false` is heeded from every issuer,
 // trusted or not: a negative signal can only deny email-based account linking,
 // never grant it, so acting on it is always safe. The per-provider
-// emailVerification setting governs only whether `true` is trusted.
+// emailVerification setting governs what verifies an address: a `true` claim
+// under oidc-claim, or the operator's word under trusted.
 export const getOidcEmailError = (profile, env = process.env) => {
     if (!profile.email && isOutboundEmailEnabled(env)) return 'missing'
     if (profile.email && profile.email_verified === false) return 'unverified'
@@ -47,6 +48,7 @@ export const extractIdentity = (providerConfig, profile, observedAt = new Date()
             email: primaryEmail,
             primary: true,
             verified: emailVerified(providerConfig.emailVerification, profile.email_verified),
+            ...(providerConfig.emailVerification === 'trusted' ? {trusted: true} : {}),
             observedAt,
         }] : [],
         groups,

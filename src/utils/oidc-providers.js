@@ -40,6 +40,30 @@ const defaultEmailVerification = (issuer) => {
     return 'none';
 };
 
+// A multi-tenant Entra ID endpoint signs in users of every tenant, and any
+// tenant's administrator can give a user any address, so it is never trusted.
+const isMultiTenantEntra = (issuer) => {
+    try {
+        const url = new URL(issuer);
+        return url.hostname === 'login.microsoftonline.com'
+            && ['common', 'organizations', 'consumers'].includes(url.pathname.split('/')[1]?.toLowerCase());
+    } catch {
+        return false;
+    }
+};
+
+const emailVerification = (def) => {
+    if (!['trusted', 'oidc-claim', 'none'].includes(def.emailVerification)) {
+        return defaultEmailVerification(def.issuer);
+    }
+    if (def.emailVerification === 'trusted' && isMultiTenantEntra(def.issuer)) {
+        globalThis.logger?.error({provider: def.key, issuer: def.issuer},
+            'Ignoring emailVerification: trusted for a multi-tenant Entra ID issuer');
+        return 'none';
+    }
+    return def.emailVerification;
+};
+
 const parseProviderDefinitions = () => {
     if (!process.env.OIDC_PROVIDERS) {
         return [];
@@ -95,9 +119,7 @@ const buildProvider = (def) => {
         // Trust is a provider capability, not a generic consequence of a claim
         // named email_verified. Only issuers whose semantics we know are enabled
         // automatically; other providers require an administrator to opt in.
-        emailVerification: ['trusted', 'oidc-claim', 'none'].includes(def.emailVerification)
-            ? def.emailVerification
-            : defaultEmailVerification(def.issuer),
+        emailVerification: emailVerification(def),
         groupPrefix,
         // client_secret_post is the default: oauth4webapi's client_secret_basic
         // form-urlencodes credentials per RFC 6749 §2.3.1, which several major

@@ -44,7 +44,7 @@ describe('linking a login to an existing account by email', () => {
         await expect(oidcLogin('mallory-sub', verified)).resolves.toBeUndefined()
         expect(refusal()).toEqual({
             error: 'access_denied',
-            error_description: expect.stringContaining('did not verify it'),
+            error_description: expect.stringContaining('not verified'),
         })
         expect(adapter.list('OIDCUser').find(u => u.metadata.name === 'alice').identities.entra).toBeUndefined()
     })
@@ -69,6 +69,39 @@ describe('linking a login to an existing account by email', () => {
             undefined, 'alice-gh', {githubId: 42},
         )
         expect(account?.accountId).toBe('alice')
+    })
+
+    describe('into an account that holds the address only on an upstream\'s word', () => {
+        beforeEach(() => {
+            adapter.seed('OIDCUser', {
+                metadata: {name: 'squatter', creationTimestamp: '2026-01-02T00:00:00Z', uid: 'uid-squatter'},
+                passmower: {email: 'victim@example.com'},
+                identities: {entra: {sub: 'squatter-sub', emails: [{email: 'victim@example.com', primary: true}]}},
+                status: {},
+            })
+        })
+
+        it('refuses the real owner\'s magic-link login', async () => {
+            await expect(Account.createOrUpdateByEmails(ctx, provider, 'victim@example.com')).resolves.toBeUndefined()
+            expect(refusal()).toMatchObject({error: 'access_denied'})
+        })
+
+        it('refuses a verified GitHub login', async () => {
+            await expect(Account.createOrUpdateByEmails(
+                ctx, provider, undefined, [{email: 'victim@example.com', primary: true, verified: true}],
+                undefined, 'victim-gh', {githubId: 7},
+            )).resolves.toBeUndefined()
+            expect(refusal()).toMatchObject({error: 'access_denied'})
+        })
+    })
+
+    it('links a magic-link login into an account with no upstream claim on the address', async () => {
+        adapter.seed('OIDCUser', {
+            metadata: {name: 'legacy', creationTimestamp: '2026-01-02T00:00:00Z', uid: 'uid-legacy'},
+            passmower: {email: 'legacy@example.com'},
+            status: {},
+        })
+        expect((await Account.createOrUpdateByEmails(ctx, provider, 'legacy@example.com'))?.accountId).toBe('legacy')
     })
 
     it('leaves an unverified email that matches no account to enrollment', async () => {
