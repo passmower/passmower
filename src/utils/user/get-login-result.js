@@ -9,6 +9,10 @@ export default async (ctx, provider, account, method, {impersonation = false} = 
         if (interactionDetails?.result?.requireCustomUsername) {
             return interactionDetails.result
         }
+        if (interactionDetails?.result?.error) {
+            const {error, error_description} = interactionDetails.result
+            return {error, error_description}
+        }
         auditLog(ctx, {interactionDetails, method}, 'Failed to log in user')
         return {
             error: 'access_denied',

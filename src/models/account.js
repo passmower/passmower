@@ -477,6 +477,14 @@ class Account {
             canonicalizeEmail(email),
             ...(githubEmails ?? []).map(ghEmail => ghEmail.email)
         ].filter(e => e)
+        // Only an address whose control is proven may link a login to an
+        // existing account. A bare `email` comes from magic-link login or an
+        // admin invite; an OIDC upstream's addresses arrive in `githubEmails`
+        // and count only with trusted `verified: true` evidence.
+        const linkableEmails = [
+            identity.providerKey ? undefined : canonicalizeEmail(email),
+            ...(githubEmails ?? []).filter(ghEmail => ghEmail.verified === true).map(ghEmail => ghEmail.email)
+        ].filter(e => e)
         auditLog(ctx, {emails, email, githubEmails, username}, 'Finding user by emails')
         let user
         try {
@@ -492,6 +500,20 @@ class Account {
                     identityAccountId: user.accountId,
                     emailAccountId: emailUser.accountId,
                 })
+            }
+            if (!user && emailUser) {
+                const linkableUser = await ctx.kubeOIDCUserService.findUserByEmails(linkableEmails, users)
+                if (linkableUser?.accountId !== emailUser.accountId) {
+                    auditLog(ctx, {emails, linkableEmails, identity, accountId: emailUser.accountId},
+                        'Refusing to link an existing account by an unverified email')
+                    await provider.interactionResult(ctx.req, ctx.res, {
+                        error: 'access_denied',
+                        error_description: 'This email belongs to an existing account, but the sign-in provider '
+                            + 'did not verify it. Sign in with a method already linked to that account, '
+                            + 'or contact an administrator.',
+                    })
+                    return undefined
+                }
             }
             user ??= emailUser
         } catch (error) {

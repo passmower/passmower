@@ -45,15 +45,16 @@ describe('getOidcProviders', () => {
             google: {issuer: 'https://accounts.google.com'},
             gitlab: {issuer: 'https://gitlab.com', emailVerification: 'none'},
             dex: {issuer: 'https://dex.example.com', emailVerification: 'oidc-claim'},
+            entra: {issuer: 'https://login.microsoftonline.com/tenant/v2.0', emailVerification: 'trusted'},
             unknown: {issuer: 'https://unknown.example.com'},
         }))
-        for (const key of ['google', 'gitlab', 'dex', 'unknown']) {
+        for (const key of ['google', 'gitlab', 'dex', 'entra', 'unknown']) {
             vi.stubEnv(`${key.toUpperCase()}_CLIENT_ID`, 'id')
             vi.stubEnv(`${key.toUpperCase()}_CLIENT_SECRET`, 'secret')
         }
 
         expect(Object.fromEntries(getOidcProviders().map(p => [p.key, p.emailVerification]))).toEqual({
-            dex: 'oidc-claim', gitlab: 'none', google: 'oidc-claim', unknown: 'none',
+            dex: 'oidc-claim', entra: 'trusted', gitlab: 'none', google: 'oidc-claim', unknown: 'none',
         })
     })
 

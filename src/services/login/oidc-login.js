@@ -19,6 +19,14 @@ export const getOidcEmailError = (profile, env = process.env) => {
     return null
 }
 
+// `trusted` is the operator vouching that the upstream controls every address
+// it asserts; an explicit `false` from the issuer still wins.
+const emailVerified = (capability, claim) => {
+    if (claim === false) return capability === 'none' ? undefined : false
+    if (capability === 'trusted') return true
+    return capability === 'oidc-claim' && claim === true ? true : undefined
+}
+
 // Map the validated id_token / userinfo claims onto the structure we persist
 // under identities.<provider> and the values createOrUpdateByEmails expects.
 export const extractIdentity = (providerConfig, profile, observedAt = new Date().toISOString()) => {
@@ -38,8 +46,7 @@ export const extractIdentity = (providerConfig, profile, observedAt = new Date()
         emails: primaryEmail ? [{
             email: primaryEmail,
             primary: true,
-            verified: providerConfig.emailVerification === 'oidc-claim'
-                && typeof profile.email_verified === 'boolean' ? profile.email_verified : undefined,
+            verified: emailVerified(providerConfig.emailVerification, profile.email_verified),
             observedAt,
         }] : [],
         groups,

@@ -608,7 +608,8 @@ verified, like the `email` claim. The `emailVerified` header carries `true` or
 `false` alongside it, like the `email_verified` claim. An application that
 grants access or links accounts by email should check it. An address counts as
 verified only with evidence: a magic-link login, a verified GitHub address, or
-`email_verified: true` from an upstream with `emailVerification: oidc-claim`.
+`email_verified: true` from an upstream with `emailVerification: oidc-claim`, or
+any address from an upstream marked `emailVerification: trusted`.
 
 
 # Contributing

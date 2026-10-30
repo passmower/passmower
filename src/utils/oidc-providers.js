@@ -11,7 +11,7 @@ import * as client from "openid-client";
 //      "groupsClaim": "groups",                    // optional
 //      "groupPrefix": "google.com",                // optional, defaults to issuer host
 //      "linkingClaims": ["tid", "oid"],             // optional stable claims retained for SCIM linking
-//      "emailVerification": "oidc-claim",             // optional explicit trust opt-in
+//      "emailVerification": "oidc-claim",             // optional explicit trust opt-in: oidc-claim, trusted or none
 //      "tokenEndpointAuthMethod": "client_secret_post", // optional, or client_secret_basic
 //      "enabled": true }}                          // optional, defaults to true
 //
@@ -95,7 +95,7 @@ const buildProvider = (def) => {
         // Trust is a provider capability, not a generic consequence of a claim
         // named email_verified. Only issuers whose semantics we know are enabled
         // automatically; other providers require an administrator to opt in.
-        emailVerification: ['oidc-claim', 'none'].includes(def.emailVerification)
+        emailVerification: ['trusted', 'oidc-claim', 'none'].includes(def.emailVerification)
             ? def.emailVerification
             : defaultEmailVerification(def.issuer),
         groupPrefix,
