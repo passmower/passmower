@@ -1,5 +1,5 @@
 ARG BUILDPLATFORM=amd64
-FROM --platform=$BUILDPLATFORM node:24.22.1 AS dev
+FROM --platform=$BUILDPLATFORM node:26.12.0 AS dev
 
 # define /app as working directory
 WORKDIR /app
@@ -48,7 +48,7 @@ WORKDIR /app/styles
 RUN npm run sass-prod
 
 # production runtime
-FROM node:24.22.1 AS prod
+FROM node:26.12.0 AS prod
 
 WORKDIR /app
 
