@@ -28,7 +28,7 @@ signal; applications needing fresh mailbox control should require a magic link.
 | GitHub | [`GET /user/emails`](https://docs.github.com/en/rest/users/emails#list-email-addresses-for-the-authenticated-user) `verified` for each exact address | verified / unverified / unknown on legacy records | Yes | Dedicated adapter retains only explicit `verified: true`, including Primary/Verified/Private addresses, as `github-api` evidence. A legacy record must reauthenticate or use a magic link. |
 | Google | Validated [ID token or UserInfo `email_verified`](https://developers.google.com/identity/openid-connect/reference) | verified / unverified / unknown | Yes | `https://accounts.google.com` automatically enables `oidc-claim` evidence. Email domain and `hd` never verify an address. |
 | GitLab.com | Validated [`email_verified`](https://docs.gitlab.com/integration/openid_connect_provider/) with the `email` scope | verified / unverified / unknown | Yes | `https://gitlab.com` automatically enables `oidc-claim` evidence. Self-hosted GitLab requires the explicit configuration below. |
-| Microsoft Entra ID | `email`, `preferred_username`, tenant and domain claims | unknown | No | Always defaults to `none`. Microsoft documents `email` as mutable and not guaranteed correct; none of these values proves mailbox control. |
+| Microsoft Entra ID | `email`, `preferred_username`, tenant and domain claims | unknown | No | Defaults to `none`. Microsoft documents `email` as mutable and not guaranteed correct; none of these values proves mailbox control. A tenant-specific issuer may be set to `trusted`; see below. |
 | Dex | Validated [`email_verified`](https://dexidp.io/docs/configuration/custom-scopes-claims-clients/) relayed from its connector | verified / unverified / unknown | Configuration-dependent | Defaults to `none`. Opt in only after auditing every connector and ensuring options such as `insecureSkipEmailVerified` are disabled. |
 | Discord | [`GET /users/@me`](https://docs.discord.com/developers/resources/user) `verified` with the `email` scope | verified / unverified / unknown | Yes | Not currently implemented: Discord is OAuth2, not an OIDC issuer. A dedicated adapter is useful if Discord login is added and must store `discord-api` evidence for the exact returned address. |
 | Codeberg / Forgejo | OAuth2 user profile email; no documented OIDC per-address verification contract | unknown | No | Defaults to `none`; use a magic link. Do not infer verification from account presence or Forgejo email-confirmation settings. |
@@ -46,6 +46,35 @@ passmower:
       emailVerification: oidc-claim
       clientSecretRef: gitlab-client
 ```
+
+An upstream that sends no usable `email_verified` but whose addresses you
+control can be marked `trusted`. Passmower then treats every address it asserts
+as verified, unless the issuer itself says `email_verified: false`:
+
+```yaml
+passmower:
+  oidcProviders:
+    entra:
+      issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+      emailVerification: trusted
+      clientSecretRef: entra-client
+```
+
+Use `trusted` only when no one outside your control can choose an address the
+issuer asserts. For Entra ID that means:
+
+- a tenant-specific issuer, never `common` or `organizations`, where any
+  tenant's administrator can set any address. Passmower ignores `trusted` on
+  those endpoints and logs an error;
+- only administrators you trust can set the `mail` attribute, directly or
+  through directory synchronization. Entra does not check that its domain is
+  one the tenant owns;
+- no guest (B2B) accounts, whose addresses your tenant does not control, or an
+  accepted risk that a guest may claim one.
+
+Evidence recorded under `trusted` appears with method `operator-trust` and is
+honored only while the provider is still configured `trusted`. Switching it back
+to `none` withdraws it from every account at once.
 
 Use `emailVerification: none` to override an automatic Google or GitLab.com
 default. Passmower accepts provider login when the signal is missing, but stores
@@ -68,6 +97,25 @@ attacker holding the address unverified at a configured provider cannot use the
 victim's own Passmower verification to get linked into their account. ID-token evidence is used for a UserInfo
 email only when both responses contain the same normalized address; disagreement
 cannot transfer verification to a replacement primary address.
+
+## Linking a login to an existing account
+
+A login from an upstream identity Passmower has not seen before is linked to an
+existing account by email only when both sides of the match are trustworthy:
+
+- the login proves control of the address: a magic link, a verified GitHub
+  address, or a verified address from an `oidc-claim` or `trusted` upstream;
+- the account holds the address on more than an upstream's word: it has
+  verification evidence for it, it is the account's `spec.email` or
+  `spec.companyEmail`, or no linked upstream identity asserts it.
+
+Otherwise Passmower refuses the login instead of linking it. The first rule
+stops anyone able to set a victim's address at an upstream from signing in to
+the victim's account. The second stops them from enrolling an account under the
+victim's address first and waiting for the victim's magic link to land in it.
+The user can sign in with a method already linked to the account, or an
+administrator can mark the upstream `trusted` or set the address in `spec.email`.
+An identity that is already linked keeps signing in regardless of its email.
 
 ## Remediation and lifecycle
 

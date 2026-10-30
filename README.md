@@ -62,7 +62,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.14.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.15.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -81,7 +81,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.14.0
+  version: 2.15.0
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -594,6 +594,7 @@ spec:
     - u-example
   headerMapping:
     email: Remote-Email
+    emailVerified: Remote-Email-Verified
     groups: Remote-Groups
     name: Remote-Name
     user: Remote-User
@@ -601,6 +602,14 @@ spec:
 
 For the ingress refer to automatically created middleware
 `traefik.ingress.kubernetes.io/router.middlewares: namespace-webmail@kubernetescrd`
+
+The email header carries the account's primary email whether or not it has been
+verified, like the `email` claim. The `emailVerified` header carries `true` or
+`false` alongside it, like the `email_verified` claim. An application that
+grants access or links accounts by email should check it. An address counts as
+verified only with evidence: a magic-link login, a verified GitHub address, or
+`email_verified: true` from an upstream with `emailVerification: oidc-claim`, or
+any address from an upstream marked `emailVerification: trusted`.
 
 
 # Contributing

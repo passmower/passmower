@@ -33,3 +33,15 @@ describe('login result account-type enforcement', () => {
         )).resolves.toEqual({login: {accountId: 'subject'}})
     })
 })
+
+describe('login result without an account', () => {
+    it('returns a stored refusal even over a username prompt stashed earlier', async () => {
+        const stale = {interactionDetails: vi.fn().mockResolvedValue({result: {
+            requireCustomUsername: true, email: 'other@example.com', stableIdentity: {providerKey: 'a'},
+            error: 'access_denied', error_description: 'refused',
+        }})}
+        await expect(getLoginResult(ctx, stale, undefined, 'OIDC')).resolves.toEqual({
+            error: 'access_denied', error_description: 'refused',
+        })
+    })
+})

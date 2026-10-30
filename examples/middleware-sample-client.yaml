@@ -8,5 +8,6 @@ spec:
   headerMapping:
     user: Remote-Username
     email: Remote-Email
+    emailVerified: Remote-Email-Verified
     groups: Remote-Groups
     name: Remote-Name

@@ -6,6 +6,11 @@ import {loginNotificationsEnabled, notifyAccount} from '../../services/notificat
 export default async (ctx, provider, account, method, {impersonation = false} = {}) => {
     const interactionDetails = await provider.interactionDetails(ctx.req, ctx.res)
     if (!account) {
+        // A refusal outranks a username prompt stashed earlier in the interaction.
+        if (interactionDetails?.result?.error) {
+            const {error, error_description} = interactionDetails.result
+            return {error, error_description}
+        }
         if (interactionDetails?.result?.requireCustomUsername) {
             return interactionDetails.result
         }
