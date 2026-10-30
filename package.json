@@ -46,7 +46,7 @@
     "picomatch": "^4.0.7",
     "pino": "^10.4.0",
     "prom-client": "^15.1.1",
-    "query-string": "^9.5.1",
+    "query-string": "^10.0.0",
     "short-unique-id": "^5.0.3",
     "uuid": "^14.0.3",
     "validator": "^13.15.35"
