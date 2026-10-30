@@ -340,4 +340,38 @@ describe('Account.getRemoteHeaders', () => {
         })
         expect(headers).not.toHaveProperty('X-Email')
     })
+
+    it('reports whether the forwarded email is verified, like the email_verified claim', async () => {
+        const mapping = {user: 'X-User', email: 'X-Email', emailVerified: 'X-Email-Verified'}
+        const withEvidence = verified => account({
+            identities: {dex: {emails: [{email: 'a@x.com', primary: true, verified}]}},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        })
+        for (const [verified, expected] of [[true, 'true'], [false, 'false'], [undefined, 'false']]) {
+            const a = withEvidence(verified)
+            const headers = a.getRemoteHeaders(mapping)
+            expect(headers['X-Email']).toBe('a@x.com')
+            expect(headers['X-Email-Verified']).toBe(expected)
+            expect((await a.claims('userinfo', 'openid email', {}, [])).email_verified)
+                .toBe(expected === 'true')
+        }
+    })
+
+    it('treats an admin-set email without evidence as unverified', () => {
+        const headers = account({
+            spec: {email: 'a@x.com'},
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        }).getRemoteHeaders({email: 'X-Email', emailVerified: 'X-Email-Verified'})
+        expect(headers).toEqual({'X-Email': 'a@x.com', 'X-Email-Verified': 'false'})
+    })
+
+    it('omits the verification header without an email or a mapping for it', () => {
+        const mapping = {user: 'X-User', email: 'X-Email', emailVerified: 'X-Email-Verified'}
+        expect(account({status: {profile: {}, groups: []}}).getRemoteHeaders(mapping))
+            .not.toHaveProperty('X-Email-Verified')
+        const headers = account({
+            status: {primaryEmail: 'a@x.com', emails: ['a@x.com'], groups: [], profile: {}},
+        }).getRemoteHeaders({user: 'X-User', email: 'X-Email'})
+        expect(Object.keys(headers).sort()).toEqual(['X-Email', 'X-User'])
+    })
 })

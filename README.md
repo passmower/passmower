@@ -594,6 +594,7 @@ spec:
     - u-example
   headerMapping:
     email: Remote-Email
+    emailVerified: Remote-Email-Verified
     groups: Remote-Groups
     name: Remote-Name
     user: Remote-User
@@ -601,6 +602,13 @@ spec:
 
 For the ingress refer to automatically created middleware
 `traefik.ingress.kubernetes.io/router.middlewares: namespace-webmail@kubernetescrd`
+
+The email header carries the account's primary email whether or not it has been
+verified, like the `email` claim. The `emailVerified` header carries `true` or
+`false` alongside it, like the `email_verified` claim. An application that
+grants access or links accounts by email should check it. An address counts as
+verified only with evidence: a magic-link login, a verified GitHub address, or
+`email_verified: true` from an upstream with `emailVerification: oidc-claim`.
 
 
 # Contributing

@@ -1076,12 +1076,19 @@ spec:
                   type: object
                   default:
                     email: Remote-Email
+                    emailVerified: Remote-Email-Verified
                     groups: Remote-Groups
                     name: Remote-Name
                     user: Remote-User
                   properties:
                     email:
                       type: string
+                    emailVerified:
+                      type: string
+                      description: >-
+                        Header carrying "true" or "false": whether the address in
+                        the email header is verified, matching the email_verified
+                        claim. Sent only alongside the email header.
                     groups:
                       type: string
                     name:

@@ -71,7 +71,7 @@ describe('forward-auth sign-in (HTTP)', () => {
         const { default: OIDCMiddlewareClient } = await import('../../src/models/oidc-middleware-client.js')
         const middlewareClient = new OIDCMiddlewareClient().fromIncomingClient({
             metadata: { name: 'webmail', namespace: 'apps', uid: 'uid-webmail' },
-            spec: { uri: 'https://webmail.example.com/', headerMapping: { user: 'Remote-User' } },
+            spec: { uri: 'https://webmail.example.com/', headerMapping: { user: 'Remote-User', email: 'Remote-Email', emailVerified: 'Remote-Email-Verified' } },
         })
         expect(middlewareClient.getClientId()).toBe(CLIENT)
         await clients.upsert(CLIENT, middlewareClient.toRedis())
@@ -148,6 +148,9 @@ describe('forward-auth sign-in (HTTP)', () => {
         const authed = await forwardAuth(j)
         expect(authed.status).toBe(200)
         expect(authed.headers['remote-user']).toBe('testuser')
+        // The magic-link sign-in verified the address.
+        expect(authed.headers['remote-email']).toBe('test@example.com')
+        expect(authed.headers['remote-email-verified']).toBe('true')
 
         // Traefik forwards WebSocket upgrades with X-Forwarded-Proto: wss.
         const socket = await forwardAuth(j, forwardAuthHeaders({'x-forwarded-proto': 'wss', 'x-forwarded-uri': '/ws'}))

@@ -237,6 +237,9 @@ class Account {
             [headerMapping['user'], this.accountId],
             [headerMapping['name'], this.profile.name],
             [headerMapping['email'], this.primaryEmail],
+            // Mirrors the email_verified claim, so header-based SSO can tell an
+            // address Passmower verified from one an upstream merely asserted.
+            [headerMapping['emailVerified'], this.primaryEmail ? String(this.isPrimaryEmailVerified()) : undefined],
             [headerMapping['groups'], this.#mapGroups().map(g => g.displayName).join(',')],
         ].filter(([header, value]) => header && value != null))
     }
