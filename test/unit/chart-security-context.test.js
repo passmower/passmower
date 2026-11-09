@@ -49,7 +49,9 @@ describe('the chart under Pod Security "restricted"', () => {
 
     it('keeps the dev image, which writes into /app, out of the restricted defaults', () => {
         const local = load(template('values.local.yaml'))
-        expect(local.podSecurityContext).toEqual({})
-        expect(local.securityContext).toEqual({})
+        // Explicit keys, not {}: Helm merges maps, so an empty override
+        // leaves the restricted defaults in place and the dev pod crashes.
+        expect(local.podSecurityContext).toMatchObject({runAsNonRoot: false, runAsUser: 0, runAsGroup: 0})
+        expect(local.securityContext).toMatchObject({readOnlyRootFilesystem: false})
     })
 })
