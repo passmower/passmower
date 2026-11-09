@@ -3,8 +3,7 @@ import { koaBody as bodyParser } from 'koa-body';
 import Router from '@koa/router';
 import {signedInToSelf} from "../utils/session/signed-in.js";
 import {checkAccountGroups} from "../utils/user/check-account-groups.js";
-import {getEnrolledApps, listAllApps} from "../utils/apps/list-apps.js";
-import {renderMarkdown} from "../utils/markdown.js";
+import {getEnrolledApps, listAllApps, toApp} from "../utils/apps/list-apps.js";
 import {accountFromBearer} from "../utils/session/bearer-account.js";
 import {auditLog} from "../utils/session/audit-log.js";
 import validator, {
@@ -42,11 +41,7 @@ export default (provider) => {
             .filter(c => checkAccountGroups(c, account))
         let apps = await Promise.all(clients.map(async c => {
             return {
-                name: c.displayName ?? c.client_name,
-                url: c.uri,
-                groups: c.allowedGroups ?? [],
-                displayOrder: c.displayOrder ?? 0,
-                description: renderMarkdown(c.description),
+                ...toApp(c),
                 // Last-login info is bound to the site session; bearer callers get none.
                 metadata: session ? await ctx.sessionService.getLastSessionInfoPerClient(session.accountId, c.client_id) : null
             }

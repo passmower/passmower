@@ -23,6 +23,8 @@ export default class OIDCMiddlewareClient {
     #resourceVersion = null
     #uid = null
     #displayOrder = 0
+    #icon = null
+    #links = null
     #disabled = false
     #activityState = null
 
@@ -37,6 +39,8 @@ export default class OIDCMiddlewareClient {
         this.#resourceVersion = incomingClient.metadata.resourceVersion
         this.#uid = incomingClient.metadata.uid
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
+        this.#icon = incomingClient.spec?.icon ?? null
+        this.#links = incomingClient.spec?.links ?? null
         this.#disabled = incomingClient.spec?.disabled === true
         this.#activityState = new ClientActivityState(incomingClient)
         return this
@@ -58,6 +62,8 @@ export default class OIDCMiddlewareClient {
             uri: this.#uri,
             displayName: this.#displayName,
             displayOrder: this.#displayOrder,
+            icon: this.#icon ?? undefined,
+            links: this.#links ?? undefined,
             description: this.#activityState.description,
             kind: OIDCMiddlewareClientCrd
         }
