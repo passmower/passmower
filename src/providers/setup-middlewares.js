@@ -13,7 +13,7 @@ import requestErrorHandler from "../utils/request-error-handler.js";
 import rejectEncodedBody from "../utils/reject-encoded-body.js";
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
-import {enforceGeoLock, extendSessionPin, findSessionPin, pinSession} from '../utils/session/geo-lock.js';
+import {enforceGeoLock, findSessionPin, pinSession} from '../utils/session/geo-lock.js';
 import {geoLockEnabled} from '../utils/geoip.js';
 
 export default async (provider) => {
@@ -139,8 +139,6 @@ export default async (provider) => {
                 }, () => {})
                 ctx.currentSession = undefined
                 ctx.currentAccount = undefined
-            } else {
-                await extendSessionPin(ctx.currentSession, pin)
             }
         }
         return next();

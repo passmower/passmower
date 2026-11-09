@@ -174,6 +174,40 @@ describe('geo-lock (HTTP)', () => {
         expect(again.code).toBeTruthy()
     })
 
+    // Regression: oidc-provider renews a session's exp when it saves the
+    // session, after Passmower's request middleware has run. The pin must
+    // follow the renewed exp, or the session is refused as unpinned between
+    // the original and the renewed expiry.
+    it('keeps a renewed session pinned past its original expiry', async () => {
+        const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
+        const { findSessionPin } = await import('../../src/utils/session/geo-lock.js')
+        const sessions = new RedisAdapter('Session')
+        const day = 24 * 3600 * 1000
+
+        vi.useFakeTimers({ toFake: ['Date'] })
+        try {
+            const b = browser(GB)
+            await signIn(b, 'geo-public')
+            const original = await sessions.find(b.jar.get('_session'))
+            expect((await findSessionPin(original.uid)).exp).toBe(original.exp)
+
+            // A day later, SSO renews the session to a new expiry.
+            vi.setSystemTime(Date.now() + day)
+            expect((await startAuth(b, 'geo-public')).code).toBeTruthy()
+            const renewed = await sessions.find(b.jar.get('_session'))
+            expect(renewed.exp).toBeGreaterThan(original.exp)
+            await vi.waitFor(async () => {
+                expect((await findSessionPin(renewed.uid)).exp).toBe(renewed.exp)
+            })
+
+            // Past the original expiry, inside the renewed one: still signed in.
+            vi.setSystemTime((original.exp + 3600) * 1000)
+            expect((await startAuth(b, 'geo-public')).code).toBeTruthy()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
     it('ends the session when its cookie is presented from another country', async () => {
         const b = browser(GB)
         await signIn(b, 'geo-public')

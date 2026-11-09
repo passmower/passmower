@@ -11,8 +11,13 @@ import {AuditService} from "../../services/audit-service.js";
 // id rotation on every resume.
 const pins = () => new RedisAdapter('SessionGeo')
 
-export const findSessionPin = async (sessionUid) =>
-    sessionUid ? await pins().find(sessionUid) : undefined
+// A pin past its exp is treated as gone even before Redis evicts it, the same
+// way oidc-provider treats a session past its exp.
+export const findSessionPin = async (sessionUid) => {
+    const pin = sessionUid ? await pins().find(sessionUid) : undefined
+    if (pin?.exp && pin.exp <= Math.floor(Date.now() / 1000)) return undefined
+    return pin
+}
 
 // A fresh authentication always (re)pins: that is how a traveller recovers.
 // SSO into another application keeps the existing pin.
@@ -27,9 +32,13 @@ export const pinSession = async (ctx, session, {fresh, defaultTtl}) => {
 }
 
 // Sessions slide: every save moves exp forward. The pin follows, or it would
-// expire under a live session and lock its owner out.
-export const extendSessionPin = async (session, pin) => {
-    if (!pin || !session?.exp || (pin.exp && pin.exp >= session.exp)) return
+// expire under a live session and lock its owner out. Called from the
+// session.saved event, after oidc-provider has persisted the renewed exp; a
+// request middleware only ever sees the exp from before the renewal.
+export const extendSessionPin = async (session) => {
+    if (!geoLockEnabled() || !session?.uid || !session.exp) return
+    const pin = await findSessionPin(session.uid)
+    if (!pin || (pin.exp && pin.exp >= session.exp)) return
     const now = Math.floor(Date.now() / 1000)
     await pins().upsert(session.uid, {...pin, exp: session.exp}, session.exp - now)
 }

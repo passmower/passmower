@@ -75,12 +75,47 @@ describe('geo-lock session pins', () => {
     })
 
     it('extends the pin when the session slides past it', async () => {
-        const pin = {country: 'GB', exp: now() + 10}
-        await extendSessionPin({uid: 'u1', exp: now() + 1000}, pin)
-        expect(mocks.upsert).toHaveBeenCalledWith('SessionGeo', 'u1', expect.objectContaining({country: 'GB'}), expect.any(Number))
+        await pinSession(ctx(GB), {uid: 'u1', exp: now() + 10}, {fresh: true})
         mocks.upsert.mockReset()
-        await extendSessionPin({uid: 'u1', exp: pin.exp}, pin)
+        await extendSessionPin({uid: 'u1', exp: now() + 1000})
+        expect(mocks.upsert).toHaveBeenCalledWith('SessionGeo', 'u1',
+            expect.objectContaining({country: 'GB', exp: now() + 1000}), expect.any(Number))
+        mocks.upsert.mockReset()
+        await extendSessionPin({uid: 'u1', exp: now() + 1000})
         expect(mocks.upsert).not.toHaveBeenCalled()
+    })
+
+    it('never invents a pin for a session that has none', async () => {
+        await extendSessionPin({uid: 'u1', exp: now() + 1000})
+        expect(mocks.upsert).not.toHaveBeenCalled()
+    })
+
+    it('treats a pin past its exp as gone', async () => {
+        vi.useFakeTimers({toFake: ['Date']})
+        try {
+            await pinSession(ctx(GB), {uid: 'u1', exp: now() + 100}, {fresh: true})
+            vi.setSystemTime(Date.now() + 101 * 1000)
+            expect(await findSessionPin('u1')).toBeUndefined()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    // Regression: the pin used to be extended from a request middleware, which
+    // runs before oidc-provider renews the session and so saw the old exp.
+    it('keeps a renewed session pinned past its original expiry', async () => {
+        vi.useFakeTimers({toFake: ['Date']})
+        try {
+            const t0 = now()
+            await pinSession(ctx(GB), {uid: 'u1', exp: t0 + 100}, {fresh: true})
+            vi.setSystemTime((t0 + 50) * 1000)
+            // session.saved after the renewal carries the new exp.
+            await extendSessionPin({uid: 'u1', exp: t0 + 150})
+            vi.setSystemTime((t0 + 120) * 1000)
+            expect(await findSessionPin('u1')).toMatchObject({country: 'GB', exp: t0 + 150})
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     it('lets a request from the pinned country through silently', async () => {

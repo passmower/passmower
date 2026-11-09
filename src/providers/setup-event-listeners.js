@@ -1,4 +1,5 @@
 import {updateSessionReference} from "../utils/session/site-session.js";
+import {extendSessionPin} from "../utils/session/geo-lock.js";
 import {SessionService} from "../services/session-service.js";
 import handleOidcFlowMetrics, {
     clientNotFound, invalidClientError,
@@ -294,6 +295,11 @@ export default (provider) => {
         logger.debug({session}, 'session.saved')
         if (session.oldId && session.accountId) {
             await updateSessionReference(session.jti, session.oldId, session.accountId)
+        }
+        try {
+            await extendSessionPin(session)
+        } catch (error) {
+            logger.warn({error: error.message}, 'Failed to extend the geo-lock pin of a renewed session')
         }
     })
 
