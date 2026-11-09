@@ -25,6 +25,7 @@ export default class OIDCMiddlewareClient {
     #displayOrder = 0
     #icon = null
     #links = null
+    #unprotectedPaths = []
     #disabled = false
     #activityState = null
 
@@ -41,6 +42,7 @@ export default class OIDCMiddlewareClient {
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
         this.#icon = incomingClient.spec?.icon ?? null
         this.#links = incomingClient.spec?.links ?? null
+        this.#unprotectedPaths = incomingClient.spec?.unprotectedPaths ?? []
         this.#disabled = incomingClient.spec?.disabled === true
         this.#activityState = new ClientActivityState(incomingClient)
         return this
@@ -64,6 +66,7 @@ export default class OIDCMiddlewareClient {
             displayOrder: this.#displayOrder,
             icon: this.#icon ?? undefined,
             links: this.#links ?? undefined,
+            unprotectedPaths: this.#unprotectedPaths,
             description: this.#activityState.description,
             kind: OIDCMiddlewareClientCrd
         }

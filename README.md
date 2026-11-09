@@ -661,6 +661,26 @@ spec:
 For the ingress refer to automatically created middleware
 `traefik.ingress.kubernetes.io/router.middlewares: namespace-webmail@kubernetescrd`
 
+An application that must receive some requests without a signed-in user, such
+as webhooks from other systems, declares them in `spec.unprotectedPaths`:
+
+```
+spec:
+  unprotectedPaths:
+    - pathPrefix: /hooks
+      methods: [POST]
+    - pathPrefix: /healthz
+```
+
+A matching request passes without authentication and without identity headers;
+everything else stays protected. `pathPrefix` matches whole path segments
+(`/hooks` covers `/hooks` and `/hooks/github`, not `/hooks-admin`), and
+`methods` limits a rule to those HTTP methods, all when omitted. A path with
+dot segments, doubled or encoded slashes, or backslashes never matches, since a
+backend could resolve it to a protected location. The application is then
+responsible for authenticating those requests itself, for example by verifying
+the webhook's signature.
+
 The email header carries the account's primary email whether or not it has been
 verified, like the `email` claim. The `emailVerified` header carries `true` or
 `false` alongside it, like the `email_verified` claim. An application that
