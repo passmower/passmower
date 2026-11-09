@@ -294,5 +294,5 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 
 See also: `README.md` (install + upstream config), `docs/address-gate.md`,
 `docs/api-scopes.md`, `docs/application-listing.md`, `docs/claim-mappings.md`, `docs/geo-lock.md`,
-`docs/ingress-discovery.md`, `docs/user-profiles.md`,
+`docs/ingress-discovery.md`, `docs/user-offboarding.md`, `docs/user-profiles.md`,
 `docs/username-configuration.md`.

@@ -15,6 +15,8 @@ export function buildPrivilegeDirectory(accounts, groups = getListedPrivilegeGro
         group,
         members: accounts
             .filter(account => account.type === null || account.type === 'person')
+            // Not someone to contact about a role any more.
+            .filter(account => !account.disabled)
             .filter(account => account.groups.some(item => `${item.prefix}:${item.name}` === group))
             .map(account => ({
                 username: account.accountId,

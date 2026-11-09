@@ -47,6 +47,7 @@ init container, replacing same-named entries from the template:
 | `PASSMOWER_RESOURCE_NAME` | User resource name |
 | `PASSMOWER_RESOURCE_UID` | User Kubernetes UID |
 | `PASSMOWER_RESOURCE_GENERATION` | User spec generation |
+| `PASSMOWER_RESOURCE_DISABLED` | `true` when the user is [disabled](user-offboarding.md), else `false` |
 
 The full `OIDCUser`, email addresses, identities, tokens, and credentials are
 not injected. A hook that requires them must use an explicitly authorized

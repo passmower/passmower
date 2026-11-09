@@ -539,6 +539,9 @@ spec:
                 onboardedBy:
                   type: string
                   description: Account ID of the administrator who invited this user
+                disabled:
+                  type: boolean
+                  description: Set from the admin panel to disable the account; see spec.disabled.
             slack:
               type: object
               properties:
@@ -605,6 +608,15 @@ spec:
                         type: string
                       prefix:
                         type: string
+                disabled:
+                  type: boolean
+                  default: false
+                  description: >-
+                    Offboarding stage. A disabled account is kept, with its
+                    profile, groups and identities, but cannot sign in, be
+                    impersonated, refresh tokens or use forward-auth, and its
+                    live sessions are ended. Reversible by setting it back to
+                    false.
                 type:
                   type: string
                   default: person

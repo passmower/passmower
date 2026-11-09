@@ -42,6 +42,8 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **User Profile Pages**: Optionally give every user a page at `/users/<username>` and issue it as the OIDC `profile` claim, so applications can link a subject to a person. See [docs/user-profiles.md](docs/user-profiles.md).
 
+- **User Offboarding**: Disable an account reversibly before removing it, from the `OIDCUser` spec or the admin panel, and drive per-application clean-up from lifecycle hooks. See [docs/user-offboarding.md](docs/user-offboarding.md).
+
 ## Support
 
 For community questions, use [Cloud Native Slack](https://cloud-native.slack.com/archives/C0C8YHGCM9D).

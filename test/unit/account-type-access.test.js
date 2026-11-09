@@ -23,6 +23,16 @@ describe('account type access', () => {
         expect(canImpersonateAccount(account('banned'))).toBe(false)
     })
 
+    it('refuses a disabled account everything, impersonation included', () => {
+        for (const type of [undefined, 'person', 'service']) {
+            expect(getAccountTypeAccessFailure({type, disabled: true})).toBe('account_disabled')
+            expect(canImpersonateAccount({type, disabled: true})).toBe(false)
+        }
+        // The account type still decides first.
+        expect(getAccountTypeAccessFailure({type: 'banned', disabled: true})).toBe('account_banned')
+        expect(getAccountTypeAccessFailure({type: 'person', disabled: false})).toBeNull()
+    })
+
     it('allows only people, legacy accounts, and services to be impersonated', () => {
         for (const type of [undefined, null, 'person', 'service']) {
             expect(canImpersonateAccount(account(type))).toBe(true)

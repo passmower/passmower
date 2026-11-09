@@ -161,6 +161,28 @@ export default (provider) => {
         }
     })
 
+    // Offboarding (#73): disable keeps the account but ends its sessions on
+    // its next request and refuses every login, refresh and forward-auth.
+    router.post('/admin/api/account/disabled', async (ctx, next) => {
+        checkAccountId(ctx)
+        if (await restValidationErrors(ctx)) {
+            return
+        }
+        const accountId = ctx.request.body.accountId
+        const disabled = ctx.request.body.disabled === true
+        if (disabled && accountId === ctx.adminSession?.accountId) {
+            ctx.status = 400
+            ctx.body = {errors: [{msg: 'You cannot disable your own account'}]}
+            return
+        }
+        await ctx.kubeOIDCUserService.updateUserSpecs(accountId, {passmower: {disabled}})
+        auditLog(ctx, {accountId, disabled}, disabled ? 'Admin disabled user' : 'Admin enabled user')
+        const accounts = await ctx.kubeOIDCUserService.listUsers()
+        ctx.body = {
+            accounts: accounts.map((acc) => acc.getProfileResponse(true, ctx.adminSession?.accountId))
+        }
+    })
+
     router.post('/admin/api/account/invite', async (ctx, next) => {
         if (!isOutboundEmailEnabled()) {
             ctx.throw(404, 'Email-based invitations are disabled')

@@ -55,6 +55,7 @@ export default {
                 name_required: 'Account has no name set',
                 tos_required: 'Terms of Service not accepted',
                 account_banned: 'Account is banned',
+                account_disabled: 'Account is disabled',
                 account_missing: 'Account no longer exists',
                 account_type_not_login_capable: 'Account type cannot sign in',
             }

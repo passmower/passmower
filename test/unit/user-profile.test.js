@@ -41,6 +41,7 @@ describe('user profile pages', () => {
         expect(profile).toEqual({
             username: 'alice',
             type: 'person',
+            disabled: false,
             name: 'Alice Example',
             company: 'Example OÜ',
             email: 'alice@example.com',
@@ -63,6 +64,13 @@ describe('user profile pages', () => {
             expect(buildUserProfile(account('reserved', type)), type).toBeUndefined()
         }
         expect(buildUserProfile(undefined)).toBeUndefined()
+    })
+
+    it('marks a disabled account', () => {
+        const disabled = new Account().fromKubernetes({
+            metadata: {name: 'gone'}, spec: {disabled: true}, status: {groups: []},
+        })
+        expect(buildUserProfile(disabled).disabled).toBe(true)
     })
 
     it('issues the profile claim with the profile scope only when enabled', async () => {
