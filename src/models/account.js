@@ -221,6 +221,9 @@ class Account {
                 ...profile,
                 accountId: this.accountId,
                 type: this.type,
+                disabled: this.disabled,
+                // The admin panel can only lift what it set itself.
+                disabledBySpec: this.#spec?.disabled === true,
                 impersonationEnabled: requesterAccountId !== this.accountId && canImpersonateAccount(this),
                 approved: this.isAdmin || (new Approved()).check(this),
                 conditions: this.#conditions,
@@ -267,6 +270,12 @@ class Account {
 
     get username() {
         return this.accountId
+    }
+
+    // Disabled declaratively (spec.disabled, for GitOps) or from the admin
+    // panel (passmower.disabled, the section Passmower itself writes).
+    get disabled() {
+        return this.#spec?.disabled === true || this.#passmower?.disabled === true
     }
 
     // OIDCUser spec.type: person | org | service | banned | group (may be unset

@@ -9,6 +9,7 @@ const injectedEnvironment = {
     name: 'PASSMOWER_RESOURCE_NAME',
     uid: 'PASSMOWER_RESOURCE_UID',
     generation: 'PASSMOWER_RESOURCE_GENERATION',
+    disabled: 'PASSMOWER_RESOURCE_DISABLED',
 }
 
 function matchesSelector(labels, selector = {}) {
@@ -32,6 +33,7 @@ function injectEnvironment(containers = [], event) {
         name: event.user.metadata.name,
         uid: event.user.metadata.uid,
         generation: String(event.user.metadata.generation ?? 1),
+        disabled: String(event.user.spec?.disabled === true || event.user.passmower?.disabled === true),
     }
     for (const container of containers) {
         const injectedNames = new Set(Object.values(injectedEnvironment))

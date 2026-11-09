@@ -112,6 +112,7 @@ describe('user profile pages (HTTP)', () => {
         expect(res.body).toEqual({
             username: 'colleague',
             type: 'person',
+            disabled: false,
             name: 'colleague display',
             company: 'Example OÜ',
             email: 'colleague@example.com',

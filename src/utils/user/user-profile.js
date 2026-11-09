@@ -28,6 +28,7 @@ export const buildUserProfile = (account, {slackTeamId, listedGroups = getListed
     return {
         username: account.accountId,
         type,
+        disabled: account.disabled === true,
         name: account.profile?.name,
         company: account.profile?.company,
         email: account.primaryEmail,

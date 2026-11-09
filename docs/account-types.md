@@ -28,3 +28,7 @@ Self-contained JWT access tokens already issued to an account cannot be recalled
 from Passmower. Resource servers may continue accepting one until its normal
 expiry. Use short access-token lifetimes where rapid offboarding is required;
 Passmower rejects refresh and all server-side session paths immediately.
+
+To take a person's access away without changing what kind of account it is, and
+reversibly, disable the account instead: see
+[user offboarding](user-offboarding.md).

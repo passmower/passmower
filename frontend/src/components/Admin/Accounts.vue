@@ -21,6 +21,9 @@
             <div class="item-details">
                 <h3><a :href="`/users/${encodeURIComponent(account.accountId)}`">{{ account.accountId }}</a></h3>
                 <p>Type: {{ account.type || 'person (legacy)' }}</p>
+                <p v-if="account.disabled" class="notice">
+                    Disabled{{ account.disabledBySpec ? ' in the OIDCUser spec' : '' }}: cannot sign in.
+                </p>
                 <p>Name: {{ account.name }}</p>
                 <p v-if="account.email">Primary email: {{ account.email }}</p>
                 <p v-if="account.onboardedBy">Invited by: {{ account.onboardedBy }}</p>
@@ -48,6 +51,8 @@
                 <Check v-if="!account.approved" @click="approve(account)" />
                 <Info @click="editProfile(account)" />
                 <Impersonate v-if="account.impersonationEnabled" @click="impersonate(account)" />
+                <button v-if="!account.disabled" @click="setDisabled(account, true)">Disable</button>
+                <button v-else-if="!account.disabledBySpec" @click="setDisabled(account, false)">Enable</button>
             </div>
         </div>
     </div>
@@ -134,6 +139,25 @@ export default {
             } catch {
                 $toast.error('Could not copy — select and copy manually', {position: 'top-right'})
             }
+        },
+        setDisabled(account, disabled) {
+            const verb = disabled ? 'Disable' : 'Enable'
+            if (disabled && !window.confirm(`Disable ${account.accountId}? They are signed out and cannot sign in until enabled again.`)) return
+            fetch('/admin/api/account/disabled', {
+                method: 'POST',
+                body: JSON.stringify({accountId: account.accountId, disabled}),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+            }).then(async (r) => {
+                const body = await r.json()
+                if (!r.ok) throw new Error(body.errors?.[0]?.msg ?? `${verb} failed`)
+                this.setAccounts(body.accounts)
+            }).catch((e) => {
+                const $toast = useToast();
+                $toast.error(e.message, {position: 'top-right'})
+            })
         },
         approve(account) {
               fetch('/admin/api/account/approve', {

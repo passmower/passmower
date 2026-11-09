@@ -21,6 +21,7 @@
             <div class="item-details">
               <p>Username: {{ user.username }}</p>
               <p v-if="user.type === 'service'">Service account</p>
+              <p v-if="user.disabled">This account is disabled.</p>
               <p v-if="user.company">Company: {{ user.company }}</p>
               <p v-if="user.email"><a :href="`mailto:${user.email}`">{{ user.email }}</a></p>
               <p v-if="user.slackUrl"><a :href="user.slackUrl">Message on Slack</a></p>
