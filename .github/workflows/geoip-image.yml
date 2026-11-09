@@ -1,8 +1,8 @@
 name: geoip-image
 
-# Republishes the DB-IP Lite Country database (CC BY 4.0) as a data-only image
-# for the chart's GeoIP image volume (passmower.geoip). DB-IP releases on the
-# first days of each month.
+# Republishes the DB-IP Lite Country and ASN databases (CC BY 4.0) as
+# data-only images for the chart's GeoIP image volumes (passmower.geoip and
+# passmower.geoip.asn). DB-IP releases on the first days of each month.
 on:
   schedule:
     - cron: "17 4 3 * *"
@@ -15,6 +15,9 @@ permissions:
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        edition: [country, asn]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -24,13 +27,13 @@ jobs:
         run: |
           # Fall back to last month's release when this month's is not out yet.
           for month in "$(date -u +%Y-%m)" "$(date -u -d 'last month' +%Y-%m)"; do
-            if curl -fsSL "https://download.db-ip.com/free/dbip-country-lite-${month}.mmdb.gz" -o db.mmdb.gz; then
-              gunzip -c db.mmdb.gz > geoip/dbip-country-lite.mmdb
+            if curl -fsSL "https://download.db-ip.com/free/dbip-${{ matrix.edition }}-lite-${month}.mmdb.gz" -o db.mmdb.gz; then
+              gunzip -c db.mmdb.gz > geoip/dbip-${{ matrix.edition }}-lite.mmdb
               echo "MONTH=${month}" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           done
-          echo "No DB-IP Lite Country release found" >&2
+          echo "No DB-IP Lite ${{ matrix.edition }} release found" >&2
           exit 1
 
       - name: Set up Docker Buildx
@@ -47,15 +50,17 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: geoip
+          build-args: |
+            DATABASE=dbip-${{ matrix.edition }}-lite.mmdb
           # FROM scratch with a data file: the same layer serves every platform.
           platforms: linux/amd64,linux/arm64
           push: true
           labels: |
-            org.opencontainers.image.title=geoip-country
-            org.opencontainers.image.description=DB-IP Lite Country database (IP Geolocation by DB-IP, https://db-ip.com)
+            org.opencontainers.image.title=geoip-${{ matrix.edition }}
+            org.opencontainers.image.description=DB-IP Lite ${{ matrix.edition }} database (IP Geolocation by DB-IP, https://db-ip.com)
             org.opencontainers.image.licenses=CC-BY-4.0
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ steps.download.outputs.MONTH }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/geoip-country:${{ steps.download.outputs.MONTH }}
-            ghcr.io/${{ github.repository_owner }}/geoip-country:latest
+            ghcr.io/${{ github.repository_owner }}/geoip-${{ matrix.edition }}:${{ steps.download.outputs.MONTH }}
+            ghcr.io/${{ github.repository_owner }}/geoip-${{ matrix.edition }}:latest

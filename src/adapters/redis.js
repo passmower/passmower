@@ -332,6 +332,26 @@ export async function scanKeyValues(pattern, {batch = 500} = {}) {
     return await c.mget(keys.map(key => key.startsWith(prefix) ? key.slice(prefix.length) : key));
 }
 
+const SET_EXPIRING_FIELD = `
+local now = tonumber(ARGV[3])
+local latest = tonumber(ARGV[2])
+local current = redis.call('HGET', KEYS[1], ARGV[1])
+local existed = 0
+if current and tonumber(current) > now then existed = 1 end
+local fields = redis.call('HGETALL', KEYS[1])
+for i = 1, #fields, 2 do
+    local exp = tonumber(fields[i + 1])
+    if exp <= now then
+        redis.call('HDEL', KEYS[1], fields[i])
+    elseif exp > latest then
+        latest = exp
+    end
+end
+redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+redis.call('EXPIRE', KEYS[1], math.max(latest - now, 1))
+return existed
+`
+
 class RedisAdapter {
     constructor(name) {
         this.name = name;
@@ -395,6 +415,20 @@ class RedisAdapter {
 
     async getSetMembers(id) {
         return await getClient().smembers(this.key(id))
+    }
+
+    // A hash of field -> expiry timestamp, for records several writers add
+    // to at once. One script sets the field, drops fields past their expiry
+    // and keeps the key alive until the last remaining one, so concurrent
+    // writers cannot overwrite each other. Returns whether the field was
+    // already there and live.
+    async setExpiringField(id, field, exp, now = Math.floor(Date.now() / 1000)) {
+        const existed = await getClient().eval(SET_EXPIRING_FIELD, 1, this.key(id), field, exp, now);
+        return existed === 1;
+    }
+
+    async getFields(id) {
+        return await getClient().hgetall(this.key(id));
     }
 
     async find(id) {

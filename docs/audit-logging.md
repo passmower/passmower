@@ -24,6 +24,10 @@ country is recorded as `event: session.geo.denied` with `result: failure`, the
 `reason`, the `source` and a `geo` object holding `pinnedCountry` and `country`
 (see [geo-lock.md](geo-lock.md)).
 
+With the address gate enabled, a signed-in user unlocking their address is
+recorded as `event: address-gate.unlocked` (see
+[address-gate.md](address-gate.md)).
+
 The built-in logger is a useful minimum and deliberately does not turn Redis or
 the Kubernetes API into an audit database. Production installations should
 route records marked `logType: audit` through the cluster log collector into a

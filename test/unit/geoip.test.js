@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {fileURLToPath} from 'node:url'
 import {
     allowedCountries,
+    asnOf,
     attributionFor,
     countryOf,
     GEO_LOCK_COUNTRY,
@@ -85,5 +86,23 @@ describe('geo-lock reader seam', () => {
         expect(open).not.toHaveBeenCalled()
         vi.doUnmock('maxmind')
         vi.resetModules()
+    })
+})
+
+describe('ASN lookup', () => {
+    beforeEach(() => resetGeoipReader())
+    afterEach(() => resetGeoipReader())
+
+    const env = {GEOIP_ASN_DATABASE_PATH: fileURLToPath(new URL('../fixtures/geoip/GeoLite2-ASN-Test.mmdb', import.meta.url))}
+
+    it('names the autonomous system announcing an address', async () => {
+        await expect(asnOf('89.160.20.112', env)).resolves.toEqual({number: 29518, organization: 'Bredband2 AB'})
+        await expect(asnOf('2600:6000::1', env)).resolves.toMatchObject({number: 237})
+    })
+
+    it('returns nothing for unannounced addresses or without a database', async () => {
+        await expect(asnOf('81.2.69.142', env)).resolves.toBeUndefined()
+        await expect(asnOf('not-an-ip', env)).resolves.toBeUndefined()
+        await expect(asnOf('89.160.20.112', {GEOIP_ASN_DATABASE_PATH: '/nonexistent.mmdb'})).resolves.toBeUndefined()
     })
 })

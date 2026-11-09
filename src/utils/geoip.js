@@ -22,23 +22,33 @@ export const allowedCountries = (env = process.env) =>
         .map(c => c.trim().toUpperCase())
         .filter(Boolean)
 
-// The reader is opened on first use, never at import, and shared afterwards.
-// watchForUpdates picks up a database replaced in place on a writable volume.
-let readerPromise
-export const getGeoipReader = (env = process.env) => {
-    if (!readerPromise) {
-        const path = geoipDatabasePath(env)
-        readerPromise = existsSync(path)
+export const DEFAULT_GEOIP_ASN_DATABASE_PATH = '/var/lib/passmower/geoip-asn/dbip-asn-lite.mmdb'
+
+export const geoipAsnDatabasePath = (env = process.env) =>
+    env.GEOIP_ASN_DATABASE_PATH || DEFAULT_GEOIP_ASN_DATABASE_PATH
+
+// Readers are opened on first use, never at import, and shared afterwards, one
+// per database file. watchForUpdates picks up a database replaced in place on
+// a writable volume.
+const readers = new Map()
+const openReader = (path) => {
+    if (!readers.has(path)) {
+        const reader = existsSync(path)
             ? maxmind.open(path, {watchForUpdates: true, watchForUpdatesNonPersistent: true})
             : Promise.resolve(undefined)
         // A failed open is not cached, so a later call retries.
-        readerPromise.catch(() => { readerPromise = undefined })
+        reader.catch(() => readers.delete(path))
+        readers.set(path, reader)
     }
-    return readerPromise
+    return readers.get(path)
 }
 
+export const getGeoipReader = (env = process.env) => openReader(geoipDatabasePath(env))
+
+export const getGeoipAsnReader = (env = process.env) => openReader(geoipAsnDatabasePath(env))
+
 export const resetGeoipReader = () => {
-    readerPromise = undefined
+    readers.clear()
 }
 
 // Fails boot when geo-lock is on but has no database to decide with: every
@@ -61,6 +71,17 @@ export const countryOf = async (ip, env = process.env) => {
     if (!reader) return undefined
     if (!ip || !maxmind.validate(ip)) return UNKNOWN_COUNTRY
     return countryFromRecord(reader.get(ip))
+}
+
+// The autonomous system announcing an address — for most consumer and mobile
+// connections, the ISP — or undefined when the address is not routed or no ASN
+// database is available.
+export const asnOf = async (ip, env = process.env) => {
+    const reader = await getGeoipAsnReader(env)
+    if (!reader || !ip || !maxmind.validate(ip)) return undefined
+    const record = reader.get(ip)
+    if (!record?.autonomous_system_number) return undefined
+    return {number: record.autonomous_system_number, organization: record.autonomous_system_organization}
 }
 
 // The free databases are licensed on condition of attribution wherever their

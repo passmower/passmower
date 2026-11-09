@@ -1,6 +1,7 @@
-dbip-country-lite.mmdb: IP Geolocation by DB-IP (https://db-ip.com)
+IP Geolocation by DB-IP (https://db-ip.com)
 
-The DB-IP Lite Country database is licensed under the Creative Commons
-Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/).
-It is redistributed here unmodified; any product displaying data from it must
-show the attribution above.
+The DB-IP Lite databases (Country, ASN) are licensed under the Creative
+Commons Attribution 4.0 International License
+(https://creativecommons.org/licenses/by/4.0/). They are redistributed here
+unmodified; any product displaying data from them must show the attribution
+above.

@@ -11,6 +11,7 @@ import KubeOIDCClientOperator from "./operators/kube-oidc-client-operator.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import forwardAuthRoutes from "./routes/forwardAuthRoutes.js";
 import scimRoutes from "./routes/scimRoutes.js";
+import addressGateRoutes from "./routes/addressGateRoutes.js";
 import {setupLogger} from "./providers/setup-logger.js";
 import {KubeOIDCMiddlewareClientOperator} from "./operators/kube-oidc-middleware-client-operator.js";
 import KubeOidcUserOperator from "./operators/kube-oidc-user-operator.js";
@@ -20,6 +21,7 @@ import {getUsernameSource} from "./utils/username-source.js";
 import {validateEmailConfiguration} from './utils/email-configuration.js';
 import {validateGroupConfiguration} from './utils/group-configuration.js';
 import {validateGeoipConfiguration} from './utils/geoip.js';
+import {validateAddressGateConfiguration} from './services/address-gate.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 import {ClientRedisReconciler} from './services/client-redis-reconciler.js';
@@ -47,6 +49,7 @@ export async function buildProvider() {
     provider.use(apiRoutes(provider).routes());
     provider.use(adminRoutes(provider).routes());
     provider.use(forwardAuthRoutes(provider).routes());
+    provider.use(addressGateRoutes(provider).routes());
     provider.use(scimRoutes().routes());
     provider.use(serve('frontend/dist'));
     provider.use(serve('styles/dist'));
@@ -136,6 +139,7 @@ export async function main() {
         validateEmailConfiguration()
         validateGroupConfiguration() // warn on REQUIRED_GROUP/ADMIN_GROUP that can never match
         await validateGeoipConfiguration() // GEO_LOCK_ENABLED needs a readable GeoIP database
+        await validateAddressGateConfiguration() // ranges, ASNs and the databases the gate's rules need
         const provider = await buildProvider()
         server = provider.listen(PORT, () => {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);
