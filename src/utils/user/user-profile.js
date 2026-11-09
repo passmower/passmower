@@ -1,8 +1,12 @@
 import {getListedPrivilegeGroups} from "./privilege-directory.js";
 
-// Opt-in user profile pages (#318): /users/<username> shows a signed-in user
-// who a subject is, so applications can make the `sub` they display a link.
+// User profile pages (#318): /users/<username> shows who a subject is, so
+// applications can make the `sub` they display a link. Administrators can
+// always open them; USER_PROFILES_ENABLED opens them to every signed-in user.
 export const userProfilesEnabled = (env = process.env) => env.USER_PROFILES_ENABLED === 'true'
+
+export const canViewUserProfiles = (viewer, env = process.env) =>
+    Boolean(viewer?.isAdmin) || userProfilesEnabled(env)
 
 export const userProfilePath = (username) => `/users/${encodeURIComponent(username)}`
 

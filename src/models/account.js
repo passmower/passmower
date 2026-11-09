@@ -118,6 +118,8 @@ class Account {
                 ...this.profile,
                 emails: this.emails,
             };
+            // Only when every signed-in user can open the page: an
+            // admin-only link would be a dead end for everyone else.
             if (userProfilesEnabled()) {
                 response.profile = userProfileUrl(username)
             }

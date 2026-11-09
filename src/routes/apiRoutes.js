@@ -15,7 +15,7 @@ import validator, {
 import {getText} from "../utils/get-text.js";
 import {WebAuthnService} from "../services/webauthn/index.js";
 import {buildPrivilegeDirectory, getListedPrivilegeGroups} from "../utils/user/privilege-directory.js";
-import {buildUserProfile, userProfilesEnabled} from "../utils/user/user-profile.js";
+import {buildUserProfile, canViewUserProfiles} from "../utils/user/user-profile.js";
 import {SlackAdapter} from "../adapters/slack.js";
 
 export default (provider) => {
@@ -90,13 +90,13 @@ export default (provider) => {
             ...account.getProfileResponse(),
             disableEditing: process.env.DISABLE_FRONTEND_EDIT === 'true',
             privilegeDirectoryEnabled: getListedPrivilegeGroups().length > 0,
-            userProfilesEnabled: userProfilesEnabled(),
+            userProfilesEnabled: canViewUserProfiles(account),
         }
     })
 
     router.get('/api/users/:username', async (ctx) => {
         ctx.status = 404
-        if (!userProfilesEnabled()) return
+        if (!canViewUserProfiles(ctx.currentAccount)) return
         // An OIDCUser name is a DNS label; anything else cannot be a user and
         // must not reach the Kubernetes API as a resource name.
         if (!/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(ctx.params.username)) return

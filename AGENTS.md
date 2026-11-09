@@ -281,7 +281,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `GEOIP_DATABASE_PATH` | MaxMind-format country database; enables country flags next to session addresses. |
 | `GEO_LOCK_ENABLED`, `GEO_LOCK_ALLOWED_COUNTRIES` | Pin sessions to their sign-in country (docs/geo-lock.md); needs the GeoIP database. |
 | `ADDRESS_GATE_ENABLED`, `ADDRESS_GATE_ALLOWED_COUNTRIES`, `ADDRESS_GATE_ALLOWED_ASNS`, `ADDRESS_GATE_ALLOWED_RANGES`, `ADDRESS_GATE_SESSION_UNLOCK`, `GEOIP_ASN_DATABASE_PATH` | Address gate: a forwardAuth allowlist of client addresses for applications (docs/address-gate.md). |
-| `USER_PROFILES_ENABLED` | Profile pages at `/users/<username>` for signed-in users, and the OIDC `profile` claim pointing at them (docs/user-profiles.md). |
+| `USER_PROFILES_ENABLED` | Open the profile pages at `/users/<username>` to every signed-in user (admins always can), and issue the OIDC `profile` claim pointing at them (docs/user-profiles.md). |
 | `NAMESPACE_SELECTOR` | Which namespaces to watch for client CRDs. |
 | `INGRESS_DISCOVERY_ENABLED` | Derive `OIDCClient`s from `codemowers.io/oidc-*` Ingress annotations (off by default; needs Ingress read). |
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |

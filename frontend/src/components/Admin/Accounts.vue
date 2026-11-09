@@ -19,7 +19,7 @@
         </div>
         <div class="item" v-for="account in accounts" :key="account.accountId">
             <div class="item-details">
-                <h3>{{ account.accountId }}</h3>
+                <h3><a :href="`/users/${encodeURIComponent(account.accountId)}`">{{ account.accountId }}</a></h3>
                 <p>Type: {{ account.type || 'person (legacy)' }}</p>
                 <p>Name: {{ account.name }}</p>
                 <p v-if="account.email">Primary email: {{ account.email }}</p>

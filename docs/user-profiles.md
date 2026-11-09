@@ -4,7 +4,9 @@ Passmower can give every user a profile page at `/users/<username>`, so that
 an application showing an OIDC subject can make it a link to a person. The
 username is the `sub` claim.
 
-Profile pages are disabled by default:
+Administrators (members of `ADMIN_GROUP`) can always open profile pages; the
+admin panel's account list links to them. They are closed to everyone else by
+default. To open them to every signed-in user:
 
 ```yaml
 passmower:
@@ -16,7 +18,8 @@ Without the Helm chart, set `USER_PROFILES_ENABLED=true`.
 
 ## What a page shows
 
-Any signed-in user can open any user's page. It shows a refined projection:
+A page shows the same refined projection to administrators and, when enabled,
+to any signed-in user:
 
 - display name and username;
 - company;
@@ -34,13 +37,15 @@ Person and service accounts have a page; a service account is marked as one.
 Reserved names (`banned`, `org` and `group` accounts) and unknown usernames
 return `404`.
 
-Treat enabling it as a privacy decision: every signed-in user can look up the
+Treat enabling it for everyone as a privacy decision: every signed-in user can
+then look up the
 name, company and primary email of any other user whose username they know or
 can guess.
 
 ## Linking a subject from an application
 
-With profile pages enabled, the `profile` scope also carries the standard OIDC
+With profile pages enabled for every signed-in user, the `profile` scope also
+carries the standard OIDC
 [`profile` claim](https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims),
 the URL of the user's page:
 
@@ -53,7 +58,9 @@ the URL of the user's page:
 ```
 
 An application that only stores `sub` can build the same URL itself:
-`<issuer>/users/<sub>`.
+`<issuer>/users/<sub>`. That also works while the pages are open to
+administrators only, for example in an admin-facing tool; the claim is not
+issued then, since the link would lead most users nowhere.
 
 A signed-out visitor following such a link signs in first and is then taken to
 the page they asked for. The same now holds for shared `/privileges/<group>`

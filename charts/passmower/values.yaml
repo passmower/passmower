@@ -30,12 +30,13 @@ passmower:
   # default: no roles or user contact details are exposed until explicitly set.
   # Entries use the full "prefix:name" group identifier.
   privilegeDirectoryGroups: []
-  # Give every user a profile page at /users/<username>, visible to any
-  # signed-in user: display name, username, company, primary email, a Slack
-  # link, and membership of the privilegeDirectoryGroups above. Passmower then
-  # also issues the standard OIDC `profile` claim (the page's URL) with the
-  # profile scope, so applications can make a subject clickable. Treat it as a
-  # privacy decision: see docs/user-profiles.md.
+  # Every user has a profile page at /users/<username>: display name, username,
+  # company, primary email, a Slack link, and membership of the
+  # privilegeDirectoryGroups above. Administrators can always open them.
+  # Enabling this opens them to every signed-in user, and Passmower then also
+  # issues the standard OIDC `profile` claim (the page's URL) with the profile
+  # scope, so applications can make a subject clickable. Treat it as a privacy
+  # decision: see docs/user-profiles.md.
   userProfiles:
     enabled: false
   # GitHub organization whose team memberships are mapped into groups (named "<org>:<team>") on GitHub login.

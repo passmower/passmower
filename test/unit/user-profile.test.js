@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import Account from '../../src/models/account.js'
-import {buildUserProfile, userProfilePath, userProfilesEnabled, userProfileUrl} from '../../src/utils/user/user-profile.js'
+import {buildUserProfile, canViewUserProfiles, userProfilePath, userProfilesEnabled, userProfileUrl} from '../../src/utils/user/user-profile.js'
 
 const account = (name, type, extra = {}) => new Account().fromKubernetes({
     metadata: {name},
@@ -22,6 +22,13 @@ describe('user profile pages', () => {
     it('are off unless enabled', () => {
         expect(userProfilesEnabled({})).toBe(false)
         expect(userProfilesEnabled({USER_PROFILES_ENABLED: 'true'})).toBe(true)
+    })
+
+    it('are always open to administrators', () => {
+        expect(canViewUserProfiles({isAdmin: true}, {})).toBe(true)
+        expect(canViewUserProfiles({isAdmin: false}, {})).toBe(false)
+        expect(canViewUserProfiles(undefined, {})).toBe(false)
+        expect(canViewUserProfiles({isAdmin: false}, {USER_PROFILES_ENABLED: 'true'})).toBe(true)
     })
 
     it('builds the page URL from the issuer', () => {

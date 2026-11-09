@@ -10,10 +10,13 @@ import { sentEmails } from '../fakes/email-capture.js'
 // User profile pages (#318): /users/<username> for signed-in users, the API
 // behind it, and the shared link surviving the sign-in it triggers.
 const ISSUER_HOSTNAME = new URL(process.env.ISSUER_URL).hostname
+// Read once when the account model loads, so set before the app is imported.
+process.env.ADMIN_GROUP = 'local:passmower-admins'
+const ADMIN_GROUP = { prefix: 'local', name: 'passmower-admins' }
 
 const user = (name, type, email, groups = []) => ({
     metadata: { name, labels: {} },
-    spec: { type, email, name, groups: [] },
+    spec: { type, email, name, groups },
     passmower: { email },
     status: {
         primaryEmail: email, emails: [email], groups,
@@ -134,7 +137,19 @@ describe('user profile pages (HTTP)', () => {
         expect(res.body).toEqual({})
     })
 
-    it('serves no profiles while the feature is off', async () => {
+    it('stays open to administrators while the feature is off', async () => {
+        process.env.USER_PROFILES_ENABLED = 'false'
+        fakeKube.seed('OIDCUser', user('testuser', undefined, 'test@example.com', [ADMIN_GROUP]))
+        const j = new Map()
+        await openSignedOut(j, '/')
+
+        const res = await req(j, 'get', '/api/users/colleague')
+        expect(res.status).toBe(200)
+        expect(res.body.username).toBe('colleague')
+        expect((await req(j, 'get', '/api/me')).body.userProfilesEnabled).toBe(true)
+    })
+
+    it('serves no profiles to other users while the feature is off', async () => {
         const j = new Map()
         await openSignedOut(j, '/')
         process.env.USER_PROFILES_ENABLED = 'false'
