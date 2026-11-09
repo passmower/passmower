@@ -99,6 +99,8 @@ spec:
             {{- end }}
             - name: PRIVILEGE_DIRECTORY_GROUPS
               value: {{ .Values.passmower.privilegeDirectoryGroups | default list | toJson | quote }}
+            - name: USER_PROFILES_ENABLED
+              value: {{ .Values.passmower.userProfiles.enabled | quote }}
             {{- with .Values.passmower.githubOrganization }}
             - name: GITHUB_ORGANIZATION
               value: {{ . | quote }}

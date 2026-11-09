@@ -20,7 +20,8 @@
         <p v-if="!role.members.length">No current members.</p>
         <div class="item" v-for="member in role.members" :key="member.username">
           <div class="item-details">
-            <h3>{{ member.name || member.username }}</h3>
+            <h3 v-if="account.userProfilesEnabled"><a :href="`/users/${encodeURIComponent(member.username)}`">{{ member.name || member.username }}</a></h3>
+            <h3 v-else>{{ member.name || member.username }}</h3>
             <p v-if="member.name && member.name !== member.username">Username: {{ member.username }}</p>
             <p v-if="member.email"><a :href="`mailto:${member.email}`">{{ member.email }}</a></p>
             <p v-if="member.slackUrl"><a :href="member.slackUrl">Message on Slack</a></p>

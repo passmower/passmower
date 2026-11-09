@@ -40,6 +40,8 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Address Gate**: Optionally keep unknown networks away from applications altogether: one allowlist of countries, ISPs (ASNs), address ranges and the addresses of signed-in users, served as a Traefik middleware. See [docs/address-gate.md](docs/address-gate.md).
 
+- **User Profile Pages**: Optionally give every user a page at `/users/<username>` and issue it as the OIDC `profile` claim, so applications can link a subject to a person. See [docs/user-profiles.md](docs/user-profiles.md).
+
 ## Support
 
 For community questions, use [Cloud Native Slack](https://cloud-native.slack.com/archives/C0C8YHGCM9D).
