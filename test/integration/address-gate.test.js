@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import request from 'supertest'
 import { fileURLToPath } from 'node:url'
+import Redis from 'ioredis'
 
 vi.mock('../../src/adapters/kubernetes.js', () => import('../fakes/shared-kube.js'))
 vi.mock('../../src/adapters/email.js', () => import('../fakes/email-capture.js'))
@@ -22,6 +23,7 @@ const fixture = (name) => fileURLToPath(new URL(`../fixtures/geoip/${name}`, imp
 
 describe('address gate (HTTP)', () => {
     let callback
+    let redis
     const saved = {}
     const env = {
         ADDRESS_GATE_ENABLED: 'true',
@@ -38,6 +40,7 @@ describe('address gate (HTTP)', () => {
             process.env[k] = v
         }
         process.env.REDIS_URI ??= 'redis://127.0.0.1:6379'
+        redis = new Redis(process.env.REDIS_URI)
         process.env.EMAIL_ENABLED = 'true'
         globalThis.logger = { debug() {}, info() {}, warn() {}, error() {}, trace() {} }
         const { resetGeoipReader } = await import('../../src/utils/geoip.js')
@@ -47,6 +50,7 @@ describe('address gate (HTTP)', () => {
     })
 
     afterAll(async () => {
+        redis?.disconnect()
         for (const [k, v] of Object.entries(saved)) {
             if (v === undefined) delete process.env[k]
             else process.env[k] = v
@@ -74,7 +78,7 @@ describe('address gate (HTTP)', () => {
         // Each test starts from a locked address.
         const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
         const { addressKey } = await import('../../src/utils/ip-address.js')
-        await new RedisAdapter('GateAddress').destroy(addressKey(GB))
+        await redis.del(`oidc:GateAddress:${addressKey(GB)}`)
     })
 
     const cookieHeader = (j) => [...j.entries()].map(([k, v]) => `${k}=${v}`).join('; ')
@@ -173,7 +177,7 @@ describe('address gate (HTTP)', () => {
         await signInFromUnlock(b)
         const { default: RedisAdapter } = await import('../../src/adapters/redis.js')
         const { addressKey } = await import('../../src/utils/ip-address.js')
-        await new RedisAdapter('GateAddress').destroy(addressKey(GB))
+        await redis.del(`oidc:GateAddress:${addressKey(GB)}`)
 
         const denied = await gate(GB)
         const location = new URL(denied.headers.location)
@@ -194,6 +198,21 @@ describe('address gate (HTTP)', () => {
         const res = await req(b, 'get', location.pathname + location.search)
         expect(res.status).toBe(409)
         expect(res.text).toContain('different address')
+    })
+
+    // Two people behind one NAT address unlocking at the same moment must
+    // both be recorded, or one signing out would close it for the other.
+    it('keeps every session of concurrent unlocks from one address', async () => {
+        const { unlockAddress, sessionUnlocked } = await import('../../src/services/address-gate.js')
+        const exp = Math.floor(Date.now() / 1000) + 600
+        const uids = Array.from({ length: 25 }, (_, i) => `concurrent-${i}`)
+        await Promise.all(uids.map((uid) => unlockAddress(GB, { uid, exp }, 60)))
+
+        for (const uid of uids) {
+            const onlyThisOne = async (candidate) => candidate === uid ? { accountId: 'someone' } : undefined
+            expect(await sessionUnlocked(GB, onlyThisOne), uid).toBe(true)
+        }
+        expect(await redis.ttl(`oidc:GateAddress:${(await import('../../src/utils/ip-address.js')).addressKey(GB)}`)).toBeGreaterThan(590)
     })
 
     it('closes the address again when the session ends', async () => {

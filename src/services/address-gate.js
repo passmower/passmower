@@ -58,13 +58,8 @@ export const unlockAddress = async (ip, session, defaultTtl) => {
     const key = addressKey(ip)
     if (!key || !session?.uid) return {}
     const until = session.exp ?? now() + defaultTtl
-    const entry = await unlocks().find(key)
-    const sessions = Object.fromEntries(
-        Object.entries(entry?.sessions ?? {}).filter(([, exp]) => exp > now()))
-    const already = session.uid in sessions
-    sessions[session.uid] = until
-    const expiresIn = Math.max(...Object.values(sessions)) - now()
-    await unlocks().upsert(key, {sessions}, expiresIn)
+    // Atomic: two people behind one address can unlock it at the same moment.
+    const already = await unlocks().setExpiringField(key, session.uid, until)
     return {key, already}
 }
 
@@ -73,9 +68,9 @@ export const unlockAddress = async (ip, session, defaultTtl) => {
 // geo-lock denial) closes the address again straight away.
 export const sessionUnlocked = async (ip, findSessionByUid) => {
     const key = addressKey(ip)
-    const entry = key ? await unlocks().find(key) : undefined
-    for (const [uid, exp] of Object.entries(entry?.sessions ?? {})) {
-        if (exp <= now()) continue
+    const sessions = key ? await unlocks().getFields(key) : undefined
+    for (const [uid, exp] of Object.entries(sessions ?? {})) {
+        if (Number(exp) <= now()) continue
         const session = await findSessionByUid(uid)
         if (session?.accountId) return true
     }

@@ -1,19 +1,21 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {fileURLToPath} from 'node:url'
 
-const mocks = vi.hoisted(() => ({store: new Map(), upsert: vi.fn()}))
+const mocks = vi.hoisted(() => ({store: new Map()}))
 
 vi.mock('../../src/adapters/redis.js', () => ({
     default: class RedisAdapter {
         constructor(name) {
             this.name = name
         }
-        async find(id) {
-            return mocks.store.get(`${this.name}:${id}`)
+        async getFields(id) {
+            return mocks.store.get(`${this.name}:${id}`) ?? {}
         }
-        async upsert(id, payload, ttl) {
-            mocks.upsert(this.name, id, payload, ttl)
-            mocks.store.set(`${this.name}:${id}`, payload)
+        async setExpiringField(id, field, exp, now = Math.floor(Date.now() / 1000)) {
+            const fields = mocks.store.get(`${this.name}:${id}`) ?? {}
+            const existed = Number(fields[field]) > now
+            mocks.store.set(`${this.name}:${id}`, {...fields, [field]: String(exp)})
+            return existed
         }
     },
 }))
@@ -58,6 +60,11 @@ describe('address helpers', () => {
     it('refuses a malformed range', () => {
         expect(() => parseRanges('10.0.0.0/33')).toThrow(/10.0.0.0\/33/)
         expect(() => parseRanges('example.com')).toThrow(/example.com/)
+        // An empty prefix is not /0: it must never widen to every address.
+        for (const entry of ['192.0.2.5/', '192.0.2.0/24/8', '192.0.2.0/-1', '192.0.2.0/2.5', '192.0.2.0/ 8', '/24', '2001:db8::/', '2001:db8::/129', '192.0.2.0/0x8']) {
+            expect(() => parseRanges(entry), entry).toThrow(/Invalid address range/)
+        }
+        expect(inRanges(parseRanges('0.0.0.0/0'), '203.0.113.9')).toBe(true)
     })
 })
 
@@ -67,7 +74,6 @@ describe('address gate', () => {
     beforeEach(() => {
         resetGeoipReader()
         mocks.store.clear()
-        mocks.upsert.mockReset()
         noSessions.mockReset()
         vi.stubEnv('GEOIP_DATABASE_PATH', fixture('GeoIP2-Country-Test.mmdb'))
         vi.stubEnv('GEOIP_ASN_DATABASE_PATH', fixture('GeoLite2-ASN-Test.mmdb'))
@@ -114,12 +120,12 @@ describe('address gate', () => {
         await expect(sessionUnlocked(GB, noSessions)).resolves.toBe(false)
     })
 
-    it('keeps every session sharing an address until its own expiry', async () => {
+    it('keeps every session sharing an address', async () => {
         await unlockAddress(GB, {uid: 's1', exp: now() + 600}, 60)
         await unlockAddress(GB, {uid: 's2', exp: now() + 1200}, 60)
-        const [, , payload, ttl] = mocks.upsert.mock.calls.at(-1)
-        expect(Object.keys(payload.sessions)).toEqual(['s1', 's2'])
-        expect(ttl).toBeGreaterThan(1100)
+        // s1 signed out; s2 still holds the address open.
+        noSessions.mockImplementation(async (uid) => uid === 's2' ? {accountId: 'bob'} : undefined)
+        await expect(sessionUnlocked(GB, noSessions)).resolves.toBe(true)
     })
 
     it('reports a repeated unlock by the same session', async () => {

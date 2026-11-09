@@ -43,10 +43,12 @@ export const parseRanges = (value) => {
     const list = new BlockList()
     const entries = (value ?? '').split(/[\s,]+/).filter(Boolean)
     for (const entry of entries) {
-        const [address, prefix] = entry.split('/')
-        const family = isIP(address)
+        // One optional /prefix of plain digits. Number('') is 0, so a trailing
+        // slash must not reach the conversion: it would allow every address.
+        const [, address, prefix] = /^([^/]+)(?:\/(\d{1,3}))?$/.exec(entry) ?? []
+        const family = isIP(address ?? '')
         const bits = prefix === undefined ? (family === 4 ? 32 : 128) : Number(prefix)
-        if (!family || !Number.isInteger(bits) || bits < 0 || bits > (family === 4 ? 32 : 128)) {
+        if (!family || bits > (family === 4 ? 32 : 128)) {
             throw new Error(`Invalid address range "${entry}"`)
         }
         list.addSubnet(address, bits, family === 4 ? 'ipv4' : 'ipv6')
