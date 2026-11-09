@@ -49,8 +49,15 @@ The script deploys with the checked-in `charts/passmower/values.local.yaml`.
 `charts/passmower/values.dev.yaml`, which `skaffold dev` reads, is a Git-ignored
 personal override and does not exist in a fresh checkout. Both deploy the dev
 image, which builds into `/app` as root, so the override needs the same
-`podSecurityContext: {}` and `securityContext: {}` that `values.local.yaml`
-sets; the chart's defaults run Passmower unprivileged with a read-only root
-filesystem. The script uses its
+`podSecurityContext` and `securityContext` keys that `values.local.yaml` sets
+(`runAsUser: 0`, `runAsGroup: 0`, `runAsNonRoot: false`,
+`readOnlyRootFilesystem: false`); the chart's defaults run Passmower
+unprivileged with a read-only root filesystem. Set each key explicitly: Helm
+merges maps, so an empty `{}` keeps the defaults.
+
+Run `skaffold dev` with `--cleanup=false`. Its default clean-up uninstalls the
+release when it stops or when a deploy fails, and uninstalling removes the
+Passmower CRDs together with every `OIDCUser`, `OIDCClient` and
+`OIDCMiddlewareClient` in the cluster. The script uses its
 own `passmower-dev` profile, so it never modifies or deletes another minikube
 profile, including one that has lost its backing container.

@@ -197,8 +197,12 @@ chart with `charts/passmower/values.dev.yaml`.
 ```
 minikube start
 minikube addons enable ingress          # ingress-nginx
-skaffold dev                            # build + sync + deploy + tail logs (profile: dev)
+skaffold dev --cleanup=false            # build + sync + deploy + tail logs (profile: dev)
 ```
+
+Keep `--cleanup=false`: skaffold's default clean-up uninstalls the release when
+it stops or a deploy fails, and that removes the CRDs with every `OIDCUser`,
+`OIDCClient` and `OIDCMiddlewareClient` in the cluster.
 
 > **Real HTTPS ingress is required, not optional.** Passmower issues secure cookies,
 > the OIDC implicit flow needs `https`, and `web`-type clients require `https` redirect
