@@ -63,6 +63,40 @@ spec:
   uri: https://dev.foo.com
 ```
 
+### Icon and links
+
+A client can also carry an icon and a few links, shown with it on the Passmower
+apps page and returned in both listings as `icon` and `links`:
+
+```yaml
+apiVersion: codemowers.cloud/v1
+kind: OIDCClient   # works for OIDCMiddlewareClient too
+metadata:
+  name: grafana
+spec:
+  displayName: Grafana
+  uri: https://grafana.example.com
+  icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0i...
+  links:
+    - name: Runbook
+      url: https://wiki.example.com/grafana
+    - name: Issues
+      url: https://git.example.com/platform/grafana/issues
+    - name: Status
+      url: https://status.example.com/grafana
+```
+
+- `icon` is a `data:` image URI (PNG, JPEG, WebP, GIF or SVG) of at most
+  16 KiB. A remote URL is not accepted: the dashboard's content security policy
+  loads no third-party images, and an icon is sent with every listing. It is
+  used only as an image source, where an SVG cannot run script.
+- `links` holds up to eight `{name, url}` entries with `http(s)` URLs: the
+  places to send someone for documentation, support, monitoring or issues.
+
+Anything else is rejected by the CRD schema and, for resources stored before the
+schema applied, dropped when the listing is built. `icon` is absent and `links`
+is `[]` for a client that sets neither.
+
 ## `all_applications` — the full catalog (admins)
 
 For cluster-overview tooling that needs the complete inventory rather than the

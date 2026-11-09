@@ -975,6 +975,33 @@ spec:
                 displayOrder:
                   type: integer
                   default: 0
+                icon:
+                  type: string
+                  maxLength: 16384
+                  pattern: '^data:image/(png|jpeg|webp|gif|svg\+xml)[;,]'
+                  description: >-
+                    Icon shown beside the application in launchers, as a
+                    data: image URI. Remote URLs are not accepted: the
+                    dashboard loads no third-party images.
+                links:
+                  type: array
+                  maxItems: 8
+                  description: >-
+                    Links shown with the application in launchers, e.g.
+                    documentation, issue tracker or status page.
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - url
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      url:
+                        type: string
+                        pattern: '^https?://'
             status:
               type: object
               properties:
@@ -1108,6 +1135,33 @@ spec:
                 displayOrder:
                   type: integer
                   default: 0
+                icon:
+                  type: string
+                  maxLength: 16384
+                  pattern: '^data:image/(png|jpeg|webp|gif|svg\+xml)[;,]'
+                  description: >-
+                    Icon shown beside the application in launchers, as a
+                    data: image URI. Remote URLs are not accepted: the
+                    dashboard loads no third-party images.
+                links:
+                  type: array
+                  maxItems: 8
+                  description: >-
+                    Links shown with the application in launchers, e.g.
+                    documentation, issue tracker or status page.
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - url
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      url:
+                        type: string
+                        pattern: '^https?://'
             status:
               type: object
               properties:

@@ -58,6 +58,8 @@ class OIDCClient {
     #secretMetadata = null
     #secretRefreshJobSpec = null
     #displayOrder = 0
+    #icon = null
+    #links = null
     #disabled = false
     #activityState = null
 
@@ -88,6 +90,8 @@ class OIDCClient {
             overrideIncomingScopes: this.#overrideIncomingScopes,
             allowedCORSOrigins: this.#allowedCORSOrigins,
             displayOrder: this.#displayOrder,
+            icon: this.#icon ?? undefined,
+            links: this.#links ?? undefined,
             description: this.#activityState.description,
             kind: OIDCClientCrd,
         }
@@ -126,6 +130,8 @@ class OIDCClient {
         this.#secretRefreshJobSpec = incomingClient.spec?.secretRefreshJobSpec ?? null // TODO: validate
         this.#allowedCORSOrigins = incomingClient.spec?.allowedCORSOrigins
         this.#displayOrder = incomingClient.spec?.displayOrder ?? 0
+        this.#icon = incomingClient.spec?.icon ?? null
+        this.#links = incomingClient.spec?.links ?? null
         this.#disabled = incomingClient.spec?.disabled === true
         this.#activityState = new ClientActivityState(incomingClient)
         return this
