@@ -232,6 +232,10 @@ passmower:
     # Notify the user when an administrator activates an impersonation
     # session for their account.
     onImpersonation: true
+    # Tell every administrator, by email and Slack DM, when a user is waiting
+    # for approval or requests access to an application (groupRequests), with
+    # a link to the admin panel. At most one notice per request per day.
+    adminsOnRequests: false
 
   # Let a signed-in user who fails a client's group access policy request
   # membership from the denial page. Requests appear in the admin panel next

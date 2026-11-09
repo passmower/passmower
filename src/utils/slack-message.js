@@ -59,3 +59,14 @@ export const loginLinkMessage = ({url, instance, email, client, browser, ip, tex
         ],
     }
 }
+
+// Tells an administrator that someone is waiting on them. The button is a link
+// to the admin panel, where the decision is made by a signed-in administrator;
+// Slack is never asked to carry the approval itself.
+export const adminRequestMessage = ({summary, detail, url, text}) => ({
+    text,
+    blocks: [
+        section(`*${escapeMrkdwn(summary)}*${detail ? `\n${escapeMrkdwn(detail)}` : ''}`),
+        linkButton('Open admin panel', url),
+    ],
+})

@@ -2,6 +2,7 @@
 import { strict as assert } from 'node:assert';
 import {addressGateCookie, addressGateCookieOptions, unlockUrl} from "./addressGateRoutes.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
+import {notifyAdminsOfRequest} from "../services/notification-service.js";
 import * as querystring from 'node:querystring';
 import { inspect } from 'node:util';
 
@@ -276,6 +277,12 @@ export default (provider) => {
                     });
                 }
                 auditLog(ctx, {interactionDetails}, 'User is not authorized')
+                void notifyAdminsOfRequest({
+                    key: `approval:${ctx.currentAccount?.accountId}`,
+                    summary: `${ctx.currentAccount?.accountId} is waiting for approval`,
+                    detail: [ctx.currentAccount?.profile?.name, ctx.currentAccount?.primaryEmail].filter(Boolean).join(', '),
+                    listUsers: () => ctx.kubeOIDCUserService.listUsers(),
+                })
                 return render(provider, ctx, 'approval_required', 'Approval required', {
                     text: getText(ApprovalTextName)
                 }, true)
@@ -362,6 +369,12 @@ export default (provider) => {
         })
         auditLog(ctx, {clientId: interactionDetails.params.client_id},
             'User requested group membership for client access')
+        void notifyAdminsOfRequest({
+            key: `access:${ctx.currentAccount.accountId}:${interactionDetails.params.client_id}`,
+            summary: `${ctx.currentAccount.accountId} requested access to ${client.displayName ?? client.clientName ?? interactionDetails.params.client_id}`,
+            detail: client.allowedGroups?.length ? `Allowed groups: ${client.allowedGroups.join(', ')}` : undefined,
+            listUsers: () => ctx.kubeOIDCUserService.listUsers(),
+        })
         return render(provider, ctx, 'request-access', 'Access requested', {requested: true}, true)
     });
 

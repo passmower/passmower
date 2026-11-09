@@ -31,6 +31,14 @@ passmower:
   administrator. Complements the incognito one-time impersonation links — the
   user is told who is acting as them and when.
 
+- `adminsOnRequests` (env `NOTIFY_ADMINS_ON_REQUESTS`, default off): tells
+  every administrator (member of `ADMIN_GROUP`) when a user is waiting for
+  approval, or requests access to an application through
+  `passmower.groupRequests`. The message links to the admin panel, where the
+  request is approved or dismissed by a signed-in administrator. Each waiting
+  request is announced at most once a day, however often the user reloads the
+  page.
+
 The audit log independently records the same events regardless of these
 settings; notifications are user-facing transparency, not the audit trail.
 
@@ -46,6 +54,10 @@ Every Slack message still carries plain `text` alongside its blocks — Slack us
 that for the notification and the channel preview, and falls back to it in
 clients that cannot render blocks. The magic link is present in both, so the DM
 is usable either way.
+
+Administrator notices use the same layout: what is being asked, and an **Open
+admin panel** button. Approval is not done from Slack itself, for the reason
+below.
 
 The button is a **link button**: it carries a URL and no `action_id`, so Slack
 opens the browser and never calls back. That is deliberate — a button Slack has

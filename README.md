@@ -200,6 +200,27 @@ passmower:
       clientSecretRef: entraid-client
 ```
 
+**Sign in with Slack** is standard OpenID Connect, so it is one more entry
+rather than a separate integration:
+
+```yaml
+passmower:
+  oidcProviders:
+    slack:
+      order: 40
+      displayName: Slack
+      issuer: https://slack.com
+      emailVerification: oidc-claim      # Slack sends email_verified
+      clientSecretRef: slack-oidc-client # SLACK_CLIENT_ID / SLACK_CLIENT_SECRET
+```
+
+Create a Slack app with the `openid`, `email` and `profile` user scopes and
+`<issuer>/interaction/callback/slack` as its redirect URL. Leave the app
+undistributed, so only members of your own workspace can sign in. This is
+separate from the Slack bot token (`slackClientSecretRef`) used for login links
+and notifications, and it has not been exercised against Slack in this
+project's tests.
+
 Each entry's map key is its provider key. Entries support: `order`,
 `displayName`, `issuer` (required),
 `scopes` (defaults to `[openid, email, profile]`), `groupsClaim`, `groupPrefix`,
