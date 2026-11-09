@@ -25,3 +25,4 @@ playwright-report/
 *.kpt-pipeline
 .junie
 .claude
+geoip/

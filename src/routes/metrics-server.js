@@ -1,4 +1,4 @@
-import {collectDefaultMetrics, Gauge, register} from "prom-client";
+import {collectDefaultMetrics, Counter, Gauge, register} from "prom-client";
 import Koa from 'koa';
 import Router from "@koa/router";
 import { setupOidcMetrics } from "../utils/session/handle-oidc-flow-metrics.js";
@@ -69,6 +69,11 @@ export default async ({isServing = () => true} = {}) => {
     globalThis.metrics.oidcUserEmailConflicts = new Gauge({
         name: 'passmower_oidc_user_email_conflicts',
         help: 'Number of OIDCUser resources rejected because an older user owns one or more claimed emails',
+    })
+    globalThis.metrics.geoLockDenied = new Counter({
+        name: 'passmower_geo_lock_denied_count',
+        help: 'Number of session requests refused because they came from outside the session country',
+        labelNames: ['source', 'reason'],
     })
     setupOidcMetrics()
     setupUsageMetrics()

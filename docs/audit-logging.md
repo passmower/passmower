@@ -19,6 +19,11 @@ stdout with `logType: audit` and a versioned `audit` object.
 }
 ```
 
+With geo-lock enabled, a request refused for coming from outside the session
+country is recorded as `event: session.geo.denied` with `result: failure`, the
+`reason`, the `source` and a `geo` object holding `pinnedCountry` and `country`
+(see [geo-lock.md](geo-lock.md)).
+
 The built-in logger is a useful minimum and deliberately does not turn Redis or
 the Kubernetes API into an audit database. Production installations should
 route records marked `logType: audit` through the cluster log collector into a

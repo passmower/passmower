@@ -5,10 +5,10 @@
         </div>
         <div class="item" v-for="incident in incidents" :key="incident.id">
             <div class="item-details">
-                <h3>{{ incident.accountId || 'anonymous' }} → {{ incident.clientId }}</h3>
+                <h3>{{ incident.accountId || 'anonymous' }} → {{ incident.clientId || 'Passmower' }}</h3>
                 <p>
                     {{ describeFailure(incident.failure) }}
-                    via {{ incident.source === 'forward-auth' ? 'forward auth' : 'OIDC login' }}
+                    via {{ describeSource(incident.source) }}
                 </p>
                 <p>
                     Last seen <time :datetime="incident.lastSeenAt">{{ formatDate(incident.lastSeenAt) }}</time>
@@ -58,7 +58,20 @@ export default {
                 account_missing: 'Account no longer exists',
                 account_type_not_login_capable: 'Account type cannot sign in',
             }
+            // Geo-lock failures carry the request country: geo_lock_country:SE.
+            const [code, country] = (failure ?? '').split(':')
+            if (code === 'geo_lock_country') return `Request from ${country}, outside the session country`
+            if (code === 'geo_lock_unpinned') return `Session without a country pin, request from ${country}`
             return descriptions[failure] ?? failure
+        },
+        describeSource(source) {
+            const sources = {
+                'forward-auth': 'forward auth',
+                'geo-lock:oidc-session': 'geo-lock (Passmower session)',
+                'geo-lock:site-session': 'geo-lock (forward auth)',
+                'geo-lock:refresh': 'geo-lock (token refresh)',
+            }
+            return sources[source] ?? 'OIDC login'
         },
     },
 }

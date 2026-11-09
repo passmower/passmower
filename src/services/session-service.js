@@ -4,9 +4,14 @@ import Account from "../models/account.js";
 import {confirm as providerEndSession} from "oidc-provider/lib/actions/end_session.js";
 import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import {parseRequestMetadata} from "../utils/session/parse-request-headers.js";
+import {geoOf} from "../utils/geoip.js";
 import {canImpersonateAccount, getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
 import {impersonationNotificationsEnabled, notifyAccount} from './notification-service.js';
+
+// The country shown next to a session's address, from its first
+// x-forwarded-for hop. Undefined without a GeoIP database.
+const firstHopGeo = (ip) => geoOf(ip?.split(',')[0]?.trim())
 
 export class SessionService {
     constructor(provider) {
@@ -47,7 +52,8 @@ export class SessionService {
                     if (metadatas && metadatas[0]) {
                         const metadata = await this.metadataRedis.find(metadatas[0])
                         if (metadata) {
-                            return parseRequestMetadata(metadata, s, currentSession)
+                            const parsed = parseRequestMetadata(metadata, s, currentSession)
+                            return {...parsed, geo: await firstHopGeo(parsed.ip)}
                         }
                     }
                 }
@@ -70,7 +76,9 @@ export class SessionService {
         }))
         accountSessions = accountSessions.flat().filter(a => a)
         accountSessions = accountSessions.sort((a, b) => b.ts - a.ts)
-        return accountSessions[0] ? parseRequestMetadata(accountSessions[0], accountSessions[0].sessionId, undefined)  : undefined
+        if (!accountSessions[0]) return undefined
+        const parsed = parseRequestMetadata(accountSessions[0], accountSessions[0].sessionId, undefined)
+        return {...parsed, geo: await firstHopGeo(parsed.ip)}
     }
 
     async endOIDCSession(sessionToDelete, ctx, next) {

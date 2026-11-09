@@ -278,6 +278,8 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `GROUP_PREFIX`, `ADMIN_GROUP`, `REQUIRED_GROUP` | Group/authorization policy. |
 | `ENROLL_USERS`, `USERNAME_SOURCE`, `REQUIRE_CUSTOM_USERNAME`, `USE_GITHUB_USERNAME` | Enrollment / username policy (see `docs/username-configuration.md`). |
 | `PREFERRED_EMAIL_DOMAIN`, `NORMALIZE_EMAIL_ADDRESSES` | Email handling. |
+| `GEOIP_DATABASE_PATH` | MaxMind-format country database; enables country flags next to session addresses. |
+| `GEO_LOCK_ENABLED`, `GEO_LOCK_ALLOWED_COUNTRIES` | Pin sessions to their sign-in country (docs/geo-lock.md); needs the GeoIP database. |
 | `NAMESPACE_SELECTOR` | Which namespaces to watch for client CRDs. |
 | `INGRESS_DISCOVERY_ENABLED` | Derive `OIDCClient`s from `codemowers.io/oidc-*` Ingress annotations (off by default; needs Ingress read). |
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |
@@ -285,5 +287,5 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
 See also: `README.md` (install + upstream config), `docs/api-scopes.md`,
-`docs/application-listing.md`, `docs/claim-mappings.md`,
+`docs/application-listing.md`, `docs/claim-mappings.md`, `docs/geo-lock.md`,
 `docs/ingress-discovery.md`, `docs/username-configuration.md`.

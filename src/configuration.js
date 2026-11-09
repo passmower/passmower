@@ -7,6 +7,8 @@ import {fetchExtraClaims} from "./utils/fetch-extra-claims.js";
 import {mappedClaimsFor} from "./utils/claim-mappings.js";
 import {getAccountAccessFailure} from './utils/user/check-account-access.js';
 import {auditLog} from './utils/session/audit-log.js';
+import {enforceGeoLock, findSessionPin} from './utils/session/geo-lock.js';
+import {geoLockEnabled} from './utils/geoip.js';
 import {isResourceAllowed, isResourceIndicator} from './utils/resource-allowlist.js';
 
 export default {
@@ -22,6 +24,21 @@ export default {
                 // undefined or a well-formed account — null is a TypeError, and
                 // a 500 where the client should get invalid_grant.
                 return undefined
+            }
+            // Only a public client refreshes from the user's own device; a
+            // confidential client refreshes from its backend, whose address says
+            // nothing about the user. Those are covered by the session itself:
+            // a geo-lock denial ends it, and its refresh tokens with it.
+            if (geoLockEnabled() && ctx.oidc?.client?.tokenEndpointAuthMethod === 'none') {
+                const pin = await findSessionPin(token.sessionUid)
+                if (await enforceGeoLock(ctx, {
+                    source: 'refresh',
+                    pinnedCountry: pin?.country,
+                    accountId: id,
+                    clientId: ctx.oidc.client.clientId,
+                })) {
+                    return undefined
+                }
             }
         }
         return account

@@ -43,6 +43,8 @@ import {
     validateSiteSession,
 } from '../../src/utils/session/site-session.js'
 import {providerBaseDomain} from '../../src/utils/session/base-domain.js'
+import {resetGeoipReader} from '../../src/utils/geoip.js'
+import {fileURLToPath} from 'node:url'
 
 describe('site session cookie scope', () => {
     it('uses a host-only cookie for the Passmower dashboard', () => {
@@ -148,5 +150,72 @@ describe('site session IP binding', () => {
         await expect(validateSiteSession(ctx('2.2.2.2'), clientId))
             .resolves.toMatchObject({jti: 'jti-1'})
         expect(mocks.destroy).not.toHaveBeenCalled()
+    })
+})
+
+describe('site session geo-lock', () => {
+    const clientId = 'apps.webmail'
+    const GB = '81.2.69.142'
+    const SE = '89.160.20.112'
+    const record = (country) => ({
+        jti: 'jti-1', sessionId: 'sess-1', accountId: 'acc',
+        domain: providerBaseDomain,
+        ...(country ? {country} : {}),
+    })
+    const ctx = (ip) => ({cookies: {get: () => 'jti-1'}, headers: {'x-forwarded-for': ip}})
+
+    beforeEach(() => {
+        resetGeoipReader()
+        globalThis.logger = {info: vi.fn(), error: vi.fn(), warn: vi.fn()}
+        mocks.find.mockReset()
+        mocks.destroy.mockReset()
+        mocks.upsert.mockReset()
+        vi.stubEnv('GEOIP_DATABASE_PATH', fileURLToPath(new URL('../fixtures/geoip/GeoIP2-Country-Test.mmdb', import.meta.url)))
+        vi.stubEnv('GEO_LOCK_ENABLED', 'true')
+        vi.stubEnv('INCIDENTS_ENABLED', 'false')
+    })
+
+    afterEach(() => {
+        vi.unstubAllEnvs()
+        resetGeoipReader()
+    })
+
+    const stubStores = (siteSession) => {
+        mocks.find.mockImplementation(async (name, id) => {
+            if (name === 'SiteSession' && id === 'jti-1') return siteSession
+            if (name === 'Session' && id === 'sess-1') return {authorizations: {[clientId]: {grantId: 'g'}}}
+            return undefined
+        })
+    }
+
+    it('stamps the issuing country on new site sessions', async () => {
+        await addSiteSession({cookies: {set: vi.fn()}, headers: {'x-forwarded-for': `${GB}, 10.0.0.1`}},
+            {}, 'session-id', 'account-id', {clientId})
+        expect(mocks.upsert).toHaveBeenCalledWith('new-site-session-jti',
+            expect.objectContaining({country: 'GB'}), 3600)
+    })
+
+    it('accepts a session presented from its issuing country', async () => {
+        stubStores(record('GB'))
+        await expect(validateSiteSession(ctx(GB), clientId)).resolves.toMatchObject({jti: 'jti-1'})
+        expect(mocks.destroy).not.toHaveBeenCalled()
+    })
+
+    it('destroys a session presented from another country', async () => {
+        stubStores(record('GB'))
+        await expect(validateSiteSession(ctx(SE), clientId)).resolves.toBeUndefined()
+        expect(mocks.destroy).toHaveBeenCalledWith('SiteSession', 'jti-1')
+    })
+
+    it('destroys a session issued before geo-lock was enabled', async () => {
+        stubStores(record(undefined))
+        await expect(validateSiteSession(ctx(GB), clientId)).resolves.toBeUndefined()
+        expect(mocks.destroy).toHaveBeenCalledWith('SiteSession', 'jti-1')
+    })
+
+    it('ignores the country while geo-lock is off', async () => {
+        vi.stubEnv('GEO_LOCK_ENABLED', 'false')
+        stubStores(record('GB'))
+        await expect(validateSiteSession(ctx(SE), clientId)).resolves.toMatchObject({jti: 'jti-1'})
     })
 })

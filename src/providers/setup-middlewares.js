@@ -13,6 +13,8 @@ import requestErrorHandler from "../utils/request-error-handler.js";
 import rejectEncodedBody from "../utils/reject-encoded-body.js";
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
+import {enforceGeoLock, findSessionPin, pinSession} from '../utils/session/geo-lock.js';
+import {geoLockEnabled} from '../utils/geoip.js';
 
 export default async (provider) => {
     const sessionMetadataRedis = new RedisAdapter('SessionMetadata')
@@ -47,6 +49,20 @@ export default async (provider) => {
         await pHelmet(ctx.req, ctx.res);
         ctx.req.secure = origSecure;
         return next();
+    });
+
+    provider.use(async (ctx, next) => {
+        await next();
+        // ctx.oidc.result, not entities.Interaction: a resume that leads on to
+        // another prompt replaces the Interaction entity with the new one.
+        const result = ctx.oidc?.route === 'resume' ? ctx.oidc?.result : undefined
+        if (result?.login || result?.consent) {
+            const session = ctx.oidc.entities.Session
+            await pinSession(ctx, session, {
+                fresh: Boolean(result.login),
+                defaultTtl: instance(provider).configuration.ttl.Session,
+            })
+        }
     });
 
     provider.use(async (ctx, next) => {
@@ -103,6 +119,21 @@ export default async (provider) => {
                     accountType: ctx.currentAccount?.type,
                     failure,
                 }, 'Session terminated because account type is not allowed to log in')
+                await ctx.sessionService.endOIDCSession(ctx.currentSession.jti, {
+                    redirect: () => {}
+                }, () => {})
+                ctx.currentSession = undefined
+                ctx.currentAccount = undefined
+            }
+        }
+        if (ctx.currentSession?.accountId && geoLockEnabled()) {
+            const pin = await findSessionPin(ctx.currentSession.uid)
+            const failure = await enforceGeoLock(ctx, {
+                source: 'oidc-session',
+                pinnedCountry: pin?.country,
+                accountId: ctx.currentSession.accountId,
+            })
+            if (failure) {
                 await ctx.sessionService.endOIDCSession(ctx.currentSession.jti, {
                     redirect: () => {}
                 }, () => {})
