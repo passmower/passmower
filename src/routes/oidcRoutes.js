@@ -1,5 +1,6 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { strict as assert } from 'node:assert';
+import {addressGateCookie, addressGateCookieOptions, unlockUrl} from "./addressGateRoutes.js";
 import * as querystring from 'node:querystring';
 import { inspect } from 'node:util';
 
@@ -126,6 +127,12 @@ export default (provider) => {
 
     router.get(['/', '/profile', '/privileges', '/privileges/:group', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
+            // Back from a sign-in the address gate asked for: finish the unlock.
+            const gateState = ctx.path === '/' && ctx.cookies.get(addressGateCookie, {signed: true})
+            if (gateState) {
+                ctx.cookies.set(addressGateCookie, null, addressGateCookieOptions(provider))
+                return ctx.redirect(unlockUrl(gateState))
+            }
             if (ctx.path === '/terms-of-service') {
                 const text = getTermsOfService()
                 if (text === null) ctx.throw(404, 'Terms of Service are not configured')

@@ -138,6 +138,28 @@ spec:
             - name: GEOIP_DATABASE_PATH
               value: {{ printf "/var/lib/passmower/geoip/%s" .Values.passmower.geoip.file | quote }}
             {{- end }}
+            {{- if .Values.passmower.geoip.asn.enabled }}
+            - name: GEOIP_ASN_DATABASE_PATH
+              value: {{ printf "/var/lib/passmower/geoip-asn/%s" .Values.passmower.geoip.asn.file | quote }}
+            {{- end }}
+            {{- with .Values.passmower.addressGate }}
+            {{- if and .enabled .allowedCountries (not $.Values.passmower.geoip.enabled) }}
+            {{- fail "passmower.addressGate.allowedCountries requires passmower.geoip.enabled" }}
+            {{- end }}
+            {{- if and .enabled .allowedAsns (not $.Values.passmower.geoip.asn.enabled) }}
+            {{- fail "passmower.addressGate.allowedAsns requires passmower.geoip.asn.enabled" }}
+            {{- end }}
+            - name: ADDRESS_GATE_ENABLED
+              value: {{ .enabled | quote }}
+            - name: ADDRESS_GATE_ALLOWED_COUNTRIES
+              value: {{ join "," .allowedCountries | quote }}
+            - name: ADDRESS_GATE_ALLOWED_ASNS
+              value: {{ join "," .allowedAsns | quote }}
+            - name: ADDRESS_GATE_ALLOWED_RANGES
+              value: {{ join "," .allowedRanges | quote }}
+            - name: ADDRESS_GATE_SESSION_UNLOCK
+              value: {{ .sessionUnlock | quote }}
+            {{- end }}
             - name: GEO_LOCK_ENABLED
               value: {{ .Values.passmower.geoLock.enabled | quote }}
             - name: GEO_LOCK_ALLOWED_COUNTRIES
@@ -325,6 +347,11 @@ spec:
               name: geoip
               readOnly: true
             {{- end }}
+            {{- if .Values.passmower.geoip.asn.enabled }}
+            - mountPath: /var/lib/passmower/geoip-asn
+              name: geoip-asn
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.priorityClassName }}
@@ -380,15 +407,15 @@ spec:
           secret:
             secretName: {{ .Values.redis.external.tls.caSecretKeyRef.name }}
         {{- end }}
-        {{- with .Values.passmower.geoip }}
-        {{- if .enabled }}
-        - name: geoip
-          {{- if .volume }}
-          {{- toYaml .volume | nindent 10 }}
+        {{- range $name, $db := dict "geoip" .Values.passmower.geoip "geoip-asn" .Values.passmower.geoip.asn }}
+        {{- if $db.enabled }}
+        - name: {{ $name }}
+          {{- if $db.volume }}
+          {{- toYaml $db.volume | nindent 10 }}
           {{- else }}
           image:
-            reference: {{ .image.reference | quote }}
-            pullPolicy: {{ .image.pullPolicy }}
+            reference: {{ $db.image.reference | quote }}
+            pullPolicy: {{ $db.image.pullPolicy }}
           {{- end }}
         {{- end }}
         {{- end }}

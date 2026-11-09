@@ -7,6 +7,9 @@ cookie can't, because signing in needs the upstream login, magic link or passkey
 
 It is off by default and needs a GeoIP country database.
 
+To keep unknown networks away from applications altogether, see the
+[address gate](address-gate.md).
+
 ## How it works
 
 1. **Pin.** Each fresh authentication records the country of the client
@@ -90,7 +93,9 @@ DB-IP Lite Country or MaxMind GeoLite2/GeoIP2 Country.
 
 The chart's default is `ghcr.io/passmower/geoip-country`, a data-only image of
 **DB-IP Lite Country**. It is republished monthly by
-`.github/workflows/geoip-image.yml` and tagged both `YYYY-MM` and `latest`. It
+`.github/workflows/geoip-image.yml` and tagged both `YYYY-MM` and `latest`
+(the ASN database for the address gate is published the same way, as
+`ghcr.io/passmower/geoip-asn`). It
 is mounted as a Kubernetes image volume, which needs the ImageVolume feature
 (beta since Kubernetes 1.33). With `pullPolicy: Always`, every pod start takes
 the latest month. Pin a `YYYY-MM` tag instead for reproducible rollouts.

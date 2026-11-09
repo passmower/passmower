@@ -75,6 +75,15 @@ export default async ({isServing = () => true} = {}) => {
         help: 'Number of session requests refused because they came from outside the session country',
         labelNames: ['source', 'reason'],
     })
+    globalThis.metrics.addressGateRequests = new Counter({
+        name: 'passmower_address_gate_request_count',
+        help: 'Requests checked by the address gate, by result and the rule that decided them',
+        labelNames: ['result', 'rule'],
+    })
+    globalThis.metrics.addressGateUnlocks = new Counter({
+        name: 'passmower_address_gate_unlock_count',
+        help: 'Addresses unlocked through the address gate by a signed-in session',
+    })
     setupOidcMetrics()
     setupUsageMetrics()
 

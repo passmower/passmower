@@ -280,12 +280,13 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `PREFERRED_EMAIL_DOMAIN`, `NORMALIZE_EMAIL_ADDRESSES` | Email handling. |
 | `GEOIP_DATABASE_PATH` | MaxMind-format country database; enables country flags next to session addresses. |
 | `GEO_LOCK_ENABLED`, `GEO_LOCK_ALLOWED_COUNTRIES` | Pin sessions to their sign-in country (docs/geo-lock.md); needs the GeoIP database. |
+| `ADDRESS_GATE_ENABLED`, `ADDRESS_GATE_ALLOWED_COUNTRIES`, `ADDRESS_GATE_ALLOWED_ASNS`, `ADDRESS_GATE_ALLOWED_RANGES`, `ADDRESS_GATE_SESSION_UNLOCK`, `GEOIP_ASN_DATABASE_PATH` | Address gate: a forwardAuth allowlist of client addresses for applications (docs/address-gate.md). |
 | `NAMESPACE_SELECTOR` | Which namespaces to watch for client CRDs. |
 | `INGRESS_DISCOVERY_ENABLED` | Derive `OIDCClient`s from `codemowers.io/oidc-*` Ingress annotations (off by default; needs Ingress read). |
 | `DISABLE_FRONTEND_EDIT` | Enforce GitOps (no profile/admin edits). |
 | `MANAGED_RESOURCE_LABELS` | JSON object of labels stamped on resources Passmower creates at runtime (custom resources, client Secrets, Jobs and their pods), beneath Passmower's own labels. The chart fills it from `commonLabels` when `commonLabelsOnManagedResources` is on. |
 | `KUBERNETES_SERVICE_HOST`, `POD_NAMESPACE` | Set in-cluster; switch kubeconfig/namespace behaviour. |
 
-See also: `README.md` (install + upstream config), `docs/api-scopes.md`,
-`docs/application-listing.md`, `docs/claim-mappings.md`, `docs/geo-lock.md`,
+See also: `README.md` (install + upstream config), `docs/address-gate.md`,
+`docs/api-scopes.md`, `docs/application-listing.md`, `docs/claim-mappings.md`, `docs/geo-lock.md`,
 `docs/ingress-discovery.md`, `docs/username-configuration.md`.

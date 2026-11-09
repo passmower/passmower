@@ -1,4 +1,5 @@
-# Data-only image for a Kubernetes image volume: the GeoIP country database and
-# the attribution its licence requires, nothing else.
+# Data-only image for a Kubernetes image volume: one GeoIP database and the
+# attribution its licence requires, nothing else.
 FROM scratch
-COPY dbip-country-lite.mmdb ATTRIBUTION /
+ARG DATABASE
+COPY ${DATABASE} ATTRIBUTION /

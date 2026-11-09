@@ -38,6 +38,8 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Geo-locked Sessions**: Optionally pin each session to the country it signed in from, so a stolen session cookie stops working abroad. See [docs/geo-lock.md](docs/geo-lock.md). Country data: IP Geolocation by [DB-IP](https://db-ip.com) (CC BY 4.0).
 
+- **Address Gate**: Optionally keep unknown networks away from applications altogether: one allowlist of countries, ISPs (ASNs), address ranges and the addresses of signed-in users, served as a Traefik middleware. See [docs/address-gate.md](docs/address-gate.md).
+
 ## Support
 
 For community questions, use [Cloud Native Slack](https://cloud-native.slack.com/archives/C0C8YHGCM9D).

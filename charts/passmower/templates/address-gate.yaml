@@ -1,0 +1,83 @@
+{{- with .Values.passmower.addressGate }}
+{{- if .enabled }}
+{{- $fullName := include "passmower.fullname" $ }}
+{{- $middleware := printf "%s-address-gate" $fullName }}
+{{- $reference := printf "%s-%s@kubernetescrd" $.Release.Namespace $middleware }}
+{{- $annotation := "traefik.ingress.kubernetes.io/router.middlewares" }}
+{{- if .middleware.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $middleware }}
+  labels:
+    {{- include "passmower.labels" $ | nindent 4 }}
+spec:
+  forwardAuth:
+    address: http://{{ $fullName }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $.Values.service.port }}/address-gate
+    # Forward the X-Forwarded-* headers of the original request, which
+    # Traefik's entrypoint has already stripped from untrusted sources.
+    trustForwardHeader: true
+{{- end }}
+{{- if .admissionPolicy.enabled }}
+---
+apiVersion: {{ .admissionPolicy.apiVersion }}
+kind: MutatingAdmissionPolicy
+metadata:
+  name: {{ $middleware }}
+  labels:
+    {{- include "passmower.labels" $ | nindent 4 }}
+spec:
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["ingresses"]
+  matchConditions:
+    # Users sign in through Passmower's own Ingress: gating it would lock out
+    # everyone the gate sends there.
+    - name: not-passmower
+      expression: >-
+        !(request.namespace == {{ $.Release.Namespace | quote }} && object.metadata.name == {{ $fullName | quote }})
+    - name: not-exempt
+      expression: >-
+        !(has(object.metadata.labels) && 'codemowers.cloud/address-gate' in object.metadata.labels
+        && object.metadata.labels['codemowers.cloud/address-gate'] == 'exempt')
+    - name: not-yet-gated
+      expression: >-
+        !(has(object.metadata.annotations) && {{ $annotation | quote }} in object.metadata.annotations
+        && object.metadata.annotations[{{ $annotation | quote }}].split(',').exists(m, m.trim() == {{ $reference | quote }}))
+  failurePolicy: {{ .admissionPolicy.failurePolicy }}
+  reinvocationPolicy: IfNeeded
+  mutations:
+    # The gate goes first, so an address it refuses never reaches the
+    # application's own middlewares (forward-auth included).
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          !has(object.metadata.annotations) ?
+            [JSONPatch{op: "add", path: "/metadata/annotations",
+              value: { {{- $annotation | quote }}: {{ $reference | quote -}} }}]
+          : !({{ $annotation | quote }} in object.metadata.annotations) ?
+            [JSONPatch{op: "add", path: "/metadata/annotations/" + jsonpatch.escapeKey({{ $annotation | quote }}),
+              value: {{ $reference | quote }}}]
+          : [JSONPatch{op: "replace", path: "/metadata/annotations/" + jsonpatch.escapeKey({{ $annotation | quote }}),
+              value: object.metadata.annotations[{{ $annotation | quote }}].trim() == ''
+                ? {{ $reference | quote }}
+                : {{ $reference | quote }} + ',' + object.metadata.annotations[{{ $annotation | quote }}]}]
+---
+apiVersion: {{ .admissionPolicy.apiVersion }}
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: {{ $middleware }}
+  labels:
+    {{- include "passmower.labels" $ | nindent 4 }}
+spec:
+  policyName: {{ $middleware }}
+  matchResources:
+    namespaceSelector:
+      {{- toYaml .admissionPolicy.namespaceSelector | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}
