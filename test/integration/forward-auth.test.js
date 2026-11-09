@@ -200,6 +200,62 @@ describe('forward-auth sign-in (HTTP)', () => {
         }
     })
 
+    describe('unprotected paths (#40)', () => {
+        beforeEach(async () => {
+            const { default: OIDCMiddlewareClient } = await import('../../src/models/oidc-middleware-client.js')
+            await clients.upsert(CLIENT, new OIDCMiddlewareClient().fromIncomingClient({
+                metadata: { name: 'webmail', namespace: 'apps', uid: 'uid-webmail' },
+                spec: {
+                    uri: 'https://webmail.example.com/',
+                    headerMapping: { user: 'Remote-User', email: 'Remote-Email' },
+                    unprotectedPaths: [{ pathPrefix: '/hooks', methods: ['POST'] }],
+                },
+            }).toRedis())
+        })
+
+        const hook = (uri, method) => forwardAuth(jar(), forwardAuthHeaders({
+            'x-forwarded-uri': uri, 'x-forwarded-method': method,
+        }))
+
+        it('lets a declared request through without a session or identity headers', async () => {
+            const res = await hook('/hooks/delivery?id=1', 'POST')
+            expect(res.status).toBe(200)
+            expect(res.headers['remote-user']).toBeUndefined()
+            expect(res.headers['remote-email']).toBeUndefined()
+        })
+
+        it('sends no identity headers on an unprotected path even with a session', async () => {
+            const j = jar()
+            await signIn(j)
+            const res = await forwardAuth(j, forwardAuthHeaders({
+                'x-forwarded-uri': '/hooks/delivery', 'x-forwarded-method': 'POST',
+            }))
+            expect(res.status).toBe(200)
+            expect(res.headers['remote-user']).toBeUndefined()
+        })
+
+        it('keeps every other request behind authentication', async () => {
+            for (const [uri, method] of [
+                ['/hooks/delivery', 'GET'],
+                ['/hooks-admin', 'POST'],
+                ['/hooks/../inbox', 'POST'],
+                ['/hooks/%2e%2e/inbox', 'POST'],
+                ['/inbox', 'POST'],
+            ]) {
+                const res = await hook(uri, method)
+                expect(res.status, `${method} ${uri}`).toBe(302)
+                expect(new URL(res.headers.location).pathname).toBe('/auth')
+            }
+        })
+
+        it('still refuses a host outside the base domain', async () => {
+            const res = await forwardAuth(jar(), forwardAuthHeaders({
+                'x-forwarded-host': 'evilexample.com', 'x-forwarded-uri': '/hooks/x', 'x-forwarded-method': 'POST',
+            }))
+            expect(res.status).toBe(401)
+        })
+    })
+
     it('serves only forward-auth clients', async () => {
         const res = await forwardAuth(jar(), forwardAuthHeaders(), 'regular')
         expect(res.status).toBe(401)

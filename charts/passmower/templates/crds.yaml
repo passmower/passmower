@@ -1143,6 +1143,31 @@ spec:
                       type: string
                     user:
                       type: string
+                unprotectedPaths:
+                  type: array
+                  maxItems: 32
+                  description: >-
+                    Requests that reach the application without a signed-in
+                    user and without identity headers, e.g. webhooks from other
+                    systems. Everything not listed stays protected.
+                  items:
+                    type: object
+                    required:
+                      - pathPrefix
+                    properties:
+                      pathPrefix:
+                        type: string
+                        pattern: '^/'
+                        description: >-
+                          Matches this path and everything beneath it, by whole
+                          path segments: /hooks covers /hooks and /hooks/github,
+                          not /hooks-admin.
+                      methods:
+                        type: array
+                        description: HTTP methods the rule applies to; all when omitted.
+                        items:
+                          type: string
+                          enum: [GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS]
                 uri:
                   type: string
                 displayOrder:

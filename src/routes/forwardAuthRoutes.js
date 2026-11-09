@@ -16,6 +16,7 @@ import {OIDCMiddlewareClientCrd} from "../utils/kubernetes/kube-constants.js";
 import {getAccountAccessFailure} from '../utils/user/check-account-access.js';
 import {auditLog} from '../utils/session/audit-log.js';
 import {recordIncident} from '../utils/session/incident-log.js';
+import {isUnprotectedRequest} from '../utils/session/forward-auth-bypass.js';
 
 export default (provider) => {
     const router = new Router();
@@ -38,6 +39,14 @@ export default (provider) => {
         const url = requestedUrl(ctx.req.headers)
         if (!url) {
             ctx.body = 'Endpoint URL not in the same base domain'
+            return
+        }
+
+        // Paths the client declares unprotected pass without a session and
+        // without identity headers, whoever is asking.
+        if (isUnprotectedRequest(client, ctx.req.headers)) {
+            ctx.status = 200
+            ctx.body = ''
             return
         }
 
