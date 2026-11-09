@@ -131,6 +131,17 @@ spec:
               value: {{ .Values.passmower.normalizeEmailAddresses | quote }}
             - name: SITE_SESSION_IP_BINDING
               value: {{ .Values.passmower.siteSessionIpBinding | quote }}
+            {{- if and .Values.passmower.geoLock.enabled (not .Values.passmower.geoip.enabled) }}
+            {{- fail "passmower.geoLock.enabled requires passmower.geoip.enabled" }}
+            {{- end }}
+            {{- if .Values.passmower.geoip.enabled }}
+            - name: GEOIP_DATABASE_PATH
+              value: {{ printf "/var/lib/passmower/geoip/%s" .Values.passmower.geoip.file | quote }}
+            {{- end }}
+            - name: GEO_LOCK_ENABLED
+              value: {{ .Values.passmower.geoLock.enabled | quote }}
+            - name: GEO_LOCK_ALLOWED_COUNTRIES
+              value: {{ join "," .Values.passmower.geoLock.allowedCountries | quote }}
             - name: WEBAUTHN_ENABLED
               value: {{ .Values.passmower.webauthnEnabled | quote }}
             - name: GITHUB_ENABLED
@@ -309,6 +320,11 @@ spec:
               name: redis-tls-ca
               readOnly: true
             {{- end }}
+            {{- if .Values.passmower.geoip.enabled }}
+            - mountPath: /var/lib/passmower/geoip
+              name: geoip
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.priorityClassName }}
@@ -363,4 +379,16 @@ spec:
         - name: redis-tls-ca
           secret:
             secretName: {{ .Values.redis.external.tls.caSecretKeyRef.name }}
+        {{- end }}
+        {{- with .Values.passmower.geoip }}
+        {{- if .enabled }}
+        - name: geoip
+          {{- if .volume }}
+          {{- toYaml .volume | nindent 10 }}
+          {{- else }}
+          image:
+            reference: {{ .image.reference | quote }}
+            pullPolicy: {{ .image.pullPolicy }}
+          {{- end }}
+        {{- end }}
         {{- end }}

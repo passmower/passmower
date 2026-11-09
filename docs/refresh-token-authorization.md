@@ -10,6 +10,9 @@ is exchanged. A refresh token is rejected with the standard OAuth
 - no longer has a required Terms of Service acceptance; or
 - no longer matches the OIDC client `allowedUsers` / `allowedGroups` policy.
 
+With geo-lock enabled, a public client's refresh is also rejected when it comes
+from outside the session's country; see [geo-lock.md](geo-lock.md).
+
 This check uses the latest `OIDCUser` and client state rather than a snapshot
 stored in the refresh token. Policy changes therefore take effect on the next
 refresh exchange without waiting for the token TTL. Access tokens already

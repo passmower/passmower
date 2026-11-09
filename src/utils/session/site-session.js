@@ -6,6 +6,8 @@ import configuration from "../../configuration.js";
 import {clientId as selfClientId} from "./self-oidc-client.js";
 import {requestIp} from "./parse-request-headers.js";
 import {auditLog} from "./audit-log.js";
+import {enforceGeoLock} from "./geo-lock.js";
+import {countryOf, geoLockEnabled} from "../geoip.js";
 
 const providerHostname = new URL(process.env.ISSUER_URL).hostname
 
@@ -57,6 +59,7 @@ export const addSiteSession = async (ctx, provider, sessionId, accountId, client
         accountId,
         domain: getSiteSessionScope(client.clientId),
         ip: requestIp(ctx),
+        country: geoLockEnabled() ? await countryOf(requestIp(ctx)) : undefined,
     }
     await redis.upsert(siteWideCookie.jti, siteWideCookie, instance(provider).configuration.ttl.SiteSession);
     return siteWideCookie
@@ -83,6 +86,15 @@ export const validateSiteSession = async (ctx, clientId) => {
     if (siteSession && siteSessionIpMismatch(siteSession, requestIp(ctx))) {
         auditLog(ctx, {accountId: siteSession.accountId, clientId},
             'Site session rejected and destroyed: requesting address differs from the issuing address')
+        await siteSessionRedis.destroy(siteSession.jti)
+        return undefined
+    }
+    if (siteSession && await enforceGeoLock(ctx, {
+        source: 'site-session',
+        pinnedCountry: siteSession.country,
+        accountId: siteSession.accountId,
+        clientId,
+    })) {
         await siteSessionRedis.destroy(siteSession.jti)
         return undefined
     }

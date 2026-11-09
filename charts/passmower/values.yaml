@@ -69,6 +69,34 @@ passmower:
   # re-authentication whenever the user's network changes (mobile roaming,
   # VPN toggles, some CGNAT setups).
   siteSessionIpBinding: false
+  # GeoIP country database (MaxMind DB format). Mounting one shows a country flag
+  # next to session and last-login addresses, and is required by geoLock. The
+  # default image is DB-IP Lite Country (CC BY 4.0), republished monthly by the
+  # Passmower project; Passmower shows the attribution it requires. Image
+  # volumes need the Kubernetes ImageVolume feature (beta since 1.33). On a
+  # cluster without it, set `volume` to any volume source holding the file,
+  # e.g. a PVC filled by geoipupdate.
+  geoip:
+    enabled: false
+    image:
+      reference: ghcr.io/passmower/geoip-country:latest
+      # Each pod start takes the latest monthly database.
+      pullPolicy: Always
+    # Volume source used instead of the image when set, e.g.
+    # {persistentVolumeClaim: {claimName: geoip}}.
+    volume: {}
+    file: dbip-country-lite.mmdb
+  # Pin each session to the country it authenticated from (docs/geo-lock.md).
+  # A request from another country ends the session and the user signs in
+  # again, which re-pins it: a stolen session cookie stops working abroad. The
+  # check covers the dashboard, forward-auth site sessions and refresh grants of
+  # public clients. Requires geoip.enabled.
+  geoLock:
+    enabled: false
+    # ISO 3166 country codes always accepted regardless of the session country,
+    # e.g. [EE, FI]. ZZ stands for addresses the database cannot place
+    # (private and loopback ranges).
+    allowedCountries: []
   # Enable WebAuthn/Passkey authentication. Allows users to register passkeys for faster login.
   webauthnEnabled: true
   # Enable GitHub OAuth login. Requires githubClientSecretRef to be set.

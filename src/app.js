@@ -19,6 +19,7 @@ import metricsServer from "./routes/metrics-server.js";
 import {getUsernameSource} from "./utils/username-source.js";
 import {validateEmailConfiguration} from './utils/email-configuration.js';
 import {validateGroupConfiguration} from './utils/group-configuration.js';
+import {validateGeoipConfiguration} from './utils/geoip.js';
 import {getActivityTracker} from './services/activity-tracker.js';
 import KubeOidcUserEventHookOperator from './operators/kube-oidc-user-event-hook-operator.js';
 import {ClientRedisReconciler} from './services/client-redis-reconciler.js';
@@ -134,6 +135,7 @@ export async function main() {
         getUsernameSource() // validate USERNAME_SOURCE (and warn on deprecated flags) at boot
         validateEmailConfiguration()
         validateGroupConfiguration() // warn on REQUIRED_GROUP/ADMIN_GROUP that can never match
+        await validateGeoipConfiguration() // GEO_LOCK_ENABLED needs a readable GeoIP database
         const provider = await buildProvider()
         server = provider.listen(PORT, () => {
         globalThis.logger.info(`application is listening on port ${PORT}, check its /.well-known/openid-configuration`);

@@ -43,6 +43,7 @@ Request-rate style metrics deliberately stay with the ingress/proxy layer
 | `passmower_non_existent_client_request_count` | counter | `in_cluster` | Authentication requests naming an unknown client ID. |
 | `passmower_invalid_client_request_count` | counter | `client_id`, `reason`, `in_cluster` | Invalid authentication requests. |
 | `passmower_invalid_userinfo_request_count` | counter | `reason`, `in_cluster` | Invalid userinfo endpoint requests. |
+| `passmower_geo_lock_denied_count` | counter | `source`, `reason` | Session requests refused by geo-lock ([geo-lock.md](geo-lock.md)). |
 | `passmower_invalid_token_request_count` | counter | `reason`, `in_cluster` | Invalid token endpoint requests. |
 
 ```yaml

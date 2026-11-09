@@ -36,6 +36,8 @@ It also provides out-of-the-box impersonation support for authorized users.
 
 - **Application Listing**: Dashboards and launchers can fetch the list of applications a signed-in user is allowed to open via the `applications` userinfo claim, or the full admin-only catalog via `GET /api/apps/all`. See [docs/application-listing.md](docs/application-listing.md).
 
+- **Geo-locked Sessions**: Optionally pin each session to the country it signed in from, so a stolen session cookie stops working abroad. See [docs/geo-lock.md](docs/geo-lock.md). Country data: IP Geolocation by [DB-IP](https://db-ip.com) (CC BY 4.0).
+
 ## Support
 
 For community questions, use [Cloud Native Slack](https://cloud-native.slack.com/archives/C0C8YHGCM9D).

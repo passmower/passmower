@@ -6,11 +6,12 @@
     <div class="item" v-for="session in sessions" :key="session.id">
       <div class="item-details">
         <h3>{{ session.browser }} on {{ session.os }} <span v-if="session.current">(current session)</span></h3>
-        <p>Initial IP: {{ session.ip }}</p>
+        <p>Initial IP: {{ session.ip }} <CountryFlag :geo="session.geo" /></p>
         <p>Created at: {{ session.created_at }}</p>
       </div>
       <XMark v-if="!session.current" @click="end(session)" />
     </div>
+    <GeoAttribution :items="sessions" />
     <button type="submit" @click="end(sessions.find((s) => s.current))">{{ `Log out ${impersonation ? ' and end impersonation' : ''}` }}</button>
   </div>
 </template>
@@ -19,6 +20,8 @@
 import {mapState, mapStores} from "pinia";
 import {useAccountStore} from "@/stores/account";
 import XMark from "@/components/Icons/XMark.vue";
+import CountryFlag from "@/components/CountryFlag.vue";
+import GeoAttribution from "@/components/GeoAttribution.vue";
 import {openModal} from "jenesius-vue-modal";
 import EndSession from "@/components/User/Modals/EndSession.vue";
 import {useImpersonationStore} from "@/stores/impersonation";
@@ -27,6 +30,8 @@ export default {
   name: "Profile",
   components: {
     XMark,
+    CountryFlag,
+    GeoAttribution,
     // EndSession is opened imperatively via openModal(), not used in the
     // template, so it doesn't need to be registered as a component.
   },
