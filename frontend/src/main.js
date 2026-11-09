@@ -8,6 +8,7 @@ import App from "./App.vue";
 import Apps from "./Apps.vue";
 import Profile from "./Profile.vue";
 import Privileges from "./Privileges.vue";
+import User from "./User.vue";
 
 const app = createApp(App)
 
@@ -15,6 +16,7 @@ const routes = [
     { path: '/', component: Apps },
     { path: '/profile', component: Profile },
     { path: '/privileges/:group?', component: Privileges },
+    { path: '/users/:username', component: User },
     { path: '/admin', component: Admin },
 ]
 const router = createRouter({

@@ -1,6 +1,7 @@
 /* eslint-disable no-console, camelcase, no-unused-vars */
 import { strict as assert } from 'node:assert';
 import {addressGateCookie, addressGateCookieOptions, unlockUrl} from "./addressGateRoutes.js";
+import instance from "oidc-provider/lib/helpers/weak_cache.js";
 import * as querystring from 'node:querystring';
 import { inspect } from 'node:util';
 
@@ -118,6 +119,18 @@ const render = async (provider, ctx, template, title, extra, wide = false) => {
     });
 }
 
+const returnToCookie = '_return_to'
+
+const returnToCookieOptions = (provider) => ({
+    ...instance(provider).configuration.cookies.short,
+    path: '/',
+    signed: true,
+    maxAge: instance(provider).configuration.ttl.Interaction * 1000,
+})
+
+// A path on this origin, never a scheme-relative or backslash-prefixed URL.
+const isDashboardPath = (path) => /^\/[^/\\]/.test(path)
+
 export default (provider) => {
     const router = new Router();
     router.use(bodyParser({
@@ -125,8 +138,14 @@ export default (provider) => {
     }))
     router.use(validator())
 
-    router.get(['/', '/profile', '/privileges', '/privileges/:group', '/terms-of-service'], async (ctx, next) => {
+    router.get(['/', '/profile', '/privileges', '/privileges/:group', '/users/:username', '/terms-of-service'], async (ctx, next) => {
         if (await signedInToSelf(ctx, provider)) {
+            // Back from a sign-in that a deep link asked for: go on to it.
+            const returnTo = ctx.path === '/' && ctx.cookies.get(returnToCookie, {signed: true})
+            if (returnTo) {
+                ctx.cookies.set(returnToCookie, null, returnToCookieOptions(provider))
+                if (isDashboardPath(returnTo)) return ctx.redirect(returnTo)
+            }
             // Back from a sign-in the address gate asked for: finish the unlock.
             const gateState = ctx.path === '/' && ctx.cookies.get(addressGateCookie, {signed: true})
             if (gateState) {
@@ -141,6 +160,11 @@ export default (provider) => {
                 return ctx.render('frontend', { layout: false, title: 'Passmower' })
             }
         } else {
+            // The sign-in always returns to the dashboard root; remember the
+            // page that was asked for so a shared link survives it.
+            if (ctx.path !== '/') {
+                ctx.cookies.set(returnToCookie, ctx.path, returnToCookieOptions(provider))
+            }
             const url = authorizationUrl(provider, {
                 client_id: clientId,
                 response_type: responseType,

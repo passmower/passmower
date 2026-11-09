@@ -1,4 +1,5 @@
 import ShortUniqueId from "short-unique-id";
+import {userProfilesEnabled, userProfileUrl} from "../utils/user/user-profile.js";
 import {Approved} from "../conditions/approved.js";
 import {getSlackId} from "../utils/user/get-slack-id.js";
 import {auditLog} from "../utils/session/audit-log.js";
@@ -117,6 +118,11 @@ class Account {
                 ...this.profile,
                 emails: this.emails,
             };
+            // Only when every signed-in user can open the page: an
+            // admin-only link would be a dead end for everyone else.
+            if (userProfilesEnabled()) {
+                response.profile = userProfileUrl(username)
+            }
         }
         if (scope.includes('allowed_groups')) {
             const clientGroups = this.#ctx.oidc.client.allowedGroups || []
