@@ -50,7 +50,7 @@ helm upgrade --install passmower-dev-support ./dev --kube-context "$profile" \
 # Build inside minikube: works with containerd, without a host Docker daemon.
 # Set SKIP_BUILD=true to reuse the last local image after an interrupted install.
 if [[ ${SKIP_BUILD:-false} != true ]]; then
-    minikube -p "$profile" image build -t passmower:local-dev --build-opt opt=target=dev .
+    minikube -p "$profile" image build -t passmower:local-dev --build-opt opt=target=prod .
 fi
 helm upgrade --install passmower-dev ./charts/passmower --kube-context "$profile" \
     --namespace "$namespace" -f charts/passmower/values.local.yaml \

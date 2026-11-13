@@ -22,9 +22,8 @@ describe('the chart under Pod Security "restricted"', () => {
     it('runs Passmower and its key-manager Job unprivileged by default', () => {
         expectRestrictedPod(values.podSecurityContext)
         expectRestrictedContainer(values.securityContext)
-        // The image's node user; the Dockerfile sets the same.
         expect(values.podSecurityContext.runAsUser).toBe(1000)
-        expect(template('../../Dockerfile')).toMatch(/^USER 1000:1000$/m)
+        expect(values.podSecurityContext.runAsGroup).toBe(1000)
     })
 
     it.each(['templates/deployment.yaml', 'templates/pre-install.yaml'])('applies both contexts in %s', (file) => {
@@ -47,11 +46,9 @@ describe('the chart under Pod Security "restricted"', () => {
         expect(redis).toMatch(/emptyDir: \{\}/)
     })
 
-    it('keeps the dev image, which writes into /app, out of the restricted defaults', () => {
+    it('inherits restricted defaults for the local production image', () => {
         const local = load(template('values.local.yaml'))
-        // Explicit keys, not {}: Helm merges maps, so an empty override
-        // leaves the restricted defaults in place and the dev pod crashes.
-        expect(local.podSecurityContext).toMatchObject({runAsNonRoot: false, runAsUser: 0, runAsGroup: 0})
-        expect(local.securityContext).toMatchObject({readOnlyRootFilesystem: false})
+        expect(local.podSecurityContext).toBeUndefined()
+        expect(local.securityContext).toBeUndefined()
     })
 })

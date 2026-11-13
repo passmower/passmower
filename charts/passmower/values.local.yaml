@@ -19,13 +19,3 @@ ingress:
   className: nginx
 image:
   pullPolicy: Never
-
-# The dev image builds the frontend and styles into /app at runtime as root,
-# so it cannot run under the restricted defaults. Each key is set explicitly:
-# Helm merges maps, so an empty `{}` here would keep the chart's defaults.
-podSecurityContext:
-  runAsNonRoot: false
-  runAsUser: 0
-  runAsGroup: 0
-securityContext:
-  readOnlyRootFilesystem: false

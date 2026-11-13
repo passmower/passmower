@@ -513,8 +513,7 @@ podLabels: {}
 podAnnotations: {}
 
 # Passmower and its key-manager Job meet the Pod Security "restricted" profile:
-# they run as the image's unprivileged node user (UID 1000) and never write to
-# the filesystem. Set both to {} to run the dev image, which builds into /app.
+# the chart selects UID/GID 1000 and the runtime image is readable by any UID.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
