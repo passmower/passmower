@@ -65,10 +65,10 @@ export class KubeOIDCUserService {
         )
     }
 
-    async findUserByGithubId(githubId, users) {
+    async findUserByGithubId(githubId, users, host = 'github.com') {
         return this.#findUniqueStableIdentity(
-            account => String(account.getGithubId()) === String(githubId),
-            `GitHub id ${githubId}`,
+            account => account.getGithubHost() === host && String(account.getGithubId()) === String(githubId),
+            `GitHub ${host} id ${githubId}`,
             users,
         )
     }
@@ -161,7 +161,7 @@ export class KubeOIDCUserService {
                 },
                 github: {
                     emails: githubEmails,
-                    ...(identity.githubId !== undefined ? {id: identity.githubId} : {}),
+                    ...(identity.githubId !== undefined ? {id: identity.githubId, host: identity.githubHost ?? 'github.com'} : {}),
                 },
                 ...(identities ? {identities} : {}),
             },

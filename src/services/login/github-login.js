@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import {getGitHubConfig} from "../../utils/github.js";
 import Account from "../../models/account.js";
 import {OAuth2} from "oauth";
 import accessDenied from "../../utils/session/access-denied.js";
@@ -29,7 +30,7 @@ export const getGitHubAuthorizeParams = (state, env = process.env, {selectAccoun
 }
 
 export async function getGitHubEmails(token, fetchImpl = fetch, observedAt = new Date().toISOString()) {
-    const response = await fetchImpl('https://api.github.com/user/emails', {
+    const response = await fetchImpl(`${getGitHubConfig().apiBaseUrl}user/emails`, {
         method: 'GET',
         headers: {'Authorization': `Bearer ${token}`},
     })
@@ -45,7 +46,7 @@ export async function getGitHubEmails(token, fetchImpl = fetch, observedAt = new
 export default async (ctx, provider) => {
     const ghOauth = new OAuth2(process.env.GH_CLIENT_ID,
         process.env.GH_CLIENT_SECRET,
-        'https://github.com/',
+        getGitHubConfig().oauthBaseUrl,
         'login/oauth/authorize',
         'login/oauth/access_token',
         null);
@@ -104,7 +105,7 @@ export default async (ctx, provider) => {
         return accessDenied(ctx, provider, 'Error getting emails from GitHub')
     }
 
-    const user = await fetch('https://api.github.com/user', {
+    const user = await fetch(`${getGitHubConfig().apiBaseUrl}user`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${token}`
@@ -117,13 +118,14 @@ export default async (ctx, provider) => {
     }
 
     const account = await Account.createOrUpdateByEmails(
-        ctx, provider, undefined, emails, undefined, user.login, {githubId: user.id}
+        ctx, provider, undefined, emails, undefined, user.login, {githubId: user.id, githubHost: getGitHubConfig().host}
     );
 
     if (!account?.accountId) {
         auditLog(ctx,{account, interactionDetails}, 'Unable to determine account from GitHub')
     } else {
         const githubProfile = {
+            host: getGitHubConfig().host,
             name: user.name,
             company: user.company,
             id: user.id,
@@ -167,7 +169,7 @@ export default async (ctx, provider) => {
 }
 
 const getOrganizationTeams = async (token, org) => {
-    return await fetch( `https://api.github.com/orgs/${org}/teams`, {
+    return await fetch( `${getGitHubConfig().apiBaseUrl}orgs/${org}/teams`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${token}`
@@ -181,7 +183,7 @@ const getOrganizationTeams = async (token, org) => {
 }
 
 const getUserOrganizationTeamMembership = async (token, team, userLogin) => {
-    return await fetch(`https://api.github.com/orgs/${team.organization}/teams/${team.slug}/memberships/${userLogin}`, {
+    return await fetch(`${getGitHubConfig().apiBaseUrl}orgs/${team.organization}/teams/${team.slug}/memberships/${userLogin}`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${token}`

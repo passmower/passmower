@@ -1,3 +1,5 @@
+import {getGitHubConfig} from "../github.js";
+
 export const metadata = 'metadata';
 export const spec = 'spec';
 export const OIDCUserCrd = 'OIDCUser';
@@ -42,7 +44,7 @@ export const OIDCClientSecretTokenUriKey = 'OIDC_IDP_TOKEN_URI'
 export const OIDCClientSecretUserInfoUriKey = 'OIDC_IDP_USERINFO_URI'
 export const OIDCClientSecretAllowedGroupsKey = 'OIDC_ALLOWED_GROUPS'
 export const OIDCClientSecretAllowedUsersKey = 'OIDC_ALLOWED_USERS'
-export const GitHubGroupPrefix = 'github.com'
+export const GitHubGroupPrefix = getGitHubConfig().host
 export const TraefikMiddleware = 'Middleware'
 export const TraefikMiddlewares = 'middlewares'
 export const TraefikMiddlewareApiGroup = 'traefik.io'

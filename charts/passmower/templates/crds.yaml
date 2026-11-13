@@ -402,6 +402,9 @@ spec:
             github:
               type: object
               properties:
+                host:
+                  type: string
+                  description: GitHub hostname owning this identity; absent means github.com
                 company:
                   type: string
                 email:
@@ -430,8 +433,6 @@ spec:
                         type: string
                       prefix:
                         type: string
-                        enum:
-                          - github.com
                 id:
                   type: integer
                 login:
