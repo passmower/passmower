@@ -51,6 +51,19 @@ personal override and does not exist in a fresh checkout. The minikube script
 uses the production image and the chart's default non-root UID/GID 1000 and
 read-only root filesystem.
 
+`skaffold dev` deploys the dev image instead, which builds into `/app` as root
+and cannot run under those defaults. Its `values.dev.yaml` has to override them
+key by key, because Helm merges maps and an empty `{}` keeps the defaults:
+
+```yaml
+podSecurityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  runAsGroup: 0
+securityContext:
+  readOnlyRootFilesystem: false
+```
+
 Run `skaffold dev` with `--cleanup=false`. Its default clean-up uninstalls the
 release when it stops or when a deploy fails, and uninstalling removes the
 Passmower CRDs together with every `OIDCUser`, `OIDCClient` and

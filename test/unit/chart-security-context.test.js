@@ -24,6 +24,8 @@ describe('the chart under Pod Security "restricted"', () => {
         expectRestrictedContainer(values.securityContext)
         expect(values.podSecurityContext.runAsUser).toBe(1000)
         expect(values.podSecurityContext.runAsGroup).toBe(1000)
+        // The image's node user; non-root wherever no pod-level UID is set.
+        expect(template('../../Dockerfile')).toMatch(/^USER 1000:1000$/m)
     })
 
     it.each(['templates/deployment.yaml', 'templates/pre-install.yaml'])('applies both contexts in %s', (file) => {

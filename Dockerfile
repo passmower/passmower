@@ -70,8 +70,11 @@ COPY --from=build /app/frontend/dist/. /app/frontend/dist/
 # copy compiled styles
 COPY --from=build /app/styles/dist/. /app/styles/dist/
 
-# Normalize checkout permissions; Kubernetes selects the runtime UID.
+# Normalize checkout permissions, so the image is readable under any UID.
 RUN chown -R root:root /app && chmod -R u=rwX,go=rX /app
 
 ENV NODE_ENV=production
+# The base image's unprivileged node user, numeric so a runAsNonRoot kubelet
+# can verify it when the pod sets no runAsUser. The chart's UID overrides it.
+USER 1000:1000
 ENTRYPOINT node --no-warnings src/app.js
