@@ -70,9 +70,8 @@ COPY --from=build /app/frontend/dist/. /app/frontend/dist/
 # copy compiled styles
 COPY --from=build /app/styles/dist/. /app/styles/dist/
 
-# we will not use npm in production as it wants to write on the container filesystem. this should be prohibited on production. however, we need to allow it while developing.
+# Normalize checkout permissions; Kubernetes selects the runtime UID.
+RUN chown -R root:root /app && chmod -R u=rwX,go=rX /app
+
 ENV NODE_ENV=production
-# The base image's unprivileged node user, numeric so a runAsNonRoot kubelet
-# can verify it.
-USER 1000:1000
 ENTRYPOINT node --no-warnings src/app.js
