@@ -14,6 +14,10 @@ helm upgrade --install passmower oci://ghcr.io/passmower/charts/passmower \
   --set image.repository=registry.example.com/passmower --set image.tag=my-build
 ```
 
+Every push to `develop` publishes `ghcr.io/passmower/passmower:develop` and
+`:<commit sha>` without a chart. To run one, use the same override with
+`--set image.digest= --set image.tag=develop`.
+
 The source chart defaults to the stable `latest` image when neither a tag nor a
 digest is supplied. Skaffold overrides these settings with its locally built
 image. See `values.yaml` for configuration and the repository's

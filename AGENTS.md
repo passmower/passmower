@@ -96,12 +96,15 @@ These are the working agreements — follow them:
   `develop` via a short-lived branch + PR. (PRs to `develop` don't auto-close issues
   since `master` is the default branch — close them manually, referencing the PR.)
 - **Release versions come from Git tags.** Keep `Chart.yaml` at `version: 0.1.0`
-  and `appVersion: latest`. `publish.yml` runs the reusable tests and builds branch
-  pushes without publishing. Push `vMAJOR.MINOR.PATCH` (optionally a SemVer
+  and `appVersion: latest`. `publish.yml` runs the reusable tests and builds the
+  image on branch pushes. Push `vMAJOR.MINOR.PATCH` (optionally a SemVer
   prerelease) to publish the image and chart with `GITHUB_TOKEN`. Packaging sets
   chart/app versions in a temporary copy and pins both server and key initializer
-  to the built image digest. Only stable tags update `latest`. GeoIP data images
-  retain their independent monthly workflow.
+  to the built image digest. `latest` follows the highest stable version. Images
+  without a release, for testing on a cluster: a `develop` push publishes
+  `:<sha>` and `:develop`, and a manual `publish.yml` run on any branch publishes
+  `:<sha>`; neither publishes a chart. GeoIP data images retain their
+  independent monthly workflow.
 - **Tests are the safety net for dependency upgrades.** The suite exists because major
   bumps (oidc-provider 8→9, openid-client 5→6) shipped with no behavioural coverage.
   Any dependency bump or behavioural change should keep `unit`, `integration`, and
@@ -183,9 +186,7 @@ For a reproducible Linux setup, run `bash scripts/dev-minikube.sh` first. It
 creates a dedicated `passmower-dev` profile without changing the current kube
 context, builds inside containerd, and installs Redis, Dex, and local HTTPS.
 Trust `.local-dev/ca.crt` in the browser. See `docs/local-development.md`.
-The checked-in values are `charts/passmower/values.local.yaml`;
-`values.dev.yaml` below is a Git-ignored personal override, not a fresh-checkout
-default.
+The checked-in values are `charts/passmower/values.local.yaml`.
 
 For an existing cluster, copy `skaffold.env.example` to ignored `skaffold.env` and
 configure context, namespace, push registry and optional `PASSMOWER_VALUES_FILE`.

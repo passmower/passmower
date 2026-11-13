@@ -708,8 +708,8 @@ Third-party dependencies and assets retain their respective licenses.
 
 Keep the source Helm chart at `0.1.0`; release versions come from Git tags.
 Branch pushes to `develop` and `master` run unit, integration and browser checks
-and build without publishing. Push a `vMAJOR.MINOR.PATCH` tag (optionally a
-SemVer prerelease such as `-rc.1`) to publish:
+and build the image. Push a `vMAJOR.MINOR.PATCH` tag (optionally a SemVer
+prerelease such as `-rc.1`) to publish a release:
 
 ```sh
 git tag v2.17.0
@@ -717,10 +717,26 @@ git push origin v2.17.0
 ```
 
 CI builds the amd64/arm64 image once and pushes directly to GHCR using
-`GITHUB_TOKEN`. Images receive commit SHA, version and Git tag aliases; stable
-releases also update `latest`. A temporary chart copy receives the release version
+`GITHUB_TOKEN`. Images receive commit SHA, version and Git tag aliases. `latest`
+follows the highest stable version, so a backport tagged after a newer release
+does not move it. A temporary chart copy receives the release version
 and immutable image digest, then publishes to `oci://ghcr.io/passmower/charts`.
 GitHub releases include the chart and `passmower.yaml`, both using that digest.
-No chart-version commits, automatic tags, Docker Hub mirror or long-lived
-publishing tokens are required. When overriding a published chart's image tag,
-also clear `image.digest`. GeoIP data images keep their monthly workflow.
+No chart-version commits, automatic tags or long-lived publishing tokens are
+required. When overriding a published chart's image tag, also clear
+`image.digest`. GeoIP data images keep their monthly workflow.
+
+Unreleased images are for trying a change on a cluster; they get no chart and
+no GitHub release:
+
+| Trigger | Image tags |
+|---|---|
+| Push to `develop` | `<commit sha>`, `develop` |
+| `publish.yml` run manually on any branch (`gh workflow run publish.yml --ref my-branch`) | `<commit sha>` |
+
+Deploy one with a released chart by clearing the digest:
+`--set image.digest= --set image.tag=develop`.
+
+Images are published to `ghcr.io/passmower/passmower` only. The Docker Hub
+repository `passmower/passmower` is no longer updated; point existing
+deployments that pull from it at GHCR.
