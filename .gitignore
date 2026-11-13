@@ -32,3 +32,9 @@ pnpm-debug.log*
 
 # Downloaded by .github/workflows/geoip-image.yml
 geoip/*.mmdb
+
+# Personal Skaffold cluster settings
+skaffold.env
+skaffold.env.*
+!skaffold.env.example
+charts/passmower/values.*.local.yaml

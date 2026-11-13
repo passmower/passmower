@@ -631,3 +631,24 @@ please open an issue or submit a pull request.
 
 Passmower project code is licensed under the [Apache License 2.0](LICENSE).
 Third-party dependencies and assets retain their respective licenses.
+
+## Publishing
+
+Keep the source Helm chart at `0.1.0`; release versions come from Git tags.
+Branch pushes to `develop` and `master` run unit, integration and browser checks
+and build without publishing. Push a `vMAJOR.MINOR.PATCH` tag (optionally a
+SemVer prerelease such as `-rc.1`) to publish:
+
+```sh
+git tag v2.17.0
+git push origin v2.17.0
+```
+
+CI builds the amd64/arm64 image once and pushes directly to GHCR using
+`GITHUB_TOKEN`. Images receive commit SHA, version and Git tag aliases; stable
+releases also update `latest`. A temporary chart copy receives the release version
+and immutable image digest, then publishes to `oci://ghcr.io/passmower/charts`.
+GitHub releases include the chart and `passmower.yaml`, both using that digest.
+No chart-version commits, automatic tags, Docker Hub mirror or long-lived
+publishing tokens are required. When overriding a published chart's image tag,
+also clear `image.digest`. GeoIP data images keep their monthly workflow.
