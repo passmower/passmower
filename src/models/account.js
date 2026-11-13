@@ -425,6 +425,10 @@ class Account {
         return this.#identities?.[providerKey]
     }
 
+    getGithubHost() {
+        return this.#github?.host ?? 'github.com'
+    }
+
     getGithubId() {
         return this.#github?.id
     }
@@ -517,7 +521,7 @@ class Account {
             if (identity.providerKey && identity.subject) {
                 user = await ctx.kubeOIDCUserService.findUserByIdentity(identity.providerKey, identity.subject, users)
             } else if (identity.githubId !== undefined) {
-                user = await ctx.kubeOIDCUserService.findUserByGithubId(identity.githubId, users)
+                user = await ctx.kubeOIDCUserService.findUserByGithubId(identity.githubId, users, identity.githubHost)
             }
             const emailUser = await ctx.kubeOIDCUserService.findUserByEmails(emails, users)
             if (user && emailUser && user.accountId !== emailUser.accountId) {

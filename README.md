@@ -167,6 +167,35 @@ single generic connector (discovery + PKCE + `id_token` validation). Stable
 provider subjects identify returning users; verified email can additionally
 link identities across providers.
 
+For GitHub Enterprise Cloud with data residency, configure the GitHub hostname:
+
+```yaml
+passmower:
+  githubHost: example.ghe.com
+  githubOrganization: Example-Org
+  githubClientSecretRef: github-client
+```
+
+Register an OAuth app on that GitHub host with callback
+`https://<passmower-host>/interaction/callback/gh`, and store `GH_CLIENT_ID` and
+`GH_CLIENT_SECRET` in the referenced Secret. `GITHUB_HOST` is the equivalent
+setting when running without Helm; it defaults to `github.com`.
+
+The connector uses `https://<host>/login/oauth/*` for OAuth,
+`https://api.<enterprise>.ghe.com/` for the
+[GHE.com REST API](https://docs.github.com/en/enterprise-cloud@latest/rest/meta/meta),
+and `https://<host>/api/v3/` for
+[GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@latest/rest/enterprise-admin).
+All connections use HTTPS with normal certificate verification.
+
+Imported groups use `<host>:<org>:<team>`, for example
+`example.ghe.com:Example-Org:devops`. Update `adminGroup`, `requiredGroup` and
+client `allowedGroups` when moving hosts. Stored numeric user IDs are scoped to
+that hostname; existing records without a hostname belong to `github.com`.
+Moving hosts does not match users by numeric ID alone; verified email linking
+still follows the existing identity policy. Only one GitHub host is configured
+per Passmower deployment.
+
 Set `passmower.outboundEmailEnabled: false` to run without SMTP credentials or email
 addresses. This disables all delivery and email-based login/invitations while
 allowing upstream enrollment by stable provider identity. See

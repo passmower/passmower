@@ -44,6 +44,10 @@ passmower:
   # organization simply sign in with no GitHub groups. To actually gate access, pair this with requiredGroup.
   # Scoping to a single organization also keeps the user's memberships in other organizations private from Passmower.
   githubOrganization: ""
+  # GitHub OAuth hostname, without a scheme or path. Supports github.com,
+  # <enterprise>.ghe.com (Enterprise Cloud), and Enterprise Server hostnames.
+  # The hostname also prefixes imported groups and scopes stored user IDs.
+  githubHost: github.com
   # How a new user's username (OIDCUser CRD name / accountId / OIDC `sub`) is determined at enrollment:
   #   generated - random system-generated id (u<...>)
   #   prompt    - user must pick a custom username via a form

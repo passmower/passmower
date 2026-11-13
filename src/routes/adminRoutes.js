@@ -109,7 +109,7 @@ export default (provider) => {
         await ctx.kubeOIDCUserService.updateUserSpecs(accountId, {
             passmower: {
                 ...body,
-                groups: ctx.request.body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix)
+                groups: ctx.request.body.groups.filter(g => g.name).filter(g => g.prefix !== GitHubGroupPrefix && g.prefix !== 'github.com')
                     .filter((val, index, self) => {return self.findIndex((g) => {return g.name === val.name && g.prefix === val.prefix}) === index}),
             }
         })

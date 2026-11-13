@@ -271,7 +271,7 @@ The chart maps `values.passmower.*` to env vars. The ones that matter most:
 | `REDIS_TLS`, `REDIS_TLS_CA_FILE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, `REDIS_TLS_INSECURE_SKIP_VERIFY` | Redis TLS; `REDIS_TLS=true` switches the sliced URL to `rediss://`, the rest feed ioredis `tls` options (README, "Redis over TLS"). |
 | `OIDC_PROVIDERS` | JSON object of generic upstream OIDC providers keyed by provider slug. |
 | `OIDC_ALLOW_INSECURE_UPSTREAM` | Permit `http://` upstreams (local dev only). |
-| `GITHUB_ENABLED`, `GH_CLIENT_ID/SECRET`, `GITHUB_ORGANIZATION` | GitHub upstream. |
+| `GITHUB_ENABLED`, `GH_CLIENT_ID/SECRET`, `GITHUB_ORGANIZATION`, `GITHUB_HOST` | GitHub upstream. |
 | `OUTBOUND_EMAIL_ENABLED` (legacy `EMAIL_ENABLED` honored), `EMAIL_HOST/PORT/SSL/USERNAME/PASSWORD/FROM` | Outbound email delivery. `false` disables delivery, magic-link login, ToS receipts, and email invitations, and permits enrollment by stable upstream identity without email; upstream email collection and downstream email claims are unaffected. When enabled (the default), `EMAIL_HOST/PORT/SSL` are required at boot; `EMAIL_USERNAME/PASSWORD` are optional as a pair (unauthenticated relay), with `EMAIL_FROM` required when they are absent. |
 | `WEBAUTHN_ENABLED`, `WEBAUTHN_RP_NAME` | Passkeys. |
 | `SLACK_TOKEN` | Slack integration. |
