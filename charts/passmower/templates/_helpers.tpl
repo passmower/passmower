@@ -50,7 +50,7 @@ more specific label value merge chartLabels, that value, then commonLabels.
 {{- define "passmower.chartLabels" -}}
 helm.sh/chart: {{ include "passmower.chart" . }}
 {{ include "passmower.selectorLabels" . }}
-{{ if .Chart.Version }}app.kubernetes.io/version: {{ .Chart.Version | quote }}{{- end }}
+{{ if .Chart.AppVersion }}app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}{{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
@@ -61,3 +61,12 @@ Selector labels
 app.kubernetes.io/name: {{ include "passmower.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/* Both the server and signing-key initializer must use the same image. */}}
+{{- define "passmower.image" -}}
+{{- if .Values.image.digest -}}
+{{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | default "latest") -}}
+{{- end -}}
+{{- end -}}

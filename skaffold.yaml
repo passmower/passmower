@@ -1,40 +1,33 @@
-apiVersion: skaffold/v4beta1
+apiVersion: skaffold/v4beta11
 kind: Config
+metadata:
+  name: passmower
+
 build:
+  platforms: [linux/amd64]
+  tagPolicy:
+    inputDigest: {}
+  local:
+    push: true
+    useDockerCLI: true
+    useBuildkit: true
   artifacts:
     - image: passmower
+      docker:
+        target: prod
+        network: host
 
-
-profiles:
-  - name: dev
-    activation:
-      - command: dev
-    build:
-      artifacts:
-        - image: passmower
-          docker:
-            target: dev
-          sync:
-            manual:
-              - src: 'src/**'
-                dest: .
-              - src: 'frontend/src/**'
-                dest: .
-              - src: 'styles/src/**'
-                dest: .
-    deploy:
-      helm:
-        releases:
-          - name: passmower-dev
-            chartPath: ./charts/passmower
-            setValueTemplates:
-              image.repository: "{{.IMAGE_REPO_passmower}}"
-              image.tag: "{{.IMAGE_TAG_passmower}}@{{.IMAGE_DIGEST_passmower}}"
-            valuesFiles:
-              - ./charts/passmower/values.dev.yaml
-
-#portForward:
-#  - resourceType: deployment
-#    resourceName: passmower-dev
-#    port: 9229
-#    localPort: 9229
+# Helm keeps the install-only signing-key initializer and existing release state.
+# The selected kubeconfig context and Skaffold namespace choose the destination.
+deploy:
+  helm:
+    releases:
+      - name: passmower
+        chartPath: charts/passmower
+        skipTests: true
+        valuesFiles:
+          - '{{default "charts/passmower/values.yaml" .PASSMOWER_VALUES_FILE}}'
+        setValueTemplates:
+          image.repository: '{{.IMAGE_REPO_passmower}}'
+          image.tag: '{{.IMAGE_TAG_passmower}}'
+          image.digest: '{{default "" .IMAGE_DIGEST_passmower}}'

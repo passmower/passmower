@@ -1,0 +1,160 @@
+name: CI and publishing
+
+on:
+  push:
+    branches: [develop, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.release.outputs.image }}
+      publish: ${{ steps.release.outputs.publish }}
+      version: ${{ steps.release.outputs.version }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+      tags: ${{ steps.release.outputs.tags }}
+    steps:
+      - id: release
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          publish=false
+          version=""
+          prerelease=false
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$GITHUB_REF_NAME" != v* || ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo '::error::Release tags must be vMAJOR.MINOR.PATCH with an optional SemVer prerelease'
+              exit 1
+            fi
+            publish=true
+            if [[ "$version" == *-* ]]; then
+              prerelease=true
+              IFS=. read -r -a identifiers <<< "${version#*-}"
+              for identifier in "${identifiers[@]}"; do
+                [[ "$identifier" =~ ^(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)$ ]] || exit 1
+              done
+              [[ "$version" != *. ]] || exit 1
+            fi
+          fi
+          {
+            echo "image=$image"
+            echo "publish=$publish"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+            echo 'tags<<IMAGE_TAGS'
+            echo "$image:$GITHUB_SHA"
+            if [[ "$publish" == true ]]; then
+              echo "$image:$version"
+              echo "$image:$GITHUB_REF_NAME"
+              if [[ "$prerelease" == false ]]; then echo "$image:latest"; fi
+            fi
+            echo IMAGE_TAGS
+          } >> "$GITHUB_OUTPUT"
+
+  checks:
+    uses: ./.github/workflows/test.yml
+
+  image:
+    needs: [metadata, checks]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+        if: needs.metadata.outputs.publish == 'true'
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to GHCR
+        if: needs.metadata.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ needs.metadata.outputs.publish == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          push: ${{ needs.metadata.outputs.publish == 'true' }}
+          tags: ${{ needs.metadata.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+          cache-from: type=gha,scope=passmower
+          cache-to: type=gha,mode=max,scope=passmower
+
+  release:
+    needs: [metadata, image]
+    if: needs.metadata.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.20.0
+      - name: Package chart and static manifest with the built image
+        env:
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+          IMAGE_REPOSITORY: ${{ needs.metadata.outputs.image }}
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+          RELEASE_DIRECTORY: ${{ runner.temp }}/release
+        run: |
+          set -euo pipefail
+
+          : "${RELEASE_VERSION:?Set RELEASE_VERSION to the SemVer without v}"
+          : "${IMAGE_REPOSITORY:?Set IMAGE_REPOSITORY}"
+          : "${IMAGE_DIGEST:?Set IMAGE_DIGEST}"
+          : "${RELEASE_DIRECTORY:?Set RELEASE_DIRECTORY}"
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          [[ "$IMAGE_REPOSITORY" =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+$ ]]
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+
+          mkdir -p "$RELEASE_DIRECTORY/chart" "$RELEASE_DIRECTORY/package"
+          cp -R charts/passmower/. "$RELEASE_DIRECTORY/chart/"
+          sed -i \
+            -e "s|^  repository:.*|  repository: $IMAGE_REPOSITORY|" \
+            -e "s|^  digest:.*|  digest: $IMAGE_DIGEST|" \
+            "$RELEASE_DIRECTORY/chart/values.yaml"
+          helm package "$RELEASE_DIRECTORY/chart" --destination "$RELEASE_DIRECTORY/package" \
+            --version "$RELEASE_VERSION" --app-version "$RELEASE_VERSION"
+          helm template passmower "$RELEASE_DIRECTORY/package/passmower-$RELEASE_VERSION.tgz" \
+            --namespace passmower > "$RELEASE_DIRECTORY/package/passmower.yaml"
+      - name: Publish chart to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+          IMAGE_REPOSITORY: ${{ needs.metadata.outputs.image }}
+        run: |
+          printf '%s' "$GH_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          helm push "$RUNNER_TEMP/release/package/passmower-$RELEASE_VERSION.tgz" "oci://${IMAGE_REPOSITORY%/*}/charts"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/release/package/"* --clobber
+          else
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/release/package/"* \
+              --verify-tag --generate-notes --prerelease="$PRERELEASE"
+          fi

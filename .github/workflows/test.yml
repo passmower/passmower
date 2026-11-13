@@ -2,8 +2,10 @@ name: tests
 
 on:
   pull_request:
-  push:
-    branches: [develop, master]
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   unit:
@@ -17,6 +19,11 @@ jobs:
           check-latest: true
           cache: npm
       - run: npm ci
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.20.0
+      - name: Validate chart
+        run: helm lint charts/passmower
       - name: Unit tests
         run: npm run test:unit
       - name: Frontend lint + build

@@ -24,7 +24,6 @@ type: application
 # version, like 1.28.3-gke.1286000, as below 1.25.0.
 kubeVersion: ">=1.25.0-0"
 
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 2.17.0-dev
+# Source placeholder; release tags supply chart and app versions during packaging.
+version: 0.1.0
+appVersion: latest

@@ -481,8 +481,10 @@ ingress:
 image:
   repository: ghcr.io/passmower/passmower
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart version.
-  # tag: "develop"
+  # Defaults to appVersion (latest in source, release version in packages).
+  tag: ""
+  # Published charts pin the image digest. Set to empty when overriding tag.
+  digest: ""
 
 # Extra labels for every object the chart renders, including all pods (Passmower,
 # the pre-install key-manager Job and the bundled Redis) and the oidc-keys Secret
