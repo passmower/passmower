@@ -8,8 +8,8 @@ bash scripts/dev-minikube.sh
 ```
 
 The script creates a dedicated `passmower-dev` minikube profile and namespace,
-without changing your current Kubernetes context. It builds the dev image inside
-minikube's container runtime, installs Passmower and Redis, and runs Dex as a
+without changing your current Kubernetes context. It builds the production image
+inside minikube's container runtime, installs Passmower and Redis, and runs Dex as a
 stub upstream. No GitHub, email, or external cluster credentials are needed.
 The URL is `https://passmower.<minikube-ip>.sslip.io/`; sslip.io supplies DNS for
 the local IP. This requires a directly reachable minikube IP, as on Linux.
@@ -47,10 +47,7 @@ minikube stop -p passmower-dev
 
 The script deploys with the checked-in `charts/passmower/values.local.yaml`.
 `charts/passmower/values.dev.yaml`, which `skaffold dev` reads, is a Git-ignored
-personal override and does not exist in a fresh checkout. Both deploy the dev
-image, which builds into `/app` as root, so the override needs the same
-`podSecurityContext: {}` and `securityContext: {}` that `values.local.yaml`
-sets; the chart's defaults run Passmower unprivileged with a read-only root
-filesystem. The script uses its
+personal override and does not exist in a fresh checkout. The minikube script uses the production image and the chart's default non-root
+UID/GID 1000 and read-only root filesystem. It uses its
 own `passmower-dev` profile, so it never modifies or deletes another minikube
 profile, including one that has lost its backing container.
