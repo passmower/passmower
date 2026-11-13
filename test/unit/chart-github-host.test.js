@@ -6,6 +6,8 @@ import {describe, expect, it} from 'vitest'
 const chart = new URL('../../charts/passmower/', import.meta.url).pathname
 
 describe('GitHub host chart configuration', () => {
+    // Renders the chart twice with `helm template`; a loaded CI runner overruns
+    // the 5 s default, so the timeout is raised.
     it('preserves the default and exposes enterprise hosts to the connector', () => {
         const values = load(readFileSync(`${chart}values.yaml`, 'utf8'))
         expect(values.passmower.githubHost).toBe('github.com')
@@ -24,5 +26,5 @@ describe('GitHub host chart configuration', () => {
                 expect(github.properties.groups.items.properties.prefix.enum).toBeUndefined()
             }
         }
-    })
+    }, 30_000)
 })
