@@ -92,19 +92,16 @@ frontend/ styles/     # Vue frontend + SCSS (built into the image)
 These are the working agreements — follow them:
 
 - **Branch before editing; PR into `develop`, not `master`.** `master` is the stable
-  `1.x` line; `develop` is the upcoming `2.0.0` line. All feature/fix work targets
+  release branch; `develop` is the development branch. All feature/fix work targets
   `develop` via a short-lived branch + PR. (PRs to `develop` don't auto-close issues
   since `master` is the default branch — close them manually, referencing the PR.)
-- **Two release tracks, both driven by `Chart.yaml` `version`:**
-  - push to `develop` → `docker-dev.yml` + `release-charts-dev.yml` publish the
-    image and chart under the chart version (`-dev`-suffixed on develop). No git tag/release.
-  - push to `master` → `docker.yml` + `release-charts.yml` build the image, create a
-    `v<version>` tag + GitHub release (pre-release if the version contains `-`), and
-    publish the chart.
-  - The deployment image tag **defaults to `.Chart.Version`**
-    (`values.yaml: image.tag | default .Chart.Version`), so bumping `Chart.yaml` is the
-    single source of truth for a release. Don't hardcode tags in the dev workflows —
-    they derive `CHART_VERSION` from `Chart.yaml`.
+- **Release versions come from Git tags.** Keep `Chart.yaml` at `version: 0.1.0`
+  and `appVersion: latest`. `publish.yml` runs the reusable tests and builds branch
+  pushes without publishing. Push `vMAJOR.MINOR.PATCH` (optionally a SemVer
+  prerelease) to publish the image and chart with `GITHUB_TOKEN`. Packaging sets
+  chart/app versions in a temporary copy and pins both server and key initializer
+  to the built image digest. Only stable tags update `latest`. GeoIP data images
+  retain their independent monthly workflow.
 - **Tests are the safety net for dependency upgrades.** The suite exists because major
   bumps (oidc-provider 8→9, openid-client 5→6) shipped with no behavioural coverage.
   Any dependency bump or behavioural change should keep `unit`, `integration`, and
@@ -190,19 +187,15 @@ The checked-in values are `charts/passmower/values.local.yaml`;
 `values.dev.yaml` below is a Git-ignored personal override, not a fresh-checkout
 default.
 
-A `skaffold.yaml` dev profile already exists — it builds the `dev` image target, syncs
-`src/`, `frontend/src/`, `styles/src/` into the running pod, and `helm install`s the
-chart with `charts/passmower/values.dev.yaml`.
+For an existing cluster, copy `skaffold.env.example` to ignored `skaffold.env` and
+configure context, namespace, push registry and optional `PASSMOWER_VALUES_FILE`.
+`skaffold dev` builds the production image locally and upgrades the `passmower`
+Helm release. Keep `SKAFFOLD_CLEANUP=false` for an existing identity provider.
+See `docs/local-development.md`.
 
-```
-minikube start
-minikube addons enable ingress          # ingress-nginx
-skaffold dev --cleanup=false            # build + sync + deploy + tail logs (profile: dev)
-```
-
-Keep `--cleanup=false`: skaffold's default clean-up uninstalls the release when
-it stops or a deploy fails, and that removes the CRDs with every `OIDCUser`,
-`OIDCClient` and `OIDCMiddlewareClient` in the cluster.
+Skaffold's default clean-up uninstalls the release when it stops or a deploy
+fails, and that removes the CRDs with every `OIDCUser`, `OIDCClient` and
+`OIDCMiddlewareClient` in the cluster.
 
 > **Real HTTPS ingress is required, not optional.** Passmower issues secure cookies,
 > the OIDC implicit flow needs `https`, and `web`-type clients require `https` redirect
