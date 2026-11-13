@@ -514,6 +514,8 @@ podAnnotations: {}
 
 # Passmower and its key-manager Job meet the Pod Security "restricted" profile:
 # the chart selects UID/GID 1000 and the runtime image is readable by any UID.
+# The dev image (`skaffold dev`) builds into /app as root and needs these
+# overridden key by key: Helm merges maps, so `{}` keeps the defaults.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
