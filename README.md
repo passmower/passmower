@@ -70,7 +70,7 @@ Passmower has been tested and supports the following applications:
 Install using helm from ghcr.io, **at least set the hostname**:
 
 ```
-helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.15.0 --set passmower.host=auth.your.domain
+helm install passmower oci://ghcr.io/passmower/charts/passmower --version 2.16.0 --set passmower.host=auth.your.domain
 ```
 
 > Upgrading from 1.x? The 2.0 release renames Helm values to camelCase and changes the
@@ -89,7 +89,7 @@ metadata:
   namespace: kube-system
 spec:
   bootstrap: true
-  version: 2.15.0
+  version: 2.16.0
   chart: oci://ghcr.io/passmower/charts/passmower
   createNamespace: true
   failurePolicy: reinstall
@@ -712,8 +712,8 @@ and build the image. Push a `vMAJOR.MINOR.PATCH` tag (optionally a SemVer
 prerelease such as `-rc.1`) to publish a release:
 
 ```sh
-git tag v2.17.0
-git push origin v2.17.0
+git tag v2.16.0
+git push origin v2.16.0
 ```
 
 CI builds the amd64/arm64 image once and pushes directly to GHCR using
