@@ -17,6 +17,7 @@ import {getUsernameSource} from "../utils/username-source.js";
 import {isOutboundEmailEnabled} from '../utils/email-configuration.js';
 import {getAccountTypeAccessFailure} from '../utils/user/account-type-access.js';
 import {listIncidents} from '../utils/session/incident-log.js';
+import {incidentFixCommands} from '../utils/session/incident-fix.js';
 import {dismissAccessRequest, listAccessRequests} from '../utils/session/access-requests.js';
 
 export default (provider) => {
@@ -71,8 +72,33 @@ export default (provider) => {
     })
 
     router.get('/admin/api/incidents', async (ctx, next) => {
+        const incidents = await listIncidents()
+        const userNamespace = ctx.kubeOIDCUserService.adapter.namespace
+        // Group commands patch the user's own list, so they need its current
+        // shape; look each user up once, and only when a local group applies.
+        const specs = new Map()
+        const userSpec = async (accountId) => {
+            if (!specs.has(accountId)) {
+                specs.set(accountId, ctx.kubeOIDCUserService.findUser(accountId, ctx)
+                    .then((account) => account ? {spec: account.getDeclaredSpec()} : null)
+                    .catch(() => null))
+            }
+            return specs.get(accountId)
+        }
         ctx.body = {
-            incidents: await listIncidents(),
+            incidents: await Promise.all(incidents.map(async (incident) => {
+                const needsUser = incident.failure === 'client_access_required' && incident.accountId &&
+                    GroupPrefix && incident.allowedGroups?.some((group) => group.startsWith(`${GroupPrefix}:`))
+                const user = needsUser ? await userSpec(incident.accountId) : null
+                return {
+                    ...incident,
+                    fixCommands: incidentFixCommands(incident, {
+                        userNamespace: user ? userNamespace : null,
+                        groupPrefix: GroupPrefix,
+                        userSpec: user?.spec,
+                    }),
+                }
+            })),
         }
     })
 

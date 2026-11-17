@@ -264,6 +264,11 @@ class Account {
         }
     }
 
+    // The declarative spec, as GitOps wrote it; null when the object has none.
+    getDeclaredSpec() {
+        return this.#spec ?? null
+    }
+
     get webauthn() {
         return this.#webauthn
     }

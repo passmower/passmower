@@ -102,6 +102,23 @@ name, type) blocks the login — Passmower records the event to Redis and shows
 it in the admin panel under "Recent access incidents", together with a
 suggested fix (for group-policy denials, the client's allowed groups).
 
+A group-policy denial also comes with ready-to-run `kubectl` commands, each
+with a copy button:
+
+- one that adds the user to `spec.allowedUsers` of the `OIDCClient` (OIDC
+  login) or `OIDCMiddlewareClient` (forward auth) that denied them, and
+- for each allowed group under `GROUP_PREFIX`, one that adds the group to the
+  user's `OIDCUser` `spec.groups`. Groups from GitHub or an OIDC provider get
+  no command, because membership in them comes from the upstream.
+
+```
+kubectl -n argocd patch oidcclient.codemowers.cloud argocd --type=json -p '[{"op":"add","path":"/spec/allowedUsers/-","value":"eg"}]'
+```
+
+The commands are JSON patches that append to an existing list or create a
+missing one. For a resource managed through GitOps, make the same change in Git
+instead, because the controller reverts a direct patch.
+
 Records are deduplicated per account/client/failure combination: repeats bump
 a counter and refresh the TTL. Recording is best-effort and never blocks the
 login flow. Nothing is written for anonymous traffic; incidents describe
