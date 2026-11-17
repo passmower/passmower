@@ -48,7 +48,9 @@ WORKDIR /app/styles
 RUN npm run sass-prod
 
 # production runtime
-FROM node:26.13.0 AS prod
+# Slim runtime: the full image is buildpack-deps, whose -dev packages (e.g. the
+# MariaDB client libraries) only matter for compiling native modules.
+FROM node:26.13.0-trixie-slim AS prod
 
 WORKDIR /app
 
