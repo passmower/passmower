@@ -48,7 +48,7 @@ WORKDIR /app/styles
 RUN npm run sass-prod
 
 # production runtime
-FROM node:26.13.0 AS prod
+FROM node:26.13.0-trixie-slim AS prod
 
 WORKDIR /app
 
