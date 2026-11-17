@@ -22,12 +22,22 @@
                 <p v-else-if="incident.failure === 'client_access_required' && incident.allowedUsers.length">
                     Suggested fix: add the user to the client's allowed users list.
                 </p>
+                <div v-if="incident.fixCommands?.length" class="fix-commands">
+                    <div v-for="fix in incident.fixCommands" :key="fix.command">
+                        <p>{{ fix.description }}:</p>
+                        <pre><code>{{ fix.command }}</code></pre>
+                        <button @click="copyCommand(fix.command)">Copy command</button>
+                    </div>
+                    <p>If the resource is managed through GitOps, make the same change in Git instead: the controller reverts a direct patch.</p>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script>
+import {useToast} from "vue-toast-notification";
+
 export default {
     name: "Incidents",
     data() {
@@ -41,6 +51,15 @@ export default {
         })
     },
     methods: {
+        async copyCommand(command) {
+            const $toast = useToast();
+            try {
+                await navigator.clipboard.writeText(command)
+                $toast.success('Command copied', {position: 'top-right'})
+            } catch {
+                $toast.error('Could not copy — select and copy manually', {position: 'top-right'})
+            }
+        },
         formatDate(value) {
             if (!value) return 'Never'
             return new Intl.DateTimeFormat(undefined, {
@@ -77,3 +96,10 @@ export default {
     },
 }
 </script>
+
+<style scoped>
+.fix-commands pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+</style>
