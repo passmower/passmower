@@ -19,7 +19,7 @@ jobs:
           check-latest: true
           cache: npm
       - run: npm ci
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
         with:
           version: v3.20.0
       - name: Validate chart
